@@ -7,83 +7,651 @@ paths:
     get:
       operationId: gEmployees
       summary: GET employees
+      parameters:
+        - name: pageNo
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页页码
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页大小
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 关键字过滤条件
       responses:
         '200':
           description: OK
-  /api/v1/hr/employees:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                        description: 结果列表
+                      total:
+                        type: integer
+                        format: int32
+                        description: 总记录数
     post:
       operationId: pEmployees
       summary: POST employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - employeeName
+                - departmentId
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                employeeName:
+                  type: string
+                  description: 员工姓名
+                departmentId:
+                  type: string
+                  description: 所属部门 ID
+                status:
+                  type: string
+                  description: 员工状态
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: 主记录 ID
+                      status:
+                        type: string
+                        description: 处理后状态
   /api/v1/hr/org-tree:
     get:
       operationId: gOrgTree
       summary: GET org tree
+      parameters:
+        - name: pageNo
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页页码
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页大小
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 关键字过滤条件
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                        description: 结果列表
+                      total:
+                        type: integer
+                        format: int32
+                        description: 总记录数
   /api/v1/approvals:
     get:
       operationId: gApprovals
       summary: GET approvals
+      parameters:
+        - name: pageNo
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页页码
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页大小
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 关键字过滤条件
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                        description: 结果列表
+                      total:
+                        type: integer
+                        format: int32
+                        description: 总记录数
   /api/v1/approvals/leave:
     post:
       operationId: pLeave
       summary: POST leave
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - applicantId
+                - startTime
+                - endTime
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                applicantId:
+                  type: string
+                  description: 申请人 ID
+                startTime:
+                  type: string
+                  format: date-time
+                  description: 开始时间
+                endTime:
+                  type: string
+                  format: date-time
+                  description: 结束时间
+                reason:
+                  type: string
+                  description: 申请原因
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: 主记录 ID
+                      status:
+                        type: string
+                        description: 处理后状态
   /api/v1/approvals/overtime:
     post:
       operationId: pOvertime
       summary: POST overtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - applicantId
+                - startTime
+                - endTime
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                applicantId:
+                  type: string
+                  description: 申请人 ID
+                startTime:
+                  type: string
+                  format: date-time
+                  description: 开始时间
+                endTime:
+                  type: string
+                  format: date-time
+                  description: 结束时间
+                reason:
+                  type: string
+                  description: 申请原因
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: 主记录 ID
+                      status:
+                        type: string
+                        description: 处理后状态
   /api/v1/approvals/reimburse:
     post:
       operationId: pReimburse
       summary: POST reimburse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - applicantId
+                - amount
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                applicantId:
+                  type: string
+                  description: 报销申请人 ID
+                amount:
+                  type: number
+                  format: double
+                  description: 报销金额
+                reason:
+                  type: string
+                  description: 报销原因
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                  description: 附件地址列表
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: 主记录 ID
+                      status:
+                        type: string
+                        description: 处理后状态
   /api/v1/approvals/process-definitions:
     post:
       operationId: pProcessDefinitions
       summary: POST process definitions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - processName
+                - nodes
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                processName:
+                  type: string
+                  description: 流程名称
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                  description: 流程节点定义列表
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      processDefinitionId:
+                        type: string
+                        description: 流程定义 ID
+                      status:
+                        type: string
+                        description: 流程定义状态
   /api/v1/notices:
     get:
       operationId: gNotices
       summary: GET notices
+      parameters:
+        - name: pageNo
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页页码
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页大小
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 关键字过滤条件
       responses:
         '200':
           description: OK
-  /api/v1/notices:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                        description: 结果列表
+                      total:
+                        type: integer
+                        format: int32
+                        description: 总记录数
     post:
       operationId: pNotices
       summary: POST notices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - title
+                - content
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                title:
+                  type: string
+                  description: 公告标题
+                content:
+                  type: string
+                  description: 公告正文
+                publishAt:
+                  type: string
+                  format: date-time
+                  description: 发布时间
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: 主记录 ID
+                      status:
+                        type: string
+                        description: 处理后状态
   /api/v1/messages/push:
     post:
       operationId: pPush
       summary: POST push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - operatorId
+                - templateCode
+                - targetUsers
+                - content
+              properties:
+                requestId:
+                  type: string
+                  description: 请求幂等标识或调用追踪标识
+                operatorId:
+                  type: string
+                  description: 操作人标识
+                templateCode:
+                  type: string
+                  description: 消息模板编码
+                targetUsers:
+                  type: array
+                  items:
+                    type: string
+                  description: 目标用户列表
+                content:
+                  type: string
+                  description: 推送内容
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      messageId:
+                        type: string
+                        description: 消息记录 ID
+                      status:
+                        type: string
+                        description: 推送状态
   /api/v1/attendance/records:
     get:
       operationId: gRecords
       summary: GET records
+      parameters:
+        - name: pageNo
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页页码
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          description: 分页大小
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 关键字过滤条件
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: 业务结果码
+                  message:
+                    type: string
+                    description: 结果说明
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                        description: 结果列表
+                      total:
+                        type: integer
+                        format: int32
+                        description: 总记录数

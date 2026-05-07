@@ -16,6 +16,20 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_DIR = ROOT / ".spec" / "baseline"
 ARCH_STANDARD_SERVER = ROOT / "mcp-servers" / "arch-standard" / "dist" / "server.js"
+GENERIC_SCHEMA_MATCH_TOKENS = {
+    "api",
+    "app",
+    "demo",
+    "feature",
+    "general",
+    "module",
+    "oa",
+    "office",
+    "platform",
+    "service",
+    "system",
+    "tob",
+}
 
 
 def read_json(path: Path) -> Any:
@@ -121,6 +135,24 @@ def clean_text(text: str) -> str:
 def safe_slug(value: str, fallback: str = "feature") -> str:
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
     return slug or fallback
+
+
+def canonical_match_token(value: str) -> str:
+    token = value.strip().lower()
+    if token.endswith("ies") and len(token) > 3:
+        return token[:-3] + "y"
+    if token.endswith("s") and len(token) > 3 and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
+def split_match_tokens(text: str) -> set[str]:
+    tokens: set[str] = set()
+    for part in re.split(r"[^a-zA-Z0-9]+", text):
+        canonical = canonical_match_token(part)
+        if len(canonical) >= 3:
+            tokens.add(canonical)
+    return tokens
 
 
 def to_pascal(value: str, fallback: str = "Feature") -> str:
@@ -338,16 +370,21 @@ def filter_module_map(classes: list[dict[str, Any]], tokens: list[str]) -> list[
 def filter_schema_context(tables: list[dict[str, Any]], tokens: list[str]) -> list[dict[str, Any]]:
     if not tokens:
         return tables[:6]
+    normalized_tokens = {canonical_match_token(token) for token in tokens if len(canonical_match_token(token)) >= 3}
+    specific_tokens = {token for token in normalized_tokens if token not in GENERIC_SCHEMA_MATCH_TOKENS}
+    candidate_tokens = specific_tokens or normalized_tokens
     matched = []
     for item in tables:
-        haystack = " ".join(
-            [
-                str(item.get("table_name") or ""),
-                " ".join(str(col) for col in item.get("columns", []) if isinstance(col, str)),
-                " ".join(str(src) for src in item.get("sources", []) if isinstance(src, str)),
-            ]
-        ).lower()
-        if any(token in haystack for token in tokens):
+        haystack_tokens = split_match_tokens(
+            " ".join(
+                [
+                    str(item.get("table_name") or ""),
+                    " ".join(str(col) for col in item.get("columns", []) if isinstance(col, str)),
+                    " ".join(str(src) for src in item.get("sources", []) if isinstance(src, str)),
+                ]
+            )
+        )
+        if haystack_tokens & candidate_tokens:
             matched.append(item)
     return matched
 

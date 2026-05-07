@@ -295,7 +295,86 @@ def count_table_rows(block: str) -> int:
     return max(len(rows) - 2, 0)
 
 
+def validate_interface_doc_structure(path: Path, content: str, errors: list[str]) -> bool:
+    if path.name != "接口文档.md":
+        return False
+
+    base_headings = [
+        "## 1. 元信息",
+        "## 2. 接口清单",
+        "## 3. 业务说明",
+    ]
+    for heading in base_headings:
+        if heading not in content:
+            errors.append(f"{path.name} 缺少必要章节: {heading}")
+
+    has_legacy_layout = all(
+        heading in content
+        for heading in [
+            "## 4. 请求说明",
+            "## 5. 响应说明",
+            "## 6. 错误码说明",
+            "## 7. 依赖与时序说明",
+            "## 8. 人工审阅关注点",
+        ]
+    )
+    has_chaptered_layout = all(
+        heading in content
+        for heading in [
+            "## 4. 接口详情",
+            "## 5. 错误码说明",
+            "## 6. 依赖与时序说明",
+            "## 7. 人工审阅关注点",
+        ]
+    )
+
+    if not has_legacy_layout and not has_chaptered_layout:
+        errors.append(f"{path.name} 缺少可识别的接口文档结构，需满足旧版总表或新版按接口章节格式")
+        return True
+
+    summary_block = section_block(content, "## 2. 接口清单")
+    if not summary_block or count_table_rows(summary_block) < 1:
+        errors.append(f"{path.name} 在 ## 2. 接口清单 中的表格条数不足")
+
+    if has_legacy_layout:
+        legacy_anchors = [
+            "## 4. 请求说明",
+            "## 5. 响应说明",
+            "## 6. 错误码说明",
+        ]
+        for anchor in legacy_anchors:
+            block = section_block(content, anchor)
+            if not block:
+                errors.append(f"{path.name} 缺少表格所在章节: {anchor}")
+                continue
+            if count_table_rows(block) < 1:
+                errors.append(f"{path.name} 在 {anchor} 中的表格条数不足")
+        return True
+
+    interface_sections = re.findall(r"(?ms)^###\s+4\.\d+\s+.+?(?=^###\s+4\.\d+\s+|^##\s+5\.|\Z)", content)
+    if not interface_sections:
+        errors.append(f"{path.name} 在 ## 4. 接口详情 下缺少按接口分节内容")
+        return True
+
+    for block in interface_sections:
+        if "#### 请求说明" not in block:
+            errors.append(f"{path.name} 存在接口分节缺少请求说明")
+        if "#### 响应说明" not in block:
+            errors.append(f"{path.name} 存在接口分节缺少响应说明")
+        if count_table_rows(block) < 2:
+            errors.append(f"{path.name} 存在接口分节表格内容不足")
+
+    error_block = section_block(content, "## 5. 错误码说明")
+    if not error_block or count_table_rows(error_block) < 1:
+        errors.append(f"{path.name} 在 ## 5. 错误码说明 中的表格条数不足")
+
+    return True
+
+
 def validate_markdown_rule_file(path: Path, content: str, rule_name: str, errors: list[str]) -> None:
+    if validate_interface_doc_structure(path, content, errors):
+        return
+
     rules = load_schema(rule_name)
 
     for heading in rules.get("required_headings", []):

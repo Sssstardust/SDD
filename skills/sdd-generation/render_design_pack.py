@@ -9,6 +9,9 @@ import re
 from typing import Any
 
 
+GENERIC_ENTITY_SLUGS = {"demo", "feature", "general", "oa", "office", "platform", "system", "tob"}
+
+
 TAG_TO_FILES = {
     "api": ["接口契约.openapi.yaml", "接口文档.md"],
     "db-change": ["数据模型.md", "数据库变更.sql"],
@@ -44,6 +47,28 @@ def unique_preserve(items: list[str]) -> list[str]:
             seen.add(item)
             result.append(item)
     return result
+
+
+def preferred_entities(context: dict[str, Any]) -> list[str]:
+    structured_prd = context["structured_prd"]
+    raw_entities: list[str] = []
+    for item in structured_prd.get("entities", []) or []:
+        if isinstance(item, dict):
+            name = str(item.get("name") or "")
+        else:
+            name = str(item)
+        if name:
+            raw_entities.append(name)
+    deduped = unique_preserve(raw_entities)
+    ascii_entities = [
+        name
+        for name in deduped
+        if re.search(r"[A-Za-z]", name) and safe_slug(name, "") not in GENERIC_ENTITY_SLUGS
+    ]
+    if ascii_entities:
+        return ascii_entities
+    filtered = [name for name in deduped if safe_slug(name, "") not in GENERIC_ENTITY_SLUGS]
+    return filtered or [context["feature_pascal"]]
 
 
 def build_default_apis(context: dict[str, Any]) -> list[dict[str, str]]:
@@ -94,18 +119,219 @@ def build_default_apis(context: dict[str, Any]) -> list[dict[str, str]]:
     return [{"method": "POST", "path": f"/api/v1/{slug}", "summary": summary, "evidence": "fallback"}]
 
 
+def singularize_resource(token: str) -> str:
+    if token.endswith("ies") and len(token) > 3:
+        return token[:-3] + "y"
+    if token.endswith("s") and len(token) > 3:
+        return token[:-1]
+    return token
+
+
+def extract_path_params(path: str) -> list[str]:
+    return [item for item in re.findall(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", path) if item]
+
+
+def last_resource_token(path: str) -> str:
+    tokens = [token for token in re.split(r"[/{}/_-]+", path) if token and token not in {"api", "v1", "v2", "v3", "hr"}]
+    return tokens[-1] if tokens else "resource"
+
+
+def build_field(name: str, field_type: str, required: bool, description: str, location: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "type": field_type,
+        "required": required,
+        "description": description,
+        "location": location,
+    }
+
+
+def infer_request_fields(api: dict[str, str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    method = str(api["method"]).upper()
+    path = str(api["path"])
+    resource_token = singularize_resource(last_resource_token(path))
+    path_params = [
+        build_field(param, "string", True, f"{param} 路径参数", "path")
+        for param in extract_path_params(path)
+    ]
+    query_fields: list[dict[str, Any]] = []
+    body_fields: list[dict[str, Any]] = []
+
+    if method == "GET":
+        query_fields.extend(
+            [
+                build_field("pageNo", "integer", False, "分页页码", "query"),
+                build_field("pageSize", "integer", False, "分页大小", "query"),
+            ]
+        )
+        if "preview" in path:
+            query_fields.append(build_field("version", "string", False, "预览版本号", "query"))
+        else:
+            query_fields.append(build_field("keyword", "string", False, "关键字过滤条件", "query"))
+        return path_params, query_fields
+
+    body_fields.extend(
+        [
+            build_field("requestId", "string", True, "请求幂等标识或调用追踪标识", "body"),
+            build_field("operatorId", "string", True, "操作人标识", "body"),
+        ]
+    )
+
+    if "/employees" in path:
+        body_fields.extend(
+            [
+                build_field("employeeName", "string", True, "员工姓名", "body"),
+                build_field("departmentId", "string", True, "所属部门 ID", "body"),
+                build_field("status", "string", False, "员工状态", "body"),
+            ]
+        )
+    elif "/process-definitions" in path:
+        body_fields.extend(
+            [
+                build_field("processName", "string", True, "流程名称", "body"),
+                build_field("nodes", "array<object>", True, "流程节点定义列表", "body"),
+            ]
+        )
+    elif "/leave" in path or "/overtime" in path:
+        body_fields.extend(
+            [
+                build_field("applicantId", "string", True, "申请人 ID", "body"),
+                build_field("startTime", "datetime", True, "开始时间", "body"),
+                build_field("endTime", "datetime", True, "结束时间", "body"),
+                build_field("reason", "string", False, "申请原因", "body"),
+            ]
+        )
+    elif "/reimburse" in path:
+        body_fields.extend(
+            [
+                build_field("applicantId", "string", True, "报销申请人 ID", "body"),
+                build_field("amount", "number", True, "报销金额", "body"),
+                build_field("reason", "string", False, "报销原因", "body"),
+                build_field("attachments", "array<string>", False, "附件地址列表", "body"),
+            ]
+        )
+    elif "/notices" in path:
+        body_fields.extend(
+            [
+                build_field("title", "string", True, "公告标题", "body"),
+                build_field("content", "string", True, "公告正文", "body"),
+                build_field("publishAt", "datetime", False, "发布时间", "body"),
+            ]
+        )
+    elif "/messages/push" in path:
+        body_fields.extend(
+            [
+                build_field("templateCode", "string", True, "消息模板编码", "body"),
+                build_field("targetUsers", "array<string>", True, "目标用户列表", "body"),
+                build_field("content", "string", True, "推送内容", "body"),
+            ]
+        )
+    else:
+        body_fields.extend(
+            [
+                build_field(f"{resource_token}Id", "string", True, f"{resource_token} 主键标识", "body"),
+                build_field("status", "string", False, "业务状态", "body"),
+            ]
+        )
+
+    return path_params, body_fields
+
+
+def infer_response_fields(api: dict[str, str]) -> list[dict[str, Any]]:
+    method = str(api["method"]).upper()
+    path = str(api["path"])
+    fields = [
+        build_field("code", "string", True, "业务结果码", "response"),
+        build_field("message", "string", True, "结果说明", "response"),
+    ]
+    if method == "GET":
+        if "preview" in path:
+            fields.extend(
+                [
+                    build_field("data.previewUrl", "string", True, "在线预览地址", "response"),
+                    build_field("data.fileName", "string", True, "文件名", "response"),
+                ]
+            )
+        else:
+            fields.extend(
+                [
+                    build_field("data.items", "array<object>", True, "结果列表", "response"),
+                    build_field("data.total", "integer", True, "总记录数", "response"),
+                ]
+            )
+        return fields
+
+    if "/messages/push" in path:
+        fields.extend(
+            [
+                build_field("data.messageId", "string", True, "消息记录 ID", "response"),
+                build_field("data.status", "string", True, "推送状态", "response"),
+            ]
+        )
+    elif "/process-definitions" in path:
+        fields.extend(
+            [
+                build_field("data.processDefinitionId", "string", True, "流程定义 ID", "response"),
+                build_field("data.status", "string", True, "流程定义状态", "response"),
+            ]
+        )
+    else:
+        fields.extend(
+            [
+                build_field("data.id", "string", True, "主记录 ID", "response"),
+                build_field("data.status", "string", True, "处理后状态", "response"),
+            ]
+        )
+    return fields
+
+
+def openapi_type_parts(field_type: str) -> tuple[str, str | None]:
+    mapping = {
+        "string": ("string", None),
+        "integer": ("integer", "int32"),
+        "number": ("number", "double"),
+        "datetime": ("string", "date-time"),
+        "object": ("object", None),
+        "array<object>": ("array", "object"),
+        "array<string>": ("array", "string"),
+    }
+    return mapping.get(field_type, ("string", None))
+
+
+def render_openapi_property(lines: list[str], field: dict[str, Any], indent: str) -> None:
+    field_type = str(field["type"])
+    field_name = str(field["name"]).split(".")[-1]
+    openapi_type, openapi_format = openapi_type_parts(field_type)
+    lines.append(f"{indent}{field_name}:")
+    lines.append(f"{indent}  type: {openapi_type}")
+    if openapi_type == "array":
+        item_type = "object" if openapi_format == "object" else (openapi_format or "string")
+        lines.append(f"{indent}  items:")
+        lines.append(f"{indent}    type: {item_type}")
+    elif openapi_format:
+        lines.append(f"{indent}  format: {openapi_format}")
+    lines.append(f"{indent}  description: {field['description']}")
+
+
+def render_openapi_response_schema(lines: list[str], response_fields: list[dict[str, Any]], indent: str) -> None:
+    lines.append(f"{indent}type: object")
+    lines.append(f"{indent}properties:")
+    top_level = [field for field in response_fields if "." not in str(field["name"])]
+    nested = [field for field in response_fields if "." in str(field["name"])]
+    for field in top_level:
+        render_openapi_property(lines, field, indent + "  ")
+    if nested:
+        lines.append(f"{indent}  data:")
+        lines.append(f"{indent}    type: object")
+        lines.append(f"{indent}    properties:")
+        for field in nested:
+            render_openapi_property(lines, field, indent + "      ")
+
+
 def infer_table_entries(context: dict[str, Any]) -> list[dict[str, Any]]:
     matched_tables = list(context["schema_context"]["matched_tables"])
     structured_prd = context["structured_prd"]
-    entities = []
-    for item in structured_prd.get("entities", []) or []:
-        if isinstance(item, dict):
-            name = str(item.get("name") or "")
-        else:
-            name = str(item)
-        if name:
-            entities.append(name)
-    entities = unique_preserve(entities) or [context["feature_pascal"]]
+    entities = preferred_entities(context)
     requirements = structured_prd.get("requirements", []) or []
     req_ids = [str(item.get("req_id") or "REQ-001") for item in requirements if isinstance(item, dict)]
     req_ids_text = ", ".join(req_ids[:3]) or "REQ-001"
@@ -121,6 +347,7 @@ def infer_table_entries(context: dict[str, Any]) -> list[dict[str, Any]]:
                 {
                     "entity": entity_name,
                     "table_name": table_name,
+                    "existing_table": True,
                     "purpose": f"支撑 {entity_name} 相关需求",
                     "req_ids": req_ids_text,
                     "columns": columns,
@@ -130,12 +357,17 @@ def infer_table_entries(context: dict[str, Any]) -> list[dict[str, Any]]:
             )
         return entries
 
+    used_table_names: set[str] = set()
     for index, entity_name in enumerate(entities[:3], start=1):
-        placeholder = f"PENDING_TABLE_{safe_slug(entity_name, context['feature_slug']).replace('-', '_').upper()}"
+        table_name = f"t_{context['feature_slug'].replace('-', '_')}_{safe_slug(entity_name, f'entity-{index}').replace('-', '_')}"
+        if table_name in used_table_names:
+            table_name = f"{table_name}_{index}"
+        used_table_names.add(table_name)
         entries.append(
             {
                 "entity": entity_name,
-                "table_name": placeholder,
+                "table_name": table_name,
+                "existing_table": False,
                 "purpose": f"新领域模式下承载 {entity_name} 数据",
                 "req_ids": req_ids_text,
                 "columns": ["id", "status", "created_at", "updated_at"],
@@ -155,22 +387,79 @@ def render_openapi_yaml(context: dict[str, Any]) -> str:
         "  version: 1.0.0",
         "paths:",
     ]
+    grouped_paths: dict[str, list[dict[str, str]]] = {}
     for api in apis:
-        method = api["method"].lower()
-        path = api["path"]
-        summary = api["summary"]
-        operation_id = sanitize_operation_id(summary, api["method"], context["feature_slug"])
-        lines.extend(
-            [
-                f"  {path}:",
-                f"    {method}:",
-                f"      operationId: {operation_id}",
-                f"      summary: {summary}",
-                "      responses:",
-                "        '200':",
-                "          description: OK",
-            ]
-        )
+        grouped_paths.setdefault(api["path"], []).append(api)
+
+    for path, path_apis in grouped_paths.items():
+        lines.append(f"  {path}:")
+        for api in path_apis:
+            method = api["method"].lower()
+            summary = api["summary"]
+            operation_id = sanitize_operation_id(summary, api["method"], context["feature_slug"])
+            path_fields, request_fields = infer_request_fields(api)
+            response_fields = infer_response_fields(api)
+            lines.extend(
+                [
+                    f"    {method}:",
+                    f"      operationId: {operation_id}",
+                    f"      summary: {summary}",
+                ]
+            )
+            if path_fields or (method == "get" and request_fields):
+                lines.append("      parameters:")
+                for field in path_fields + ([item for item in request_fields if item["location"] == "query"] if method == "get" else []):
+                    openapi_type, openapi_format = openapi_type_parts(str(field["type"]))
+                    lines.extend(
+                        [
+                            f"        - name: {field['name']}",
+                            f"          in: {field['location']}",
+                            f"          required: {'true' if field['required'] else 'false'}",
+                            "          schema:",
+                            f"            type: {openapi_type}",
+                        ]
+                    )
+                    if openapi_type == "array":
+                        item_type = "object" if openapi_format == "object" else (openapi_format or "string")
+                        lines.extend(
+                            [
+                                "            items:",
+                                f"              type: {item_type}",
+                            ]
+                        )
+                    elif openapi_format:
+                        lines.append(f"            format: {openapi_format}")
+                    lines.append(f"          description: {field['description']}")
+            body_fields = [item for item in request_fields if item["location"] == "body"]
+            if body_fields:
+                lines.extend(
+                    [
+                        "      requestBody:",
+                        "        required: true",
+                        "        content:",
+                        "          application/json:",
+                        "            schema:",
+                        "              type: object",
+                        "              required:",
+                    ]
+                )
+                for field in body_fields:
+                    if field["required"]:
+                        lines.append(f"                - {field['name']}")
+                lines.append("              properties:")
+                for field in body_fields:
+                    render_openapi_property(lines, field, "                ")
+            lines.extend(
+                [
+                    "      responses:",
+                    "        '200':",
+                    "          description: OK",
+                    "          content:",
+                    "            application/json:",
+                    "              schema:",
+                ]
+            )
+            render_openapi_response_schema(lines, response_fields, "                ")
     return "\n".join(lines) + "\n"
 
 
@@ -183,11 +472,115 @@ def render_interface_doc(context: dict[str, Any], design_version: str) -> str:
         f"| {sanitize_operation_id(api['summary'], api['method'], context['feature_slug'])} | {api['method']} | {api['path']} | {api['summary']} | {req_ids_text} |"
         for api in apis
     )
-    request_rows = "\n".join(
-        f"| {('requestId' if api['method'] != 'GET' else 'query')} | string | {'是' if api['method'] != 'GET' else '否'} | {api['summary']}的核心输入 | {'请求头/查询参数' if api['method'] == 'GET' else '请求体'} |"
-        for api in apis[:1]
+    interface_sections: list[str] = []
+    for index, api in enumerate(apis, start=1):
+        operation_id = sanitize_operation_id(api["summary"], api["method"], context["feature_slug"])
+        path_fields, request_fields = infer_request_fields(api)
+        request_rows = "\n".join(
+            f"| {field['name']} | {field['type']} | {'是' if field['required'] else '否'} | {field['description']} | {field['location']} |"
+            for field in path_fields + request_fields
+        ) or "| 无 | - | - | 当前接口无额外请求字段 | - |"
+        response_rows = "\n".join(
+            f"| {field['name']} | {field['type']} | {field['description']} | {'标准响应体字段' if field['name'] in {'code', 'message'} else '业务响应字段'} |"
+            for field in infer_response_fields(api)
+        ) or "| 无 | - | 当前接口无额外响应字段 | - |"
+        interface_sections.append(
+            "\n".join(
+                [
+                    f"### 4.{index} {api['method']} {api['path']}",
+                    "",
+                    "#### 基本信息",
+                    "",
+                    f"- interface_name: {operation_id}",
+                    f"- method: {api['method']}",
+                    f"- path: {api['path']}",
+                    f"- summary: {api['summary']}",
+                    f"- req_ids: {req_ids_text}",
+                    "",
+                    "#### 请求说明",
+                    "",
+                    "| 字段 | 类型 | 必填 | 含义 | 来源 |",
+                    "| --- | --- | --- | --- | --- |",
+                    request_rows,
+                    "",
+                    "#### 响应说明",
+                    "",
+                    "| 字段 | 类型 | 含义 | 备注 |",
+                    "| --- | --- | --- | --- |",
+                    response_rows,
+                ]
+            )
+        )
+    interface_detail = "\n\n".join(interface_sections)
+    error_rows = "\n".join(
+        [
+            f"| {context['feature_slug'].upper().replace('-', '_')}_INVALID_INPUT | 400 | 参数缺失或非法 | 检查请求参数后重试 |",
+            f"| {context['feature_slug'].upper().replace('-', '_')}_CONFLICT | 409 | 状态冲突或重复提交 | 刷新状态后重试 |",
+        ]
     )
-    response_rows = "| result | object | 业务处理结果 | 包含状态与关键字段 |"
+    dependencies = structured_prd.get("dependencies", []) or []
+    dependency_text = "、".join(str(item) for item in dependencies[:3]) if dependencies else "无明确外部依赖"
+    return f"""# 接口文档
+
+## 1. 元信息
+- feature_name: {context['feature_name']}
+- design_version: {design_version}
+- req_ids: {req_ids_text}
+- 调用方: {context['feature_name']} 上游调用方
+- 被调用方: {context['feature_pascal']} 所属服务
+
+## 2. 接口清单
+
+| 接口名 | 方法 | 路径 | 用途 | 对应 REQ-ID |
+| --- | --- | --- | --- | --- |
+{api_rows}
+
+## 3. 业务说明
+
+- 该接口解决什么业务问题：{context['structured_prd'].get('one_liner') or context['feature_name']}
+- 触发时机：用户或上游系统触发本功能的主流程时
+- 前置条件：REQ 范围内的输入条件满足且权限校验通过
+- 后置结果：返回主流程处理结果，并为后续设计包提供可追溯接口约束
+
+## 4. 接口详情
+
+{interface_detail}
+
+## 5. 错误码说明
+| 错误码 | HTTP 状态 | 触发条件 | 处理建议 |
+| --- | --- | --- | --- |
+{error_rows}
+
+## 6. 依赖与时序说明
+- 是否依赖其他服务：{"是" if 'external-call' in context['capability_tags'] else "否"}
+- 是否涉及异步回调：{"是" if 'async' in context['capability_tags'] else "否"}
+- 是否需要幂等保护：{"是" if 'idempotent' in context['capability_tags'] else "否"}
+- 关键依赖：{dependency_text}
+
+## 7. 人工审阅关注点
+- 接口命名是否清晰：需在评审中确认
+- 路径设计是否与现有接口冲突：需结合 baseline 扫描结果确认
+- 错误码是否和全局规范一致：需在评审中核对
+"""
+    req_ids_text = feature_req_ids(requirements)
+    api_rows = "\n".join(
+        f"| {sanitize_operation_id(api['summary'], api['method'], context['feature_slug'])} | {api['method']} | {api['path']} | {api['summary']} | {req_ids_text} |"
+        for api in apis
+    )
+    request_rows_items: list[str] = []
+    response_rows_items: list[str] = []
+    for api in apis:
+        request_fields = infer_request_fields(api)
+        for field in request_fields[0] + request_fields[1]:
+            request_rows_items.append(
+                f"| {api['method']} {api['path']} | {field['name']} | {field['type']} | {'是' if field['required'] else '否'} | {field['description']} | {field['location']} |"
+            )
+        for field in infer_response_fields(api):
+            response_rows_items.append(
+                f"| {api['method']} {api['path']} | {field['name']} | {field['type']} | {field['description']} | {'标准响应体字段' if field['name'] in {'code', 'message'} else '业务响应字段'} |"
+            )
+    request_rows = "\n".join(request_rows_items)
+    response_rows = "\n".join(response_rows_items)
     error_rows = "\n".join(
         [
             f"| {context['feature_slug'].upper().replace('-', '_')}_INVALID_INPUT | 400 | 参数缺失或非法 | 检查请求参数后重试 |",
@@ -221,14 +614,14 @@ def render_interface_doc(context: dict[str, Any], design_version: str) -> str:
 
 ## 4. 请求说明
 
-| 字段 | 类型 | 必填 | 含义 | 来源 |
-| --- | --- | --- | --- | --- |
+| 接口 | 字段 | 类型 | 必填 | 含义 | 来源 |
+| --- | --- | --- | --- | --- | --- |
 {request_rows}
 
 ## 5. 响应说明
 
-| 字段 | 类型 | 含义 | 备注 |
-| --- | --- | --- | --- |
+| 接口 | 字段 | 类型 | 含义 | 备注 |
+| --- | --- | --- | --- | --- |
 {response_rows}
 
 ## 6. 错误码说明

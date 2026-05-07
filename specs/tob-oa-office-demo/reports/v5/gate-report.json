@@ -1,0 +1,196 @@
+{
+  "feature_name": "tob-oa-office-demo",
+  "design_version": "design-v5.md",
+  "updated_at": "2026-05-07T09:52:49.858527+00:00",
+  "gate2": {
+    "result": "PASS",
+    "checks": [
+      "接口路径未与 sdd-index-real.json 中其他 feature 冲突",
+      "所有 REQ-ID 均已被 design-pack 覆盖"
+    ],
+    "warnings": [
+      "未从设计文档中提取到 Mermaid participant 或 classDiagram 类名"
+    ],
+    "errors": [],
+    "evidence": {
+      "design": {
+        "source": "D:\\project\\SDD\\specs\\tob-oa-office-demo\\design-v5.md",
+        "hash": "29f69395d42e3ad83e83f0f1428113d05994bd2a717df3945be93d7c246f8375",
+        "evidence_level": "L3",
+        "confidence": "medium"
+      },
+      "design_pack": {
+        "source": "D:\\project\\SDD\\specs\\tob-oa-office-demo\\design-pack",
+        "hash": "4f27e3bec905cd61ea67995e658e4e2bf1199f17b46ed7dfa6834929d6bcc476",
+        "evidence_level": "L3",
+        "confidence": "medium"
+      },
+      "module_map": {
+        "source": "D:\\project\\SDD\\.spec\\baselines\\attached-sample-project-30095deb\\module-map.json",
+        "hash": "2c58efbe4ab77dd810276cd2cbf3e1ec06b39807d8863146de3c114be8ae904f",
+        "evidence_level": "L2",
+        "confidence": "medium",
+        "source_type": null,
+        "scanner": "java-lexical-v2",
+        "unsupported_features": [
+          "framework-proxy"
+        ],
+        "scan_quality": {
+          "parser": "lightweight-lexical-java",
+          "status": "partial",
+          "warnings": [],
+          "limitations": [
+            "no-symbol-resolution",
+            "no-lombok-generated-method-expansion",
+            "partial-mybatis-xml-binding-resolution",
+            "no-framework-proxy-resolution"
+          ]
+        },
+        "attachment_signature_status": "matched",
+        "current_source_signature": "55e917fef37c4090e094840e6d0135bf73c87b57794eaceeb16dfb6d2244b877",
+        "recorded_source_signature": "55e917fef37c4090e094840e6d0135bf73c87b57794eaceeb16dfb6d2244b877",
+        "freshness": "fresh",
+        "generated_at": "2026-05-07T09:04:59.400Z",
+        "ttl": "P1D",
+        "expires_at": "2026-05-08T09:04:59.400000+00:00"
+      },
+      "schema_context": {
+        "source": "attachment",
+        "hash": "bfcb46ce36e9635223f7ddf9f824d8d7363c79cd6914d805544acbee05f60849",
+        "evidence_level": "L2",
+        "confidence": "medium",
+        "source_type": "attachment",
+        "fallback_from": null,
+        "schema_context_signature_status": "matched",
+        "current_schema_source_signature": "6b28d0cdb432e53298330585e470a43248d75912fdef5bae3602e547cc9f8adb",
+        "recorded_schema_source_signature": "6b28d0cdb432e53298330585e470a43248d75912fdef5bae3602e547cc9f8adb",
+        "freshness": "fresh",
+        "generated_at": "2026-05-07T09:04:59.549953+00:00",
+        "ttl": "P1D",
+        "expires_at": "2026-05-08T09:04:59.549953+00:00"
+      }
+    },
+    "truthfulness_report": {
+      "feature": "tob-oa-office-demo",
+      "project_mode": "hybrid",
+      "risk_tier": "high",
+      "affected_components": [],
+      "strict": false,
+      "total_requirements": 8,
+      "covered_requirements": 8,
+      "missing_requirements": [],
+      "coverage_detail": {
+        "REQ-001": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-002": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-003": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-004": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-005": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-006": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-007": [
+          "接口文档.md",
+          "数据模型.md"
+        ],
+        "REQ-008": [
+          "接口文档.md",
+          "数据模型.md"
+        ]
+      },
+      "content_issues": [],
+      "checks": [
+        "接口路径未与 sdd-index-real.json 中其他 feature 冲突",
+        "所有 REQ-ID 均已被 design-pack 覆盖"
+      ],
+      "warnings": [
+        "未从设计文档中提取到 Mermaid participant 或 classDiagram 类名"
+      ],
+      "errors": [],
+      "evidence": {
+        "design": {
+          "source": "D:\\project\\SDD\\specs\\tob-oa-office-demo\\design-v5.md",
+          "hash": "29f69395d42e3ad83e83f0f1428113d05994bd2a717df3945be93d7c246f8375",
+          "evidence_level": "L3",
+          "confidence": "medium"
+        },
+        "design_pack": {
+          "source": "D:\\project\\SDD\\specs\\tob-oa-office-demo\\design-pack",
+          "hash": "4f27e3bec905cd61ea67995e658e4e2bf1199f17b46ed7dfa6834929d6bcc476",
+          "evidence_level": "L3",
+          "confidence": "medium"
+        },
+        "module_map": {
+          "source": "D:\\project\\SDD\\.spec\\baselines\\attached-sample-project-30095deb\\module-map.json",
+          "hash": "2c58efbe4ab77dd810276cd2cbf3e1ec06b39807d8863146de3c114be8ae904f",
+          "evidence_level": "L2",
+          "confidence": "medium",
+          "source_type": null,
+          "scanner": "java-lexical-v2",
+          "unsupported_features": [
+            "framework-proxy"
+          ],
+          "scan_quality": {
+            "parser": "lightweight-lexical-java",
+            "status": "partial",
+            "warnings": [],
+            "limitations": [
+              "no-symbol-resolution",
+              "no-lombok-generated-method-expansion",
+              "partial-mybatis-xml-binding-resolution",
+              "no-framework-proxy-resolution"
+            ]
+          },
+          "attachment_signature_status": "matched",
+          "current_source_signature": "55e917fef37c4090e094840e6d0135bf73c87b57794eaceeb16dfb6d2244b877",
+          "recorded_source_signature": "55e917fef37c4090e094840e6d0135bf73c87b57794eaceeb16dfb6d2244b877",
+          "freshness": "fresh",
+          "generated_at": "2026-05-07T09:04:59.400Z",
+          "ttl": "P1D",
+          "expires_at": "2026-05-08T09:04:59.400000+00:00"
+        },
+        "schema_context": {
+          "source": "attachment",
+          "hash": "bfcb46ce36e9635223f7ddf9f824d8d7363c79cd6914d805544acbee05f60849",
+          "evidence_level": "L2",
+          "confidence": "medium",
+          "source_type": "attachment",
+          "fallback_from": null,
+          "schema_context_signature_status": "matched",
+          "current_schema_source_signature": "6b28d0cdb432e53298330585e470a43248d75912fdef5bae3602e547cc9f8adb",
+          "recorded_schema_source_signature": "6b28d0cdb432e53298330585e470a43248d75912fdef5bae3602e547cc9f8adb",
+          "freshness": "fresh",
+          "generated_at": "2026-05-07T09:04:59.549953+00:00",
+          "ttl": "P1D",
+          "expires_at": "2026-05-08T09:04:59.549953+00:00"
+        }
+      },
+      "status": "OK"
+    }
+  },
+  "gate3": {
+    "result": "PASS",
+    "checks": [
+      "序列图分层与依赖方向满足最小约束",
+      "异常处理章节存在有效条目",
+      "事务边界说明已存在"
+    ],
+    "warnings": [],
+    "errors": []
+  }
+}
