@@ -1,0 +1,9 @@
+{
+  "design_version": "design-v2.md",
+  "feature": "task-board",
+  "risk_tier": "high",
+  "status": "APPROVED",
+  "approved_by": "zhaoxingchen",
+  "approved_at": "2026-05-06T02:25:29.318187+00:00",
+  "comments": "approved to continue implementation"
+}

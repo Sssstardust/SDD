@@ -1,0 +1,9 @@
+.npm-pack-cache/
+.cache/
+node_modules/
+coverage/
+*.log
+*.tgz
+*.py
+*.pyc
+__pycache__/

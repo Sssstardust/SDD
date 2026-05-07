@@ -1,0 +1,24 @@
+{
+  "feature_dir": "D:\\project\\SDD\\specs\\task-board",
+  "feature_name": "task-board",
+  "current_stage": "release-ready",
+  "risk_tier": "high",
+  "design_version": "design-v2.md",
+  "reports_dir": "D:\\project\\SDD\\specs\\task-board\\reports\\v2",
+  "approval_status": "APPROVED",
+  "gate2_result": "PASS",
+  "gate3_result": "PASS",
+  "gate4_result": "PASS",
+  "gate5_result": "PASS",
+  "release_gate_result": "PASS",
+  "next_command": "python scripts/run_pipeline.py release-gate D:\\project\\SDD\\specs\\task-board --strict",
+  "reason": "当前 feature 已完成实现验证与上线前治理检查",
+  "missing_artifacts": [],
+  "blockers": [
+    "gate5: REQ-001 仍包含 TODO 占位符",
+    "gate5: REQ-002 仍包含 TODO 占位符",
+    "gate5: REQ-003 仍包含 TODO 占位符",
+    "gate5: REQ-004 仍包含 TODO 占位符",
+    "gate5: REQ-005 仍包含 TODO 占位符"
+  ]
+}

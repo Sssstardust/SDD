@@ -1,0 +1,12 @@
+{
+  "name": "multi-component-api",
+  "categories": ["brownfield", "multi-component"],
+  "commands": [
+    ["release-gate"],
+    ["validate-reports", "--stage", "implementation"]
+  ],
+  "expected_summary": [
+    "release-gate: PASS",
+    "validate-reports --stage implementation: PASS with affected_components example"
+  ]
+}

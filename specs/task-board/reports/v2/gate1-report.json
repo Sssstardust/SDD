@@ -1,0 +1,41 @@
+{
+  "feature_name": "task-board",
+  "design_version": "design-v2.md",
+  "result": "PASS",
+  "checks": [
+    "check-design",
+    "check-design-pack"
+  ],
+  "warnings": [],
+  "errors": [],
+  "commands": [
+    {
+      "label": "check-design",
+      "command": [
+        "C:\\Python313\\python.exe",
+        "D:\\project\\SDD\\scripts\\check_design_structure.py",
+        "D:\\project\\SDD\\specs\\task-board\\design-v2.md"
+      ],
+      "returncode": 0,
+      "output": "[OK] design 结构校验通过\r\n  - 文件: D:\\project\\SDD\\specs\\task-board\\design-v2.md"
+    },
+    {
+      "label": "check-design-pack",
+      "command": [
+        "C:\\Python313\\python.exe",
+        "D:\\project\\SDD\\scripts\\check_design_pack.py",
+        "D:\\project\\SDD\\specs\\task-board\\feature-brief.md"
+      ],
+      "returncode": 0,
+      "output": "[OK] design-pack 校验通过\r\n  - files: 接口契约.openapi.yaml, 接口文档.md, 数据模型.md, 数据库变更.sql, 异步事件契约.yaml, 外部调用策略.md"
+    }
+  ],
+  "design_pack_snapshot": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\design-pack.snapshot",
+  "evidence": {
+    "design_hash": "b1d308438b4db935584bb729ce2082801740b7939a8ac0aab93f27d7fde11dd2",
+    "design_pack_hash": "832320fa85e4b739ebb22e1e2f8be9333d2276a9175d1097116bc96087f1b2ce",
+    "evidence_level": "L3",
+    "confidence": "medium"
+  },
+  "gate_report": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json"
+}

@@ -1,0 +1,26 @@
+{
+  "feature_name": "multi-component-api",
+  "design_version": "design-v1.md",
+  "updated_at": "2026-05-06T00:00:00+00:00",
+  "gate4": {
+    "result": "PASS",
+    "test_file": "examples/fixtures/multi-component-api/tests/test_multi_component_api.py",
+    "test_file_preserved": true,
+    "mapping_count": 1,
+    "report_file": "examples/fixtures/multi-component-api/reports/v1/gate4-skeleton.json",
+    "warnings": [],
+    "errors": []
+  },
+  "gate5": {
+    "result": "PASS",
+    "test_file": "examples/fixtures/multi-component-api/tests/test_multi_component_api.py",
+    "coverage_result": "PASS",
+    "execution": {
+      "status": "PASS",
+      "mode": "stub"
+    },
+    "uncovered_p0": [],
+    "uncovered_p1": [],
+    "report_file": "examples/fixtures/multi-component-api/reports/v1/verify-report.json"
+  }
+}

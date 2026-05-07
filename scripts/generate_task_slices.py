@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""
+generate_task_slices.py
+
+Generate Task Slice drafts from feature-brief capability_tags and the design
+acceptance matrix.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+
+from versioning import detect_latest_design_path, resolve_feature_dir
+
+
+CROSS_CUTTING_TAGS = {
+    "db-change": {
+        "suffix": "db",
+        "title": "数据库变更切片",
+        "cross_cutting_checks": ["DDL 已准备", "回滚脚本已准备", "迁移后表结构可验证"],
+    },
+    "async": {
+        "suffix": "async",
+        "title": "异步事件切片",
+        "cross_cutting_checks": ["Topic 或队列配置已准备", "重试策略已定义", "死信队列已定义"],
+    },
+    "perf": {
+        "suffix": "perf",
+        "title": "性能保障切片",
+        "cross_cutting_checks": ["关键指标已埋点", "缓存预热策略已准备", "压测入口已明确"],
+    },
+    "external-call": {
+        "suffix": "external",
+        "title": "外部调用治理切片",
+        "cross_cutting_checks": ["超时策略已定义", "熔断策略已定义", "降级策略已定义"],
+    },
+}
+
+
+def extract_yaml_blocks(text: str) -> list[str]:
+    matches = re.findall(r"```yaml\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
+    return matches if matches else [text]
+
+
+def extract_scalar(text: str, key: str) -> str | None:
+    match = re.search(rf"(?m)^\s*{re.escape(key)}\s*:\s*(.+?)\s*$", text)
+    if not match:
+        return None
+    return match.group(1).strip().strip('"').strip("'")
+
+
+def extract_list_items(text: str, key: str) -> list[str]:
+    items: list[str] = []
+    lines = text.splitlines()
+    in_block = False
+    base_indent = 0
+    for line in lines:
+        if not in_block:
+            if re.match(rf"^\s*{re.escape(key)}\s*:\s*$", line):
+                in_block = True
+                base_indent = len(line) - len(line.lstrip())
+            continue
+
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= base_indent and not line.lstrip().startswith("- "):
+            break
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            value = stripped[2:].strip()
+            if ":" in value:
+                value = value.split(":", 1)[1].strip()
+            value = value.strip('"').strip("'")
+            if value:
+                items.append(value)
+    return items
+
+
+def extract_requirements(yaml_text: str) -> list[dict[str, str]]:
+    requirements: list[dict[str, str]] = []
+    lines = yaml_text.splitlines()
+    current: dict[str, str] | None = None
+
+    for line in lines:
+        req_match = re.match(r"^\s*-\s*req_id\s*:\s*(REQ-\d+)\s*$", line)
+        if req_match:
+            if current:
+                requirements.append(current)
+            current = {"req_id": req_match.group(1)}
+            continue
+        if current is None:
+            continue
+        field_match = re.match(r"^\s*(priority|title|description)\s*:\s*(.+?)\s*$", line)
+        if field_match:
+            current[field_match.group(1)] = field_match.group(2).strip().strip('"').strip("'")
+
+    if current:
+        requirements.append(current)
+    return requirements
+
+
+def extract_design_acceptance_matrix(design_text: str) -> dict[str, list[str]]:
+    matrix: dict[str, list[str]] = {}
+    for raw_line in design_text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 5:
+            continue
+        req_id = cells[0]
+        acceptance = cells[2]
+        if re.fullmatch(r"REQ-\d+", req_id) and acceptance:
+            matrix.setdefault(req_id, []).append(acceptance)
+    return matrix
+
+
+def yaml_list(items: list[str], indent: str = "  ") -> str:
+    if not items:
+        return f"{indent}- 待补充"
+    return "\n".join(f"{indent}- \"{item}\"" for item in items)
+
+
+def build_slice(
+    *,
+    slice_id: str,
+    title: str,
+    req_ids: list[str],
+    acceptance_checks: list[str],
+    depends_on: list[str] | None = None,
+    cross_cutting_checks: list[str] | None = None,
+) -> str:
+    depends_on = depends_on or []
+    cross_cutting_checks = cross_cutting_checks or []
+    return "\n".join(
+        [
+            f"# {slice_id} {title}",
+            "",
+            "```yaml",
+            f"slice_id: {slice_id}",
+            "slice_type: auto-generated",
+            f"depends_on: [{', '.join(depends_on)}]" if depends_on else "depends_on: []",
+            "",
+            "req_ids:",
+            yaml_list(req_ids),
+            "",
+            "acceptance_checks:",
+            yaml_list(acceptance_checks),
+            "",
+            "cross_cutting_checks:",
+            yaml_list(cross_cutting_checks),
+            "",
+            "test_spec:",
+            "  type: integration",
+            "  framework: junit5",
+            "  target_class: AutoGeneratedDesignVerificationTest",
+            "  cases:",
+            *[
+                f"    - id: TC-{index:03d}\n      req_id: {req_id}\n      description: \"{acceptance_checks[min(index - 1, len(acceptance_checks) - 1)] if acceptance_checks else req_id}\""
+                for index, req_id in enumerate(req_ids, start=1)
+            ],
+            "```",
+            "",
+        ]
+    )
+
+
+def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str, object]:
+    feature_brief = feature_dir / "feature-brief.md"
+    design_path = detect_latest_design_path(feature_dir)
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+
+    if not feature_brief.exists():
+        return {"result": "FAIL", "errors": [f"缺少 feature-brief.md: {feature_brief}"], "created": []}
+    if not design_path.exists():
+        return {"result": "FAIL", "errors": [f"缺少设计文档: {design_path}"], "created": []}
+
+    yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8", errors="ignore")))
+    feature_name = extract_scalar(yaml_text, "feature_name") or feature_dir.name
+    tags = extract_list_items(yaml_text, "capability_tags")
+    requirements = extract_requirements(yaml_text)
+    acceptance_matrix = extract_design_acceptance_matrix(design_path.read_text(encoding="utf-8", errors="ignore"))
+
+    created: list[str] = []
+    skipped: list[str] = []
+    errors: list[str] = []
+    counter = 1
+
+    for requirement in requirements:
+        req_id = requirement["req_id"]
+        acceptance_checks = acceptance_matrix.get(req_id, [])
+        if not acceptance_checks:
+            errors.append(f"{req_id} 未在设计验收矩阵中找到")
+            continue
+        target = tasks_dir / f"slice-{counter:03d}-biz.md"
+        content = build_slice(
+            slice_id=f"SLICE-{counter:03d}-BIZ",
+            title=requirement.get("title") or req_id,
+            req_ids=[req_id],
+            acceptance_checks=acceptance_checks,
+        )
+        if target.exists() and not force:
+            skipped.append(str(target))
+        else:
+            target.write_text(content, encoding="utf-8")
+            created.append(str(target))
+        counter += 1
+
+    for tag in tags:
+        rule = CROSS_CUTTING_TAGS.get(tag)
+        if not rule:
+            continue
+        target = tasks_dir / f"slice-{counter:03d}-{rule['suffix']}.md"
+        all_req_ids = [item["req_id"] for item in requirements]
+        all_acceptance_checks = [
+            check
+            for req_id in all_req_ids
+            for check in acceptance_matrix.get(req_id, [])
+        ]
+        content = build_slice(
+            slice_id=f"SLICE-{counter:03d}-{str(rule['suffix']).upper()}",
+            title=str(rule["title"]),
+            req_ids=all_req_ids,
+            acceptance_checks=all_acceptance_checks,
+            cross_cutting_checks=list(rule["cross_cutting_checks"]),
+            depends_on=["SLICE-001-BIZ"] if requirements else [],
+        )
+        if target.exists() and not force:
+            skipped.append(str(target))
+        else:
+            target.write_text(content, encoding="utf-8")
+            created.append(str(target))
+        counter += 1
+
+    manifest = {
+        "feature_name": feature_name,
+        "design_version": design_path.name,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "result": "FAIL" if errors else "PASS",
+        "created": created,
+        "skipped": skipped,
+        "errors": errors,
+    }
+    manifest_path = tasks_dir / "task-slices.generated.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    manifest["manifest"] = str(manifest_path)
+    return manifest
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    parser.add_argument("--force", action="store_true", help="覆盖已有自动生成切片")
+    args = parser.parse_args()
+
+    result = generate_task_slices(resolve_feature_dir(args.feature_dir), force=args.force)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("result") == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,9 @@
+event: TaskBoardEvent
+topic: TOPIC_TASK_BOARD
+producer: TaskBoardService
+consumer: TaskBoardConsumer
+payload:
+  type: object
+retry:
+  max_attempts: 3
+dlq: DLQ_TASK_BOARD

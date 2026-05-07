@@ -1,0 +1,71 @@
+{
+  "feature_name": "task-board",
+  "design_version": "design-v2.md",
+  "checked_at": "2026-05-07T08:29:35.001737+00:00",
+  "result": "PASS",
+  "strict": true,
+  "checks": [
+    "Gate 5 已通过，可进入上线前治理检查",
+    "严格模式 attached_execution 已通过",
+    "release owner 已声明",
+    "release approver 已声明",
+    "release rollback.ready 已确认",
+    "release monitoring.ready 已确认",
+    "release alerting.ready 已确认",
+    "release rollout.ready 已确认",
+    "release monitoring.metrics 已声明",
+    "release alerting.rules 已声明",
+    "release rollout.batches 已声明",
+    "回滚方案已就绪",
+    "监控与告警已配置",
+    "灰度策略已确认"
+  ],
+  "warnings": [],
+  "errors": [],
+  "evidence": {
+    "rollback": [
+      "D:\\project\\SDD\\specs\\task-board\\bootstrap-plan.md",
+      "D:\\project\\SDD\\specs\\task-board\\constitution.md",
+      "D:\\project\\SDD\\specs\\task-board\\design-pack\\数据库变更.sql",
+      "D:\\project\\SDD\\specs\\task-board\\design-v2.md",
+      "D:\\project\\SDD\\specs\\task-board\\release-plan.md",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\design-pack.snapshot\\数据库变更.sql",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\release-gate-report.json",
+      "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-006-db.md"
+    ],
+    "monitoring_alert": [
+      "D:\\project\\SDD\\specs\\task-board\\architecture.md",
+      "D:\\project\\SDD\\specs\\task-board\\bootstrap-plan.md",
+      "D:\\project\\SDD\\specs\\task-board\\constitution.md",
+      "D:\\project\\SDD\\specs\\task-board\\design-pack\\外部调用策略.md",
+      "D:\\project\\SDD\\specs\\task-board\\design-v2.md",
+      "D:\\project\\SDD\\specs\\task-board\\release-plan.md",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\design-pack.snapshot\\外部调用策略.md",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\release-gate-report.json",
+      "D:\\project\\SDD\\specs\\task-board\\scaffold-report.json"
+    ],
+    "gray_strategy": [
+      "D:\\project\\SDD\\specs\\task-board\\release-plan.md",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\release-gate-report.json"
+    ]
+  },
+  "structured_release_plan": {
+    "result": "PASS",
+    "path": "D:\\project\\SDD\\specs\\task-board\\release-plan.md",
+    "checks": [
+      "release owner 已声明",
+      "release approver 已声明",
+      "release rollback.ready 已确认",
+      "release monitoring.ready 已确认",
+      "release alerting.ready 已确认",
+      "release rollout.ready 已确认",
+      "release monitoring.metrics 已声明",
+      "release alerting.rules 已声明",
+      "release rollout.batches 已声明"
+    ],
+    "errors": []
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "status": "ready",
+  "feature_name": "order-create",
+  "feature_type": "payment",
+  "one_liner": "用户下单后实时创建支付单并调用支付渠道完成扣款。",
+  "project_mode": "brownfield",
+  "project_mode_source": "mixed",
+  "project_mode_confidence": 0.86,
+  "project_mode_evidence": [
+    "检测到现有 src/main/java",
+    "需求中出现支付单、订单等存量业务域词汇"
+  ],
+  "project_mode_confirmed_by": "zhangsan",
+  "capability_tags": [
+    "api",
+    "db-change",
+    "external-call",
+    "idempotent",
+    "payment"
+  ],
+  "risk_tier": "high",
+  "requirements": [
+    {
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "title": "创建订单并支付",
+      "description": "用户提交订单后，系统必须创建支付单并发起支付渠道请求。"
+    },
+    {
+      "req_id": "REQ-002",
+      "priority": "P0",
+      "title": "防重复提交",
+      "description": "下单接口需要具备幂等控制，避免重复扣款。"
+    }
+  ],
+  "ambiguities": [
+    "支付渠道超时后的重试次数未明确。"
+  ],
+  "entities": [
+    {
+      "name": "Order",
+      "kind": "domain-entity",
+      "evidence": "需求中多次出现订单。"
+    },
+    {
+      "name": "Payment",
+      "kind": "domain-entity",
+      "evidence": "需求中出现支付单和支付渠道。"
+    }
+  ],
+  "apis": [
+    {
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "summary": "创建订单并触发支付",
+      "evidence": "PRD 中给出下单接口示例。"
+    }
+  ],
+  "business_rules": [
+    "支付请求必须保证幂等。",
+    "扣款失败时订单状态不能直接置为成功。"
+  ],
+  "dependencies": [
+    "支付渠道",
+    "订单数据库"
+  ],
+  "clarify": null,
+  "metadata": {
+    "source_file": "sample-prd.md",
+    "generated_at": "2026-04-21T16:00:00+08:00",
+    "generator": "requirement-analyzer.run",
+    "ai_used": false,
+    "ai_model": null,
+    "notes": [
+      "示例输出"
+    ]
+  }
+}

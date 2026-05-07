@@ -1,0 +1,26 @@
+{
+  "feature_name": "lightweight-api-smoke",
+  "design_version": "design-v1.md",
+  "updated_at": "2026-05-06T00:00:00+00:00",
+  "gate4": {
+    "result": "PASS",
+    "test_file": "examples/fixtures/lightweight-api-smoke/tests/test_smoke_feature.py",
+    "test_file_preserved": true,
+    "mapping_count": 1,
+    "report_file": "examples/fixtures/lightweight-api-smoke/reports/v1/gate4-skeleton.json",
+    "warnings": [],
+    "errors": []
+  },
+  "gate5": {
+    "result": "PASS",
+    "test_file": "examples/fixtures/lightweight-api-smoke/tests/test_smoke_feature.py",
+    "coverage_result": "PASS",
+    "execution": {
+      "status": "PASS",
+      "mode": "stub"
+    },
+    "uncovered_p0": [],
+    "uncovered_p1": [],
+    "report_file": "examples/fixtures/lightweight-api-smoke/reports/v1/verify-report.json"
+  }
+}

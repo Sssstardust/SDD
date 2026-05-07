@@ -1,0 +1,12 @@
+{
+  "name": "payment-idempotent-full",
+  "categories": ["full", "payment", "idempotent", "high-risk"],
+  "commands": [
+    ["release-gate"],
+    ["validate-reports", "--stage", "all"]
+  ],
+  "expected_summary": [
+    "release-gate: PASS with high-risk attached execution evidence",
+    "validate-reports --stage all: PASS"
+  ]
+}

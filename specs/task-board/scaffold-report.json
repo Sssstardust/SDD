@@ -1,0 +1,40 @@
+{
+  "feature_name": "task-board",
+  "generated_at": "2026-05-06T02:11:33.947581+00:00",
+  "result": "PASS",
+  "package_base": "com.example.task_board",
+  "generated_files": [
+    "constitution.md",
+    "architecture.md",
+    "module-layout.md",
+    "bootstrap-plan.md"
+  ],
+  "preserved_files": [],
+  "planned_scaffold": [
+    {
+      "name": "src/main/java",
+      "status": "PLANNED",
+      "purpose": "task-board bootstrap 默认脚手架项"
+    },
+    {
+      "name": "src/test/java",
+      "status": "PLANNED",
+      "purpose": "task-board bootstrap 默认脚手架项"
+    },
+    {
+      "name": "src/main/resources",
+      "status": "PLANNED",
+      "purpose": "task-board bootstrap 默认脚手架项"
+    },
+    {
+      "name": "config",
+      "status": "PLANNED",
+      "purpose": "task-board bootstrap 默认脚手架项"
+    },
+    {
+      "name": "monitoring",
+      "status": "PLANNED",
+      "purpose": "task-board bootstrap 默认脚手架项"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "tables": [
+    {
+      "db_type": "postgres",
+      "connection_name": "test",
+      "schema_name": "public",
+      "table_name": "t_payment_order",
+      "columns": [
+        { "name": "payment_id", "type": "varchar", "nullable": false },
+        { "name": "status", "type": "varchar", "nullable": true }
+      ]
+    },
+    {
+      "db_type": "oracle",
+      "connection_name": "tob",
+      "schema_name": "APP",
+      "table_name": "T_PAYMENT_REVIEW_RECORD",
+      "columns": [
+        { "COLUMN_NAME": "PAYMENT_ID", "DATA_TYPE": "VARCHAR2", "NULLABLE": "N" },
+        { "COLUMN_NAME": "REVIEW_RESULT", "DATA_TYPE": "VARCHAR2", "NULLABLE": "Y" }
+      ]
+    }
+  ]
+}

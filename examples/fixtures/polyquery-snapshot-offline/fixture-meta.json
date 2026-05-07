@@ -1,0 +1,36 @@
+{
+  "name": "polyquery-snapshot-offline",
+  "categories": ["polyquery", "snapshot", "offline"],
+  "commands": [
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\refresh_schema_context.py",
+        "--from-polyquery",
+        "--polyquery-snapshot",
+        "{feature_dir}\\polyquery.snapshot.json",
+        "--output",
+        "{workspace_root}\\schema-context.generated.json"
+      ]
+    },
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\assert_schema_context_fixture.py",
+        "{workspace_root}\\schema-context.generated.json",
+        "--expected-source",
+        "polyquery-snapshot",
+        "--expected-scenario",
+        "ready",
+        "--expected-table",
+        "t_payment_order",
+        "--expected-table",
+        "t_payment_review_record"
+      ]
+    }
+  ],
+  "expected_summary": [
+    "refresh-schema-context from polyquery snapshot: PASS",
+    "generated schema-context source=scenario fields match expectations"
+  ]
+}

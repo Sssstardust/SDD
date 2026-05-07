@@ -1,0 +1,217 @@
+{
+  "feature_name": "task-board",
+  "design_version": "design-v2.md",
+  "checked_at": "2026-05-07T07:56:01.363691+00:00",
+  "test_file": "D:\\project\\SDD\\src\\test\\java\\generated\\design\\task-board\\TaskBoardDesignVerificationTest.java",
+  "risk_tier": "high",
+  "result": "PASS",
+  "coverage_result": "PASS",
+  "execution": {
+    "status": "PASS",
+    "mode": "junit-platform",
+    "command": [
+      "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath\\java.EXE",
+      "-ea",
+      "-cp",
+      "D:\\project\\SDD\\src\\test\\java\\generated\\design\\task-board\\.gate5_build;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\junit\\jupiter\\junit-jupiter-api\\5.12.2\\junit-jupiter-api-5.12.2.jar;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\junit\\jupiter\\junit-jupiter-engine\\5.12.2\\junit-jupiter-engine-5.12.2.jar;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\junit\\platform\\junit-platform-launcher\\1.12.2\\junit-platform-launcher-1.12.2.jar;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\junit\\platform\\junit-platform-engine\\1.12.2\\junit-platform-engine-1.12.2.jar;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\junit\\platform\\junit-platform-commons\\1.12.2\\junit-platform-commons-1.12.2.jar;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\apiguardian\\apiguardian-api\\1.1.2\\apiguardian-api-1.1.2.jar;C:\\Users\\zhaoxingchen\\.m2\\repository\\org\\opentest4j\\opentest4j\\1.3.0\\opentest4j-1.3.0.jar",
+      "Gate5JUnitLauncher"
+    ],
+    "returncode": 0,
+    "stdout_tail": "",
+    "stderr_tail": ""
+  },
+  "attached_execution": {
+    "status": "PASS",
+    "commands": [
+      {
+        "name": "verification-1",
+        "component_id": "",
+        "status": "PASS",
+        "command": [
+          "python",
+          "..\\..\\..\\scripts\\verify_attached_sample_project.py"
+        ],
+        "cwd": "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project",
+        "returncode": 0,
+        "stdout_tail": "[OK] attached sample project verification passed\n  - root: D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\n  - checked: 4",
+        "stderr_tail": ""
+      }
+    ],
+    "components": []
+  },
+  "attached_execution_required": true,
+  "attached_execution_requirement_reason": "high-risk-feature",
+  "uncovered_p0": [],
+  "uncovered_p1": [],
+  "implementation_result": "WARN",
+  "implementation_message": "设计文档未提取到可追溯的核心类，跳过真实实现映射分析",
+  "implementation_match_modes": [],
+  "implementation_method_match_details": [],
+  "implementation_matched_methods": [],
+  "implementation_missing_methods": [],
+  "implementation_traceability": {
+    "result": "WARN",
+    "expected_classes": [],
+    "implemented_classes": [],
+    "design_only_classes": [],
+    "missing_classes": [],
+    "expected_methods": [],
+    "matched_methods": [],
+    "missing_methods": [],
+    "module_map_quality": {
+      "scanner": "java-lexical-v2",
+      "confidence": "medium",
+      "unsupported_features": [
+        "framework-proxy"
+      ],
+      "scan_quality": {
+        "parser": "lightweight-lexical-java",
+        "status": "partial",
+        "warnings": [],
+        "limitations": [
+          "no-symbol-resolution",
+          "no-lombok-generated-method-expansion",
+          "partial-mybatis-xml-binding-resolution",
+          "no-framework-proxy-resolution"
+        ]
+      }
+    },
+    "message": "设计文档未提取到可追溯的核心类，跳过真实实现映射分析"
+  },
+  "real_test_req_coverage": {
+    "result": "WARN",
+    "expected_req_ids": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004",
+      "REQ-005"
+    ],
+    "covered_req_ids": [],
+    "missing_req_ids": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004",
+      "REQ-005"
+    ],
+    "matched_file_count": 0,
+    "matched_files": [],
+    "details": [
+      {
+        "req_id": "REQ-001",
+        "covered": false,
+        "matched_files": []
+      },
+      {
+        "req_id": "REQ-002",
+        "covered": false,
+        "matched_files": []
+      },
+      {
+        "req_id": "REQ-003",
+        "covered": false,
+        "matched_files": []
+      },
+      {
+        "req_id": "REQ-004",
+        "covered": false,
+        "matched_files": []
+      },
+      {
+        "req_id": "REQ-005",
+        "covered": false,
+        "matched_files": []
+      }
+    ],
+    "reason": "scanned attached real test sources"
+  },
+  "affected_components": [],
+  "strict": false,
+  "warnings": [
+    "REQ-001 仍包含 TODO 占位符",
+    "REQ-002 仍包含 TODO 占位符",
+    "REQ-003 仍包含 TODO 占位符",
+    "REQ-004 仍包含 TODO 占位符",
+    "REQ-005 仍包含 TODO 占位符"
+  ],
+  "errors": [],
+  "placeholder_todos": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005"
+  ],
+  "evidence": {
+    "design": {
+      "source": "D:\\project\\SDD\\specs\\task-board\\design-v2.md",
+      "hash": "b1d308438b4db935584bb729ce2082801740b7939a8ac0aab93f27d7fde11dd2",
+      "evidence_level": "L3",
+      "confidence": "medium"
+    },
+    "module_map": {
+      "source": "D:\\project\\SDD\\.spec\\baselines\\attached-sample-project-30095deb\\module-map.json",
+      "hash": "24fdb5bd28b741b1b63774bdbfd49a404e0ca5b105cb456e7367d6ac35927a5f",
+      "evidence_level": "L2",
+      "confidence": "medium",
+      "freshness": "fresh",
+      "generated_at": "2026-05-07T07:55:41.611Z",
+      "ttl": "P1D",
+      "expires_at": "2026-05-08T07:55:41.611000+00:00",
+      "attachment_signature_status": "matched",
+      "current_source_signature": "55e917fef37c4090e094840e6d0135bf73c87b57794eaceeb16dfb6d2244b877",
+      "recorded_source_signature": "55e917fef37c4090e094840e6d0135bf73c87b57794eaceeb16dfb6d2244b877"
+    },
+    "schema_context": {
+      "source": "D:\\project\\SDD\\.spec\\baselines\\attached-sample-project-30095deb\\schema-context.json",
+      "hash": "c229802efffa2e32d01b605c64008fb88538429d048749817b4f788b5993ca1a",
+      "evidence_level": "L2",
+      "confidence": "medium",
+      "freshness": "fresh",
+      "generated_at": "2026-05-07T07:55:42.059139+00:00",
+      "ttl": "P1D",
+      "expires_at": "2026-05-08T07:55:42.059139+00:00",
+      "schema_context_signature_status": "matched",
+      "current_schema_source_signature": "a3aa142237415f7418c3c6d959551de718d6c7c8c83643b07000ce85b3743d25",
+      "recorded_schema_source_signature": "a3aa142237415f7418c3c6d959551de718d6c7c8c83643b07000ce85b3743d25"
+    }
+  },
+  "details": [
+    {
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "test_method": "test_req_001_crud",
+      "covered": true,
+      "placeholder": true
+    },
+    {
+      "req_id": "REQ-002",
+      "priority": "P0",
+      "test_method": "test_req_002_case",
+      "covered": true,
+      "placeholder": true
+    },
+    {
+      "req_id": "REQ-003",
+      "priority": "P1",
+      "test_method": "test_req_003_case",
+      "covered": true,
+      "placeholder": true
+    },
+    {
+      "req_id": "REQ-004",
+      "priority": "P1",
+      "test_method": "test_req_004_case",
+      "covered": true,
+      "placeholder": true
+    },
+    {
+      "req_id": "REQ-005",
+      "priority": "P0",
+      "test_method": "test_req_005_case",
+      "covered": true,
+      "placeholder": true
+    }
+  ]
+}

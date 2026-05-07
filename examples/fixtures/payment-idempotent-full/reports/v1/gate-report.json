@@ -1,0 +1,26 @@
+{
+  "feature_name": "payment-idempotent-full",
+  "design_version": "design-v1.md",
+  "updated_at": "2026-05-06T00:00:00+00:00",
+  "gate4": {
+    "result": "PASS",
+    "test_file": "examples/fixtures/payment-idempotent-full/tests/test_payment_idempotent_full.py",
+    "test_file_preserved": true,
+    "mapping_count": 1,
+    "report_file": "examples/fixtures/payment-idempotent-full/reports/v1/gate4-skeleton.json",
+    "warnings": [],
+    "errors": []
+  },
+  "gate5": {
+    "result": "PASS",
+    "test_file": "examples/fixtures/payment-idempotent-full/tests/test_payment_idempotent_full.py",
+    "coverage_result": "PASS",
+    "execution": {
+      "status": "PASS",
+      "mode": "stub"
+    },
+    "uncovered_p0": [],
+    "uncovered_p1": [],
+    "report_file": "examples/fixtures/payment-idempotent-full/reports/v1/verify-report.json"
+  }
+}

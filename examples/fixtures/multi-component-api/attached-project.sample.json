@@ -1,0 +1,13 @@
+{
+  "name": "multi-component-api-sample",
+  "components": [
+    {
+      "component_id": "payment-service",
+      "project_root": "D:\\sample\\payment-service"
+    },
+    {
+      "component_id": "order-service",
+      "project_root": "D:\\sample\\order-service"
+    }
+  ]
+}

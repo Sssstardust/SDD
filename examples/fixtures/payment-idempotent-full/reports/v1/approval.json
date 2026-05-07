@@ -1,0 +1,9 @@
+{
+  "design_version": "design-v1.md",
+  "feature": "payment-idempotent-full",
+  "risk_tier": "high",
+  "status": "APPROVED",
+  "approved_by": "fixture-approver",
+  "approved_at": "2026-05-06T00:00:00+00:00",
+  "comments": "fixture approval for high-risk payment/idempotent example"
+}

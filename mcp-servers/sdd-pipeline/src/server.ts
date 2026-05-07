@@ -1,0 +1,534 @@
+#!/usr/bin/env node
+
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as readline from "node:readline";
+import { spawnSync } from "node:child_process";
+
+type JsonRecord = Record<string, any>;
+type ToolDefinition = {
+  name: string;
+  description: string;
+  inputSchema: JsonRecord;
+};
+
+const PACKAGE = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"),
+) as { name: string; version: string };
+
+const TOOL_DEFINITIONS: ToolDefinition[] = [
+  {
+    name: "list_pipeline_commands",
+    description: "List the SDD pipeline tools exposed by this MCP server.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "show_attachment",
+    description: "Read the current attached-project configuration.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "refresh_baseline",
+    description: "Refresh module-map, schema-context, and baseline governance artifacts.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "project_console_cycle",
+    description: "Refresh project state and regenerate project console artifacts.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "project_next",
+    description: "Refresh and read the current project-next recommendation.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "flow_status",
+    description: "Refresh and read flow-status for a feature directory.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "validate_reports",
+    description: "Validate reports for a single feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        stage: { type: "string", enum: ["design", "implementation", "all"] },
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "validate_all_reports",
+    description: "Validate all known feature reports.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        stage: { type: "string", enum: ["design", "implementation", "all"] },
+        require_verify: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "generate_task_slices",
+    description: "Generate task slices for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "design_gates",
+    description: "Run the design-stage gates for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "gate5",
+    description: "Run Gate 5 requirement coverage validation for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+        require_attached_execution: { type: "boolean" },
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "release_gate",
+    description: "Run release-gate checks for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "onboard_project",
+    description: "Attach a target project and run the onboarding chain.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_root: { type: "string" },
+        name: { type: "string" },
+        design_roots: { type: "array", items: { type: "string" } },
+        schema_roots: { type: "array", items: { type: "string" } },
+        components_file: { type: "string" },
+      },
+    },
+  },
+];
+
+function parseArgs(argv: string[]): Record<string, string | boolean> {
+  const result: Record<string, string | boolean> = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    const current = argv[index];
+    if (!current.startsWith("--")) {
+      continue;
+    }
+    const key = current.slice(2);
+    const next = argv[index + 1];
+    if (!next || next.startsWith("--")) {
+      result[key] = true;
+    } else {
+      result[key] = next;
+      index += 1;
+    }
+  }
+  return result;
+}
+
+function parseArguments(text?: string): JsonRecord {
+  if (!text) {
+    return {};
+  }
+  try {
+    return JSON.parse(text) as JsonRecord;
+  } catch {
+    const normalized = text
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(/\bNone\b/g, "null")
+      .replace(/'/g, "\"");
+    return JSON.parse(normalized) as JsonRecord;
+  }
+}
+
+function findRepoRoot(startDir: string): string {
+  let current = path.resolve(startDir);
+  while (true) {
+    const candidate = path.join(current, "scripts", "run_pipeline.py");
+    if (fs.existsSync(candidate)) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      throw new Error("Unable to locate repository root from sdd-pipeline MCP server");
+    }
+    current = parent;
+  }
+}
+
+const ROOT = findRepoRoot(__dirname);
+const RUN_PIPELINE = path.join(ROOT, "scripts", "run_pipeline.py");
+const DEFAULT_ATTACHMENT_PATH = path.join(ROOT, ".spec", "attached-project.json");
+const PROJECT_ARTIFACTS_DIR = path.join(ROOT, ".spec", "project-artifacts");
+
+function getPythonCommand(): string {
+  return process.env.SDD_PYTHON || "python";
+}
+
+function runPipeline(args: string[]): JsonRecord {
+  const command = [getPythonCommand(), RUN_PIPELINE, ...args];
+  const result = spawnSync(command[0], command.slice(1), {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  const spawnError = result.error as NodeJS.ErrnoException | undefined;
+  return {
+    ok: result.status === 0,
+    exit_code: result.status ?? -1,
+    signal: result.signal ?? null,
+    command,
+    stdout: result.stdout || "",
+    stderr: result.stderr || "",
+    error_code: spawnError?.code ?? null,
+    error_message: spawnError?.message ?? null,
+    execution_blocked: spawnError?.code === "EPERM",
+  };
+}
+
+function readJsonFile(filePath: string): any | null {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  return JSON.parse(fs.readFileSync(filePath, "utf8")) as any;
+}
+
+function resolveFeatureDir(value: any): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("feature_dir is required");
+  }
+  return path.resolve(ROOT, value);
+}
+
+function asStringArray(value: any): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.length > 0) : [];
+}
+
+function addRepeatedFlag(args: string[], flag: string, values: string[]): void {
+  for (const value of values) {
+    args.push(flag, value);
+  }
+}
+
+function withArtifactStatus(execution: JsonRecord, artifact: unknown): JsonRecord {
+  return {
+    ...execution,
+    artifact_status: execution.ok ? "refreshed" : artifact ? "fallback-existing" : "missing",
+  };
+}
+
+function latestArtifactFile(fileName: string): string | null {
+  if (!fs.existsSync(PROJECT_ARTIFACTS_DIR)) {
+    return null;
+  }
+  const candidates = fs
+    .readdirSync(PROJECT_ARTIFACTS_DIR, { withFileTypes: true })
+    .filter((entry: fs.Dirent) => entry.isDirectory())
+    .map((entry: fs.Dirent) => path.join(PROJECT_ARTIFACTS_DIR, entry.name, fileName))
+    .filter((candidate: string) => fs.existsSync(candidate))
+    .map((candidate: string) => ({
+      path: candidate,
+      mtimeMs: fs.statSync(candidate).mtimeMs,
+    }))
+    .sort((a: { mtimeMs: number }, b: { mtimeMs: number }) => b.mtimeMs - a.mtimeMs);
+  return candidates[0]?.path || null;
+}
+
+function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
+  if (name === "list_pipeline_commands") {
+    return {
+      count: TOOL_DEFINITIONS.length,
+      tools: TOOL_DEFINITIONS.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+      })),
+    };
+  }
+
+  if (name === "show_attachment") {
+    return {
+      attachment_path: DEFAULT_ATTACHMENT_PATH,
+      attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+    };
+  }
+
+  if (name === "refresh_baseline") {
+    const execution = runPipeline(["refresh-baseline"]);
+    return {
+      ...execution,
+      attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+    };
+  }
+
+  if (name === "project_console_cycle") {
+    const execution = runPipeline(["project-console-cycle"]);
+    const projectNextPath = latestArtifactFile("project-next.json");
+    const projectConsolePath = latestArtifactFile("project-console.json");
+    const projectNext = projectNextPath ? readJsonFile(projectNextPath) : null;
+    const projectConsole = projectConsolePath ? readJsonFile(projectConsolePath) : null;
+    return {
+      ...withArtifactStatus(execution, projectNext ?? projectConsole),
+      project_next_path: projectNextPath,
+      project_next: projectNext,
+      project_console_path: projectConsolePath,
+      project_console: projectConsole,
+    };
+  }
+
+  if (name === "project_next") {
+    const execution = runPipeline(["project-next"]);
+    const projectNextPath = latestArtifactFile("project-next.json");
+    return {
+      ...withArtifactStatus(execution, projectNextPath ? readJsonFile(projectNextPath) : null),
+      project_next_path: projectNextPath,
+      project_next: projectNextPath ? readJsonFile(projectNextPath) : null,
+    };
+  }
+
+  if (name === "flow_status") {
+    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const execution = runPipeline(["flow-status", featureDir]);
+    const flowStatusPath = path.join(featureDir, "flow-status.json");
+    const flowStatus = readJsonFile(flowStatusPath);
+    return {
+      ...withArtifactStatus(execution, flowStatus),
+      flow_status_path: flowStatusPath,
+      flow_status: flowStatus,
+    };
+  }
+
+  if (name === "validate_reports") {
+    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const stage = typeof argumentsObject.stage === "string" ? argumentsObject.stage : "all";
+    return runPipeline(["validate-reports", featureDir, "--stage", stage]);
+  }
+
+  if (name === "validate_all_reports") {
+    const stage = typeof argumentsObject.stage === "string" ? argumentsObject.stage : "all";
+    const args = ["validate-all-reports", "--stage", stage];
+    if (argumentsObject.require_verify === true) {
+      args.push("--require-verify");
+    }
+    return runPipeline(args);
+  }
+
+  if (name === "generate_task_slices") {
+    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const execution = runPipeline(["generate-task-slices", featureDir]);
+    const generatedPath = path.join(featureDir, "tasks", "task-slices.generated.json");
+    const taskSlices = readJsonFile(generatedPath);
+    return {
+      ...withArtifactStatus(execution, taskSlices),
+      task_slices_path: generatedPath,
+      task_slices: taskSlices,
+    };
+  }
+
+  if (name === "design_gates") {
+    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const args = ["design-gates", featureDir];
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    return runPipeline(args);
+  }
+
+  if (name === "gate5") {
+    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const args = ["gate5", featureDir];
+    if (argumentsObject.require_attached_execution === true) {
+      args.push("--require-attached-execution");
+    }
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    const execution = runPipeline(args);
+    const reportsDir = path.join(featureDir, "reports");
+    const verifyReportPath = findLatestVersionedReport(reportsDir, "verify-report.json");
+    const verifyReport = verifyReportPath ? readJsonFile(verifyReportPath) : null;
+    return {
+      ...withArtifactStatus(execution, verifyReport),
+      verify_report_path: verifyReportPath,
+      verify_report: verifyReport,
+    };
+  }
+
+  if (name === "release_gate") {
+    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const args = ["release-gate", featureDir];
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    const execution = runPipeline(args);
+    const reportsDir = path.join(featureDir, "reports");
+    const reportPath = findLatestVersionedReport(reportsDir, "release-gate-report.json");
+    const releaseGateReport = reportPath ? readJsonFile(reportPath) : null;
+    return {
+      ...withArtifactStatus(execution, releaseGateReport),
+      release_gate_report_path: reportPath,
+      release_gate_report: releaseGateReport,
+    };
+  }
+
+  if (name === "onboard_project") {
+    const args = ["onboard-project"];
+    if (typeof argumentsObject.project_root === "string") {
+      args.push("--project-root", argumentsObject.project_root);
+    }
+    if (typeof argumentsObject.name === "string") {
+      args.push("--name", argumentsObject.name);
+    }
+    addRepeatedFlag(args, "--design-root", asStringArray(argumentsObject.design_roots));
+    addRepeatedFlag(args, "--schema-root", asStringArray(argumentsObject.schema_roots));
+    if (typeof argumentsObject.components_file === "string") {
+      args.push("--components-file", argumentsObject.components_file);
+    }
+    const execution = runPipeline(args);
+    return {
+      ...execution,
+      attachment_path: DEFAULT_ATTACHMENT_PATH,
+      attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+    };
+  }
+
+  throw new Error(`Unknown tool: ${name}`);
+}
+
+function findLatestVersionedReport(reportsRoot: string, fileName: string): string | null {
+  if (!fs.existsSync(reportsRoot)) {
+    return null;
+  }
+  const candidates = fs
+    .readdirSync(reportsRoot, { withFileTypes: true })
+    .filter((entry: fs.Dirent) => entry.isDirectory() && /^v\d+$/i.test(entry.name))
+    .map((entry: fs.Dirent) => path.join(reportsRoot, entry.name, fileName))
+    .filter((candidate: string) => fs.existsSync(candidate))
+    .map((candidate: string) => ({
+      path: candidate,
+      mtimeMs: fs.statSync(candidate).mtimeMs,
+    }))
+    .sort((a: { mtimeMs: number }, b: { mtimeMs: number }) => b.mtimeMs - a.mtimeMs);
+  return candidates[0]?.path || null;
+}
+
+function runCli(tool: string, argumentsText?: string): void {
+  const payload = toolDispatch(tool, parseArguments(argumentsText));
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function writeJsonRpc(id: unknown, result: JsonRecord, isError = false): void {
+  const message: JsonRecord = { jsonrpc: "2.0", id, result };
+  if (isError) {
+    delete message.result;
+    message.error = result;
+  }
+  process.stdout.write(`${JSON.stringify(message)}\n`);
+}
+
+function runMcpStdio(): void {
+  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  rl.on("line", (line) => {
+    if (!line || !line.trim()) {
+      return;
+    }
+
+    let message: JsonRecord;
+    try {
+      message = JSON.parse(line) as JsonRecord;
+    } catch {
+      writeJsonRpc(null, { code: -32700, message: "Parse error" }, true);
+      return;
+    }
+
+    const id = message.id;
+    const method = message.method;
+    const params = message.params as JsonRecord | undefined;
+    try {
+      if (method === "initialize") {
+        writeJsonRpc(id, {
+          protocolVersion: typeof params?.protocolVersion === "string" ? params.protocolVersion : "2024-11-05",
+          capabilities: { tools: {} },
+          serverInfo: {
+            name: PACKAGE.name,
+            version: PACKAGE.version,
+          },
+        });
+        return;
+      }
+
+      if (method === "notifications/initialized") {
+        return;
+      }
+
+      if (method === "ping") {
+        writeJsonRpc(id, {});
+        return;
+      }
+
+      if (method === "tools/list") {
+        writeJsonRpc(id, { tools: TOOL_DEFINITIONS });
+        return;
+      }
+
+      if (method === "tools/call") {
+        const name = typeof params?.name === "string" ? params.name : "";
+        const argumentsObject = (params?.arguments as JsonRecord | undefined) || {};
+        const payload = toolDispatch(name, argumentsObject);
+        writeJsonRpc(id, {
+          content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+          isError: false,
+        });
+        return;
+      }
+
+      writeJsonRpc(id, { code: -32601, message: `Method not found: ${String(method)}` }, true);
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : String(error);
+      writeJsonRpc(id, { code: -32000, message: messageText }, true);
+    }
+  });
+}
+
+function main(): void {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.tool) {
+    runCli(String(args.tool), typeof args.arguments === "string" ? args.arguments : "{}");
+    return;
+  }
+  runMcpStdio();
+}
+
+main();

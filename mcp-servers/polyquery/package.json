@@ -1,0 +1,65 @@
+{
+  "name": "polyquery-mcp",
+  "version": "1.2.0",
+  "description": "Multi-database query MCP tool supporting PostgreSQL, MySQL, MongoDB, Redis, and Oracle",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "polyquery-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "database",
+    "query",
+    "postgresql",
+    "mysql",
+    "mongodb",
+    "redis",
+    "oracle",
+    "ai",
+    "llm",
+    "claude"
+  ],
+  "author": "stardust_08",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sssstardust/PolyQuery-MCP.git"
+  },
+  "homepage": "https://github.com/Sssstardust/PolyQuery-MCP.git#readme",
+  "bugs": {
+    "url": "https://github.com/Sssstardust/PolyQuery-MCP.git/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.3.1",
+    "ioredis": "^5.3.2",
+    "mongodb": "^6.3.0",
+    "mysql2": "^3.6.5",
+    "oracledb": "^6.2.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.10.9",
+    "better-sqlite3": "^12.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ]
+}
+

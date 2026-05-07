@@ -1,0 +1,14 @@
+# Copy the MCP blocks into your Codex config and replace D:\project\SDD
+# with the local path of this SDD repository.
+
+[mcp_servers.sdd-project-explorer]
+command = "node"
+args = ["D:\\project\\SDD\\mcp-servers\\project-explorer\\dist\\server.js"]
+
+[mcp_servers.sdd-arch-standard]
+command = "node"
+args = ["D:\\project\\SDD\\mcp-servers\\arch-standard\\dist\\server.js"]
+
+[mcp_servers.sdd-pipeline]
+command = "node"
+args = ["D:\\project\\SDD\\mcp-servers\\sdd-pipeline\\dist\\server.js"]

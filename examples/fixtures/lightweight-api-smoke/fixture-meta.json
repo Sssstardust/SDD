@@ -1,0 +1,12 @@
+{
+  "name": "lightweight-api-smoke",
+  "categories": ["light-api", "doctor-smoke"],
+  "commands": [
+    ["release-gate"],
+    ["validate-reports", "--stage", "implementation"]
+  ],
+  "expected_summary": [
+    "release-gate: PASS",
+    "validate-reports --stage implementation: PASS"
+  ]
+}

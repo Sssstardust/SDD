@@ -1,0 +1,7 @@
+interface:
+  display_name: "设计生成器"
+  short_description: "基于结构化需求与事实生成设计文档"
+  default_prompt: "使用 $sdd-generation 基于当前 feature 的 structured-prd 和 baseline 事实生成 design-vN.md 与 design-pack。"
+
+policy:
+  allow_implicit_invocation: true

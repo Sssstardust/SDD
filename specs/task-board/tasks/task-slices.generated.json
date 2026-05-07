@@ -1,0 +1,18 @@
+{
+  "feature_name": "task-board",
+  "design_version": "design-v2.md",
+  "generated_at": "2026-05-06T02:25:42.466703+00:00",
+  "result": "PASS",
+  "created": [
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-001-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-002-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-003-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-004-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-005-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-006-db.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-007-async.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-008-external.md"
+  ],
+  "skipped": [],
+  "errors": []
+}

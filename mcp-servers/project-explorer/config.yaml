@@ -1,0 +1,39 @@
+{
+  "scan_roots": [
+    "src/main/java",
+    "src/test/java"
+  ],
+  "design_roots": [
+    "specs"
+  ],
+  "module_prefix_map": {},
+  "duplicate_strategy": "disambiguate",
+  "context_budget": {
+    "classes": 60,
+    "columns": 80,
+    "rules_chars": 8000
+  },
+  "cache": {
+    "enabled": true,
+    "path": ".cache/project-explorer-snapshot.json",
+    "ttl_minutes": 30
+  },
+  "skip_words": [
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "HTTP",
+    "API",
+    "URL",
+    "JSON",
+    "SQL",
+    "DDL",
+    "SDD",
+    "PRD",
+    "MCP",
+    "CI",
+    "PR",
+    "OK"
+  ]
+}

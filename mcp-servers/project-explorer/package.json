@@ -1,0 +1,52 @@
+{
+  "name": "project-explorer-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for scanning repository classes, modules, public methods, and design participants for SDD workflows.",
+  "type": "commonjs",
+  "bin": {
+    "project-explorer-mcp": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "author": "SDD Team",
+  "files": [
+    "dist/",
+    "src/",
+    "config.yaml",
+    "agent-config-example.md",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/server.js",
+    "cli:scan": "node dist/server.js --tool scan_modules --arguments \"{\\\"keywords\\\":[\\\"payment\\\"],\\\"forceRefresh\\\":true}\"",
+    "pack:check": "npm pack --dry-run --cache ./.npm-pack-cache",
+    "publish:check": "npm run build && npm run typecheck && npm run pack:check",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run publish:check"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "project-explorer",
+    "code-explorer",
+    "repository-scanner",
+    "java-scanner",
+    "design-scanner",
+    "brownfield",
+    "sdd"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "typescript": "^5.8.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

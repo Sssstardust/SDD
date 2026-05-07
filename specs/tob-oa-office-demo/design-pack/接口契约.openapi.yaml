@@ -1,0 +1,89 @@
+openapi: 3.0.3
+info:
+  title: tob-oa-office-demo API
+  version: 1.0.0
+paths:
+  /api/v1/hr/employees:
+    get:
+      operationId: gEmployees
+      summary: GET employees
+      responses:
+        '200':
+          description: OK
+  /api/v1/hr/employees:
+    post:
+      operationId: pEmployees
+      summary: POST employees
+      responses:
+        '200':
+          description: OK
+  /api/v1/hr/org-tree:
+    get:
+      operationId: gOrgTree
+      summary: GET org tree
+      responses:
+        '200':
+          description: OK
+  /api/v1/approvals:
+    get:
+      operationId: gApprovals
+      summary: GET approvals
+      responses:
+        '200':
+          description: OK
+  /api/v1/approvals/leave:
+    post:
+      operationId: pLeave
+      summary: POST leave
+      responses:
+        '200':
+          description: OK
+  /api/v1/approvals/overtime:
+    post:
+      operationId: pOvertime
+      summary: POST overtime
+      responses:
+        '200':
+          description: OK
+  /api/v1/approvals/reimburse:
+    post:
+      operationId: pReimburse
+      summary: POST reimburse
+      responses:
+        '200':
+          description: OK
+  /api/v1/approvals/process-definitions:
+    post:
+      operationId: pProcessDefinitions
+      summary: POST process definitions
+      responses:
+        '200':
+          description: OK
+  /api/v1/notices:
+    get:
+      operationId: gNotices
+      summary: GET notices
+      responses:
+        '200':
+          description: OK
+  /api/v1/notices:
+    post:
+      operationId: pNotices
+      summary: POST notices
+      responses:
+        '200':
+          description: OK
+  /api/v1/messages/push:
+    post:
+      operationId: pPush
+      summary: POST push
+      responses:
+        '200':
+          description: OK
+  /api/v1/attendance/records:
+    get:
+      operationId: gRecords
+      summary: GET records
+      responses:
+        '200':
+          description: OK

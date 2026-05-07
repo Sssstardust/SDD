@@ -1,0 +1,9 @@
+{
+  "design_version": "design-v1.md",
+  "feature": "payment-review-control",
+  "risk_tier": "high",
+  "status": "APPROVED",
+  "approved_by": "zhangsan",
+  "approved_at": "2026-04-17T18:05:00+08:00",
+  "comments": "支付审核流转仅处理审核态变更，不涉及扣款通道，允许进入设计态索引。"
+}

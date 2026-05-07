@@ -1,0 +1,20 @@
+{
+  "feature_dir": "D:\\project\\SDD\\specs\\tob-oa-office-demo",
+  "feature_name": "tob-oa-office-demo",
+  "current_stage": "feature-brief-ready",
+  "risk_tier": "high",
+  "design_version": null,
+  "reports_dir": null,
+  "approval_status": null,
+  "gate2_result": null,
+  "gate3_result": null,
+  "gate4_result": null,
+  "gate5_result": null,
+  "release_gate_result": null,
+  "next_command": "python scripts/run_pipeline.py design-cycle D:\\project\\SDD\\specs\\tob-oa-office-demo --strict",
+  "reason": "尚未生成 design-v{N}.md",
+  "missing_artifacts": [
+    "design-v{N}.md"
+  ],
+  "blockers": []
+}

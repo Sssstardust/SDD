@@ -1,0 +1,54 @@
+{
+  "feature_name": "payment-review-control",
+  "design_version": "design-v1.md",
+  "generated_at": "2026-04-29T02:53:54.169168+00:00",
+  "test_file": "D:\\project\\SDD\\src\\test\\java\\generated\\design\\payment-review-control\\PaymentReviewControlDesignVerificationTest.java",
+  "test_file_preserved": true,
+  "mappings": [
+    {
+      "slice_file": "slice-001-biz.md",
+      "slice_id": "SLICE-001-BIZ",
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "description": "审核列表只展示待审核支付单",
+      "case_id": "TC-001",
+      "test_method": "test_req_001_case"
+    },
+    {
+      "slice_file": "slice-001-biz.md",
+      "slice_id": "SLICE-001-BIZ",
+      "req_id": "REQ-002",
+      "priority": "P0",
+      "description": "审核通过后状态流转为 APPROVED",
+      "case_id": "TC-002",
+      "test_method": "test_req_002_approved"
+    },
+    {
+      "slice_file": "slice-001-biz.md",
+      "slice_id": "SLICE-001-BIZ",
+      "req_id": "REQ-003",
+      "priority": "P0",
+      "description": "审核驳回后状态流转为 REJECTED 且记录原因",
+      "case_id": "TC-003",
+      "test_method": "test_req_003_rejected"
+    },
+    {
+      "slice_file": "slice-002-biz.md",
+      "slice_id": "SLICE-002-BIZ",
+      "req_id": "REQ-002",
+      "priority": "P0",
+      "description": "审核通过后状态流转为 APPROVED 且不可重复审核",
+      "case_id": "TC-001",
+      "test_method": "test_req_002_approved"
+    },
+    {
+      "slice_file": "slice-003-biz.md",
+      "slice_id": "SLICE-003-BIZ",
+      "req_id": "REQ-003",
+      "priority": "P0",
+      "description": "审核驳回后状态流转为 REJECTED 且记录驳回原因",
+      "case_id": "TC-001",
+      "test_method": "test_req_003_rejected"
+    }
+  ]
+}

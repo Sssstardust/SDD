@@ -1,0 +1,12 @@
+{
+  "name": "standard-db-change",
+  "categories": ["standard", "db-change"],
+  "commands": [
+    ["release-gate"],
+    ["validate-reports", "--stage", "implementation"]
+  ],
+  "expected_summary": [
+    "release-gate: PASS with SQL rollback evidence",
+    "validate-reports --stage implementation: PASS"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "sdd-project-explorer": {
+      "type": "local",
+      "command": [
+        "node",
+        "D:\\project\\SDD\\mcp-servers\\project-explorer\\dist\\server.js"
+      ]
+    },
+    "sdd-arch-standard": {
+      "type": "local",
+      "command": [
+        "node",
+        "D:\\project\\SDD\\mcp-servers\\arch-standard\\dist\\server.js"
+      ]
+    },
+    "sdd-pipeline": {
+      "type": "local",
+      "command": [
+        "node",
+        "D:\\project\\SDD\\mcp-servers\\sdd-pipeline\\dist\\server.js"
+      ]
+    }
+  }
+}

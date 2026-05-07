@@ -1,0 +1,48 @@
+{
+  "name": "governance-warn-gate5-p1",
+  "categories": ["governance", "warn", "gate5"],
+  "commands": [
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\run_gate5_fixture.py",
+        "{feature_dir}",
+        "--baseline-dir",
+        "{feature_dir}\\.spec\\baseline",
+        "--execution-status",
+        "PASS"
+      ],
+      "expected_exit_code": 0,
+      "expected_output_contains": [
+        "[WARN] Gate 5",
+        "uncovered_p1: REQ-002"
+      ]
+    },
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\assert_json_value.py",
+        "{feature_dir}\\reports\\v1\\verify-report.json",
+        "--path",
+        "result",
+        "--equals",
+        "\"WARN\""
+      ]
+    },
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\assert_json_value.py",
+        "{feature_dir}\\reports\\v1\\verify-report.json",
+        "--path",
+        "coverage_result",
+        "--equals",
+        "\"WARN\""
+      ]
+    }
+  ],
+  "expected_summary": [
+    "gate5: WARN because only P1 coverage is missing",
+    "verify-report.result: WARN"
+  ]
+}

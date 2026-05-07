@@ -1,0 +1,7 @@
+interface:
+  display_name: "需求解析器"
+  short_description: "把 PRD 解析成结构化 SDD 输入"
+  default_prompt: "使用 $requirement-analyzer 把这份 PRD 转成 structured-prd.json，并显式列出歧义和待澄清项。"
+
+policy:
+  allow_implicit_invocation: true

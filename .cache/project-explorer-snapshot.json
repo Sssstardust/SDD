@@ -1,0 +1,876 @@
+{
+  "meta": {
+    "created_at": "2026-05-07T09:04:59.402Z",
+    "signature": "225a46838a33f850d91f5bf62f13fffe9e80300570dcbbb72b93beb503f86073",
+    "file_count": 17
+  },
+  "payload": {
+    "generated_at": "2026-05-07T09:04:59.400Z",
+    "scanner": "java-lexical-v2",
+    "evidence_level": "L2",
+    "confidence": "medium",
+    "unsupported_features": [
+      "framework-proxy"
+    ],
+    "scan_quality": {
+      "parser": "lightweight-lexical-java",
+      "status": "partial",
+      "warnings": [],
+      "limitations": [
+        "no-symbol-resolution",
+        "no-lombok-generated-method-expansion",
+        "partial-mybatis-xml-binding-resolution",
+        "no-framework-proxy-resolution"
+      ]
+    },
+    "source_stats": {
+      "java-main": 12
+    },
+    "duplicate_strategy": "disambiguate",
+    "scan_roots": [
+      "examples/fixtures/attached-sample-project/src/main/java"
+    ],
+    "design_roots": [
+      "specs"
+    ],
+    "classes": [
+      {
+        "class_name": "OrderUsageService",
+        "simple_name": "OrderUsageService",
+        "fqn": "com.example.pricinglistcontrol.service.OrderUsageService",
+        "package": "com.example.pricinglistcontrol.service",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/OrderUsageService.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "checkOrderRelation(String pricingId)"
+        ],
+        "method_details": [
+          {
+            "name": "checkOrderRelation",
+            "signature": "checkOrderRelation(String pricingId)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "boolean",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "checkOrderRelation(String pricingId)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [],
+        "field_details": [],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/OrderUsageService.java"
+        ],
+        "display_name": "OrderUsageService"
+      },
+      {
+        "class_name": "PaymentOrderRepository",
+        "simple_name": "PaymentOrderRepository",
+        "fqn": "com.example.paymentreviewcontrol.repository.PaymentOrderRepository",
+        "package": "com.example.paymentreviewcontrol.repository",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentOrderRepository.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "findById(String paymentId)",
+          "findByStatus(String status)",
+          "save(Map<String, Object> order)"
+        ],
+        "method_details": [
+          {
+            "name": "findById",
+            "signature": "findById(String paymentId)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "findByStatus",
+            "signature": "findByStatus(String status)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "save",
+            "signature": "save(Map<String, Object> order)",
+            "parameter_types": [
+              "Map<String, Object>"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "findById(String paymentId)",
+          "findByStatus(String status)",
+          "save(Map<String, Object> order)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "paymentOrders"
+        ],
+        "field_details": [
+          {
+            "name": "paymentOrders",
+            "type": "Map<String, Map<String, Object>>",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "ArrayList",
+          "HashMap",
+          "List",
+          "Map"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentOrderRepository.java",
+          "specs/pilot-payment-review/design-v1.md",
+          "specs/tob-oa-office-demo/design-v2.md"
+        ],
+        "display_name": "PaymentOrderRepository"
+      },
+      {
+        "class_name": "PaymentReviewController",
+        "simple_name": "PaymentReviewController",
+        "fqn": "com.example.paymentreviewcontrol.controller.PaymentReviewController",
+        "package": "com.example.paymentreviewcontrol.controller",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/controller/PaymentReviewController.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "approve(String paymentId, String reviewer)",
+          "listPending(String reviewer)",
+          "reject(String paymentId, String reviewer, String reason)"
+        ],
+        "method_details": [
+          {
+            "name": "approve",
+            "signature": "approve(String paymentId, String reviewer)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "listPending",
+            "signature": "listPending(String reviewer)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "reject",
+            "signature": "reject(String paymentId, String reviewer, String reason)",
+            "parameter_types": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "approve(String paymentId, String reviewer)",
+          "listPending(String reviewer)",
+          "reject(String paymentId, String reviewer, String reason)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "paymentReviewService"
+        ],
+        "field_details": [
+          {
+            "name": "paymentReviewService",
+            "type": "PaymentReviewService",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "List",
+          "Map",
+          "PaymentReviewService"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/controller/PaymentReviewController.java",
+          "specs/pilot-payment-review/design-v1.md",
+          "specs/tob-oa-office-demo/design-v2.md"
+        ],
+        "display_name": "PaymentReviewController"
+      },
+      {
+        "class_name": "PaymentReviewRecordRepository",
+        "simple_name": "PaymentReviewRecordRepository",
+        "fqn": "com.example.paymentreviewcontrol.repository.PaymentReviewRecordRepository",
+        "package": "com.example.paymentreviewcontrol.repository",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentReviewRecordRepository.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "appendRecord(String paymentId, String reviewer, String result, String reason)",
+          "listRecords()"
+        ],
+        "method_details": [
+          {
+            "name": "appendRecord",
+            "signature": "appendRecord(String paymentId, String reviewer, String result, String reason)",
+            "parameter_types": [
+              "String",
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "void",
+            "annotations": []
+          },
+          {
+            "name": "listRecords",
+            "signature": "listRecords()",
+            "parameter_types": [],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "appendRecord(String paymentId, String reviewer, String result, String reason)",
+          "listRecords()"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "records"
+        ],
+        "field_details": [
+          {
+            "name": "records",
+            "type": "List<Map<String, Object>>",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "ArrayList",
+          "HashMap",
+          "List",
+          "Map"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentReviewRecordRepository.java",
+          "specs/pilot-payment-review/design-v1.md"
+        ],
+        "display_name": "PaymentReviewRecordRepository"
+      },
+      {
+        "class_name": "PaymentReviewService",
+        "simple_name": "PaymentReviewService",
+        "fqn": "com.example.paymentreviewcontrol.service.PaymentReviewService",
+        "package": "com.example.paymentreviewcontrol.service",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/service/PaymentReviewService.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "approve(...)",
+          "approve(String paymentId, String reviewer)",
+          "listPendingPayments(...)",
+          "listPendingPayments(String reviewer)",
+          "reject(...)",
+          "reject(String paymentId, String reviewer, String reason)"
+        ],
+        "method_details": [
+          {
+            "name": "approve",
+            "signature": "approve(String paymentId, String reviewer)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "listPendingPayments",
+            "signature": "listPendingPayments(String reviewer)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "reject",
+            "signature": "reject(String paymentId, String reviewer, String reason)",
+            "parameter_types": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "approve(...)",
+          "approve(String paymentId, String reviewer)",
+          "listPendingPayments(...)",
+          "listPendingPayments(String reviewer)",
+          "reject(...)",
+          "reject(String paymentId, String reviewer, String reason)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "paymentOrderRepository",
+          "paymentReviewRecordRepository",
+          "paymentStateMachine"
+        ],
+        "field_details": [
+          {
+            "name": "paymentOrderRepository",
+            "type": "PaymentOrderRepository",
+            "annotations": []
+          },
+          {
+            "name": "paymentReviewRecordRepository",
+            "type": "PaymentReviewRecordRepository",
+            "annotations": []
+          },
+          {
+            "name": "paymentStateMachine",
+            "type": "PaymentStateMachine",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "List",
+          "Map",
+          "PaymentOrderRepository",
+          "PaymentReviewRecordRepository",
+          "PaymentStateMachine"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/service/PaymentReviewService.java",
+          "specs/pilot-payment-review/design-v1.md",
+          "specs/tob-oa-office-demo/design-v2.md"
+        ],
+        "display_name": "PaymentReviewService"
+      },
+      {
+        "class_name": "PaymentReviewUI",
+        "simple_name": "PaymentReviewUI",
+        "fqn": "com.example.paymentreviewcontrol.ui.PaymentReviewUI",
+        "package": "com.example.paymentreviewcontrol.ui",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/ui/PaymentReviewUI.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "approvePayment(String paymentId, String reviewer)",
+          "rejectPayment(String paymentId, String reviewer, String reason)",
+          "showPendingPayments(String reviewer)"
+        ],
+        "method_details": [
+          {
+            "name": "approvePayment",
+            "signature": "approvePayment(String paymentId, String reviewer)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "rejectPayment",
+            "signature": "rejectPayment(String paymentId, String reviewer, String reason)",
+            "parameter_types": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "showPendingPayments",
+            "signature": "showPendingPayments(String reviewer)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "approvePayment(String paymentId, String reviewer)",
+          "rejectPayment(String paymentId, String reviewer, String reason)",
+          "showPendingPayments(String reviewer)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "paymentReviewController"
+        ],
+        "field_details": [
+          {
+            "name": "paymentReviewController",
+            "type": "PaymentReviewController",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "List",
+          "Map",
+          "PaymentReviewController"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/ui/PaymentReviewUI.java",
+          "specs/pilot-payment-review/design-v1.md",
+          "specs/tob-oa-office-demo/design-v2.md"
+        ],
+        "display_name": "PaymentReviewUI"
+      },
+      {
+        "class_name": "PaymentStateMachine",
+        "simple_name": "PaymentStateMachine",
+        "fqn": "com.example.paymentreviewcontrol.domain.PaymentStateMachine",
+        "package": "com.example.paymentreviewcontrol.domain",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/domain/PaymentStateMachine.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "transit(String currentStatus, String targetStatus)"
+        ],
+        "method_details": [
+          {
+            "name": "transit",
+            "signature": "transit(String currentStatus, String targetStatus)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "String",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "transit(String currentStatus, String targetStatus)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [],
+        "field_details": [],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/domain/PaymentStateMachine.java",
+          "specs/pilot-payment-review/design-v1.md",
+          "specs/tob-oa-office-demo/design-v2.md"
+        ],
+        "display_name": "PaymentStateMachine"
+      },
+      {
+        "class_name": "PricingController",
+        "simple_name": "PricingController",
+        "fqn": "com.example.pricinglistcontrol.controller.PricingController",
+        "package": "com.example.pricinglistcontrol.controller",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/controller/PricingController.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "getPricings(String userId, Map<String, String> query)",
+          "review(String pricingId, String reviewer)",
+          "update(String pricingId, Map<String, Object> payload)"
+        ],
+        "method_details": [
+          {
+            "name": "getPricings",
+            "signature": "getPricings(String userId, Map<String, String> query)",
+            "parameter_types": [
+              "String",
+              "Map<String, String>"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "review",
+            "signature": "review(String pricingId, String reviewer)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "update",
+            "signature": "update(String pricingId, Map<String, Object> payload)",
+            "parameter_types": [
+              "String",
+              "Map<String, Object>"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "getPricings(String userId, Map<String, String> query)",
+          "review(String pricingId, String reviewer)",
+          "update(String pricingId, Map<String, Object> payload)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "pricingPermissionService",
+          "pricingService"
+        ],
+        "field_details": [
+          {
+            "name": "pricingPermissionService",
+            "type": "PricingPermissionService",
+            "annotations": []
+          },
+          {
+            "name": "pricingService",
+            "type": "PricingService",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "List",
+          "Map",
+          "PricingPermissionService",
+          "PricingService"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/controller/PricingController.java"
+        ],
+        "display_name": "PricingController"
+      },
+      {
+        "class_name": "PricingPermissionService",
+        "simple_name": "PricingPermissionService",
+        "fqn": "com.example.pricinglistcontrol.service.PricingPermissionService",
+        "package": "com.example.pricinglistcontrol.service",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingPermissionService.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "filterVisibleProductLines(String userId)"
+        ],
+        "method_details": [
+          {
+            "name": "filterVisibleProductLines",
+            "signature": "filterVisibleProductLines(String userId)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "List<String>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "filterVisibleProductLines(String userId)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [],
+        "field_details": [],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "ArrayList",
+          "List"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingPermissionService.java"
+        ],
+        "display_name": "PricingPermissionService"
+      },
+      {
+        "class_name": "PricingRepository",
+        "simple_name": "PricingRepository",
+        "fqn": "com.example.pricinglistcontrol.repository.PricingRepository",
+        "package": "com.example.pricinglistcontrol.repository",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/repository/PricingRepository.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "findById(String pricingId)",
+          "query(String productLine, String status, String type)",
+          "save(Map<String, Object> plan)"
+        ],
+        "method_details": [
+          {
+            "name": "findById",
+            "signature": "findById(String pricingId)",
+            "parameter_types": [
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "query",
+            "signature": "query(String productLine, String status, String type)",
+            "parameter_types": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "save",
+            "signature": "save(Map<String, Object> plan)",
+            "parameter_types": [
+              "Map<String, Object>"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "findById(String pricingId)",
+          "query(String productLine, String status, String type)",
+          "save(Map<String, Object> plan)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "pricingPlans"
+        ],
+        "field_details": [
+          {
+            "name": "pricingPlans",
+            "type": "List<Map<String, Object>>",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "ArrayList",
+          "HashMap",
+          "List",
+          "Map"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/repository/PricingRepository.java"
+        ],
+        "display_name": "PricingRepository"
+      },
+      {
+        "class_name": "PricingService",
+        "simple_name": "PricingService",
+        "fqn": "com.example.pricinglistcontrol.service.PricingService",
+        "package": "com.example.pricinglistcontrol.service",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingService.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "listPricings(Map<String, String> query, List<String> visibleProductLines)",
+          "reviewPricing(String pricingId, String reviewer)",
+          "updatePricing(String pricingId, Map<String, Object> payload)"
+        ],
+        "method_details": [
+          {
+            "name": "listPricings",
+            "signature": "listPricings(Map<String, String> query, List<String> visibleProductLines)",
+            "parameter_types": [
+              "Map<String, String>",
+              "List<String>"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "reviewPricing",
+            "signature": "reviewPricing(String pricingId, String reviewer)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "updatePricing",
+            "signature": "updatePricing(String pricingId, Map<String, Object> payload)",
+            "parameter_types": [
+              "String",
+              "Map<String, Object>"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "listPricings(Map<String, String> query, List<String> visibleProductLines)",
+          "reviewPricing(String pricingId, String reviewer)",
+          "updatePricing(String pricingId, Map<String, Object> payload)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "orderUsageService",
+          "pricingRepository"
+        ],
+        "field_details": [
+          {
+            "name": "orderUsageService",
+            "type": "OrderUsageService",
+            "annotations": []
+          },
+          {
+            "name": "pricingRepository",
+            "type": "PricingRepository",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "ArrayList",
+          "HashMap",
+          "List",
+          "Map",
+          "PricingRepository"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingService.java"
+        ],
+        "display_name": "PricingService"
+      },
+      {
+        "class_name": "PricingUI",
+        "simple_name": "PricingUI",
+        "fqn": "com.example.pricinglistcontrol.ui.PricingUI",
+        "package": "com.example.pricinglistcontrol.ui",
+        "module": "attached-sample-project",
+        "type": "class",
+        "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/ui/PricingUI.java",
+        "source_kind": "java-main",
+        "public_methods": [
+          "showPricingList(String userId, Map<String, String> query)",
+          "submitReview(String pricingId, String reviewer)",
+          "submitUpdate(String pricingId, Map<String, Object> payload)"
+        ],
+        "method_details": [
+          {
+            "name": "showPricingList",
+            "signature": "showPricingList(String userId, Map<String, String> query)",
+            "parameter_types": [
+              "String",
+              "Map<String, String>"
+            ],
+            "return_type": "List<Map<String, Object>>",
+            "annotations": []
+          },
+          {
+            "name": "submitReview",
+            "signature": "submitReview(String pricingId, String reviewer)",
+            "parameter_types": [
+              "String",
+              "String"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          },
+          {
+            "name": "submitUpdate",
+            "signature": "submitUpdate(String pricingId, Map<String, Object> payload)",
+            "parameter_types": [
+              "String",
+              "Map<String, Object>"
+            ],
+            "return_type": "Map<String, Object>",
+            "annotations": []
+          }
+        ],
+        "declared_public_methods": [
+          "showPricingList(String userId, Map<String, String> query)",
+          "submitReview(String pricingId, String reviewer)",
+          "submitUpdate(String pricingId, Map<String, Object> payload)"
+        ],
+        "inherited_public_methods": [],
+        "fields": [
+          "pricingController"
+        ],
+        "field_details": [
+          {
+            "name": "pricingController",
+            "type": "PricingController",
+            "annotations": []
+          }
+        ],
+        "annotations": [],
+        "extends": [],
+        "implements": [],
+        "endpoints": [],
+        "dependencies": [
+          "List",
+          "Map",
+          "PricingController"
+        ],
+        "source_files": [
+          "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/ui/PricingUI.java"
+        ],
+        "display_name": "PricingUI"
+      }
+    ]
+  }
+}

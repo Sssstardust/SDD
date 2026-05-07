@@ -1,0 +1,19 @@
+[project]
+name = "sdd"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
+cache_dir = ".cache/pytest"
+norecursedirs = [
+  ".cache",
+  ".git",
+  ".idea",
+  ".pytest_cache",
+  ".tmp_doctor_smoke",
+  ".tmp_test_workspace",
+  ".venv",
+  "pytest-cache-files-*",
+]

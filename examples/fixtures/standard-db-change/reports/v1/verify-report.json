@@ -1,0 +1,65 @@
+{
+  "feature_name": "standard-db-change",
+  "design_version": "design-v1.md",
+  "checked_at": "2026-05-06T00:00:00+00:00",
+  "test_file": "examples/fixtures/standard-db-change/tests/test_standard_db_change.py",
+  "risk_tier": "low",
+  "result": "PASS",
+  "coverage_result": "PASS",
+  "execution": {
+    "status": "PASS",
+    "mode": "stub"
+  },
+  "attached_execution": {
+    "status": "SKIPPED",
+    "reason": "optional for fixture",
+    "commands": []
+  },
+  "attached_execution_required": false,
+  "attached_execution_requirement_reason": "optional",
+  "uncovered_p0": [],
+  "uncovered_p1": [],
+  "implementation_result": "PASS",
+  "implementation_traceability": {
+    "result": "PASS",
+    "message": "fixture traceability is precomputed"
+  },
+  "real_test_req_coverage": {
+    "result": "PASS",
+    "expected_req_ids": ["REQ-001"],
+    "covered_req_ids": ["REQ-001"],
+    "missing_req_ids": [],
+    "matched_file_count": 1,
+    "matched_files": [
+      {
+        "component_id": "",
+        "path": "examples/fixtures/standard-db-change/tests/test_standard_db_change.py",
+        "req_ids": ["REQ-001"]
+      }
+    ],
+    "details": [
+      {
+        "req_id": "REQ-001",
+        "covered": true,
+        "matched_files": [
+          "examples/fixtures/standard-db-change/tests/test_standard_db_change.py"
+        ]
+      }
+    ],
+    "reason": "fixture test source contains REQ-001"
+  },
+  "affected_components": [],
+  "strict": false,
+  "warnings": [],
+  "errors": [],
+  "placeholder_todos": [],
+  "evidence": {},
+  "details": [
+    {
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "test_method": "test_create_pricing_item_req_001",
+      "covered": true
+    }
+  ]
+}

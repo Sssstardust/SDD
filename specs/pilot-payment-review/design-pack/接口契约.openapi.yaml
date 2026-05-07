@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info:
+  title: payment-review-control API
+  version: 1.0.0
+paths:
+  /api/v1/payments/review/pending:
+    get:
+      operationId: listPendingPayments
+      summary: 查询待审核支付单列表
+      responses:
+        '200':
+          description: 查询成功
+        '403':
+          description: 非审核人员禁止访问
+  /api/v1/payments/{paymentId}/approve:
+    post:
+      operationId: approvePaymentReview
+      summary: 审核通过支付单
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 审核通过
+        '409':
+          description: 当前状态不允许审核通过
+  /api/v1/payments/{paymentId}/reject:
+    post:
+      operationId: rejectPaymentReview
+      summary: 驳回支付单
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: 驳回成功
+        '409':
+          description: 当前状态不允许驳回

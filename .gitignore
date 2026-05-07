@@ -1,0 +1,8 @@
+config/polyquery.json
+.spec/polyquery*.snapshot.json
+.spec/polyquery*.json
+!config/polyquery.example.json
+.env
+**/.env
+
+.spec

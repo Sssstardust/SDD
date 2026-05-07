@@ -1,0 +1,73 @@
+{
+  "name": "governance-fail-high-risk-attached",
+  "categories": ["governance", "fail", "high-risk", "gate5", "release-gate"],
+  "commands": [
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\run_gate5_fixture.py",
+        "{feature_dir}",
+        "--baseline-dir",
+        "{feature_dir}\\.spec\\baseline",
+        "--execution-status",
+        "PASS"
+      ],
+      "expected_exit_code": 1,
+      "expected_output_contains": [
+        "[FAIL] Gate 5",
+        "attached_execution: FAIL"
+      ]
+    },
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\assert_json_value.py",
+        "{feature_dir}\\reports\\v1\\verify-report.json",
+        "--path",
+        "result",
+        "--equals",
+        "\"FAIL\""
+      ]
+    },
+    {
+      "kind": "feature-command",
+      "args": ["validate-reports", "--stage", "implementation"],
+      "expected_exit_code": 1,
+      "expected_output_contains": [
+        "attached_execution.status"
+      ]
+    },
+    {
+      "kind": "feature-command",
+      "args": ["release-gate"],
+      "expected_exit_code": 1
+    },
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\assert_json_value.py",
+        "{feature_dir}\\reports\\v1\\release-gate-report.json",
+        "--path",
+        "result",
+        "--equals",
+        "\"FAIL\""
+      ]
+    },
+    {
+      "kind": "python-script",
+      "args": [
+        "{repo_root}\\scripts\\assert_json_contains.py",
+        "{feature_dir}\\reports\\v1\\release-gate-report.json",
+        "--path",
+        "errors",
+        "--contains",
+        "attached_execution"
+      ]
+    }
+  ],
+  "expected_summary": [
+    "gate5: FAIL because high-risk feature lacks attached execution",
+    "validate-reports: FAIL with attached execution governance errors",
+    "release-gate: FAIL"
+  ]
+}

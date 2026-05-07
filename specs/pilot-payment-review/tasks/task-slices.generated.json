@@ -1,0 +1,13 @@
+{
+  "feature_name": "payment-review-control",
+  "design_version": "design-v1.md",
+  "generated_at": "2026-04-29T08:25:51.495469+00:00",
+  "result": "PASS",
+  "created": [],
+  "skipped": [
+    "D:\\project\\SDD\\specs\\pilot-payment-review\\tasks\\slice-001-biz.md",
+    "D:\\project\\SDD\\specs\\pilot-payment-review\\tasks\\slice-002-biz.md",
+    "D:\\project\\SDD\\specs\\pilot-payment-review\\tasks\\slice-003-biz.md"
+  ],
+  "errors": []
+}

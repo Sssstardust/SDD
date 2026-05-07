@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: task-board API
+  version: 1.0.0
+paths:
+  /api/v1/task-board:
+    post:
+      operationId: c
+      summary: 任务基础 CRUD
+      responses:
+        '200':
+          description: OK

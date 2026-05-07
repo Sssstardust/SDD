@@ -1,0 +1,17 @@
+{
+  "feature_name": "payment-idempotent-full",
+  "design_version": "design-v1.md",
+  "generated_at": "2026-05-06T00:00:00+00:00",
+  "test_file": "examples/fixtures/payment-idempotent-full/tests/test_payment_idempotent_full.py",
+  "test_file_preserved": true,
+  "mappings": [
+    {
+      "slice_file": "tasks/slice-001-biz.md",
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "description": "approve payment exactly once",
+      "case_id": "CASE-001",
+      "test_method": "test_approve_payment_idempotent_req_001"
+    }
+  ]
+}

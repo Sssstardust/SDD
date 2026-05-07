@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "sdd-project-explorer": {
+      "command": "node",
+      "args": [
+        "D:\\project\\SDD\\mcp-servers\\project-explorer\\dist\\server.js"
+      ]
+    },
+    "sdd-arch-standard": {
+      "command": "node",
+      "args": [
+        "D:\\project\\SDD\\mcp-servers\\arch-standard\\dist\\server.js"
+      ]
+    },
+    "sdd-pipeline": {
+      "command": "node",
+      "args": [
+        "D:\\project\\SDD\\mcp-servers\\sdd-pipeline\\dist\\server.js"
+      ]
+    }
+  }
+}

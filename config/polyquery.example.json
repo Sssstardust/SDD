@@ -1,0 +1,27 @@
+{
+  "enabled": true,
+  "mcp": {
+    "command": "npx",
+    "args": ["-y", "polyquery-mcp"],
+    "timeout_seconds": 30,
+    "env": {
+      "READ_ONLY_MODE": "true",
+      "POSTGRES_CONFIGS": {
+        "test": "postgresql://readonly:${POSTGRES_PASSWORD}@localhost:5432/app_test",
+        "reporting": "postgresql://readonly:${POSTGRES_REPORTING_PASSWORD}@localhost:5432/reporting"
+      },
+      "ORACLE_CONFIGS": {
+        "pdc": "oracle://readonly:${ORACLE_PDC_PASSWORD}@pdc-db.example.com:1521/pdc",
+        "tob": "oracle://readonly:${ORACLE_TOB_PASSWORD}@tob-db.example.com:1521/tob"
+      },
+      "MYSQL_CONFIGS": {
+        "pricing": "mysql://readonly:${MYSQL_PRICING_PASSWORD}@localhost:3306/pricing"
+      }
+    }
+  },
+  "discovery": {
+    "mode": "agent",
+    "max_tables": 30,
+    "on_ambiguous": "require-confirmation"
+  }
+}

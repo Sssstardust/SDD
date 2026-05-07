@@ -1,0 +1,45 @@
+{
+  "name": "sdd-pipeline-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for driving the SDD run_pipeline workflow.",
+  "type": "commonjs",
+  "bin": {
+    "sdd-pipeline-mcp": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "author": "SDD Team",
+  "files": [
+    "dist/",
+    "src/",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && node ../project-explorer/node_modules/typescript/bin/tsc -p tsconfig.json",
+    "typecheck": "node ../project-explorer/node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
+    "start": "node dist/server.js",
+    "cli:list": "node dist/server.js --tool list_pipeline_commands --arguments \"{}\"",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm run typecheck"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "sdd",
+    "pipeline",
+    "workflow",
+    "agent-tools"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "typescript": "^5.8.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

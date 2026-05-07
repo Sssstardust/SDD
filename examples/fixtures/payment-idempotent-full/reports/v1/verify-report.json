@@ -1,0 +1,69 @@
+{
+  "feature_name": "payment-idempotent-full",
+  "design_version": "design-v1.md",
+  "checked_at": "2026-05-06T00:00:00+00:00",
+  "test_file": "examples/fixtures/payment-idempotent-full/tests/test_payment_idempotent_full.py",
+  "risk_tier": "high",
+  "result": "PASS",
+  "coverage_result": "PASS",
+  "execution": {
+    "status": "PASS",
+    "mode": "stub"
+  },
+  "attached_execution": {
+    "status": "PASS",
+    "commands": [
+      {
+        "name": "payment-smoke",
+        "status": "PASS"
+      }
+    ]
+  },
+  "attached_execution_required": true,
+  "attached_execution_requirement_reason": "high-risk-feature",
+  "uncovered_p0": [],
+  "uncovered_p1": [],
+  "implementation_result": "PASS",
+  "implementation_traceability": {
+    "result": "PASS",
+    "message": "fixture traceability is precomputed"
+  },
+  "real_test_req_coverage": {
+    "result": "PASS",
+    "expected_req_ids": ["REQ-001"],
+    "covered_req_ids": ["REQ-001"],
+    "missing_req_ids": [],
+    "matched_file_count": 1,
+    "matched_files": [
+      {
+        "component_id": "",
+        "path": "examples/fixtures/payment-idempotent-full/tests/test_payment_idempotent_full.py",
+        "req_ids": ["REQ-001"]
+      }
+    ],
+    "details": [
+      {
+        "req_id": "REQ-001",
+        "covered": true,
+        "matched_files": [
+          "examples/fixtures/payment-idempotent-full/tests/test_payment_idempotent_full.py"
+        ]
+      }
+    ],
+    "reason": "fixture test source contains REQ-001"
+  },
+  "affected_components": [],
+  "strict": false,
+  "warnings": [],
+  "errors": [],
+  "placeholder_todos": [],
+  "evidence": {},
+  "details": [
+    {
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "test_method": "test_approve_payment_idempotent_req_001",
+      "covered": true
+    }
+  ]
+}
