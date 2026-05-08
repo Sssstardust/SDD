@@ -69,8 +69,8 @@ def reports_dir_for_design(feature_dir: Path, design_path_or_name: Path | str) -
     return feature_dir / "reports" / f"v{design_version_number(design_path_or_name)}"
 
 
-def get_design_roots(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> list[Path]:
-    attachment = load_attachment_config(attachment_path)
+def get_design_roots(attachment_path: Path = DEFAULT_ATTACHMENT_PATH, profile: str | None = None) -> list[Path]:
+    attachment = load_attachment_config(attachment_path, profile=profile)
     if isinstance(attachment, dict):
         design_roots = attachment.get("design_roots")
         if isinstance(design_roots, list):
@@ -80,14 +80,14 @@ def get_design_roots(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> list[Pa
     return [SPECS_DIR.resolve()]
 
 
-def get_primary_design_root(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
-    return get_design_roots(attachment_path)[0]
+def get_primary_design_root(attachment_path: Path = DEFAULT_ATTACHMENT_PATH, profile: str | None = None) -> Path:
+    return get_design_roots(attachment_path, profile=profile)[0]
 
 
-def iter_feature_dirs(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> list[Path]:
+def iter_feature_dirs(attachment_path: Path = DEFAULT_ATTACHMENT_PATH, profile: str | None = None) -> list[Path]:
     feature_dirs: list[Path] = []
     seen: set[Path] = set()
-    for design_root in get_design_roots(attachment_path):
+    for design_root in get_design_roots(attachment_path, profile=profile):
         if not design_root.exists():
             continue
         for path in sorted(design_root.iterdir()):
@@ -103,12 +103,16 @@ def iter_feature_dirs(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> list[P
     return feature_dirs
 
 
-def resolve_feature_dir(feature_dir_or_path: Path | str, attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
+def resolve_feature_dir(
+    feature_dir_or_path: Path | str,
+    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
+    profile: str | None = None,
+) -> Path:
     path = feature_dir_or_path if isinstance(feature_dir_or_path, Path) else Path(feature_dir_or_path)
     if path.is_absolute():
         return path
 
-    candidate_roots = get_design_roots(attachment_path)
+    candidate_roots = get_design_roots(attachment_path, profile=profile)
     relative_path = Path(*path.parts[1:]) if path.parts and path.parts[0].lower() == "specs" else path
 
     for design_root in candidate_roots:
@@ -116,4 +120,4 @@ def resolve_feature_dir(feature_dir_or_path: Path | str, attachment_path: Path =
         if candidate.exists():
             return candidate
 
-    return (get_primary_design_root(attachment_path) / relative_path).resolve()
+    return (get_primary_design_root(attachment_path, profile=profile) / relative_path).resolve()

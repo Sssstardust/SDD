@@ -28,7 +28,6 @@ from polyquery_adapter import (
 from versioning import resolve_feature_dir
 
 ROOT = Path(__file__).resolve().parent.parent
-BASELINE_DIR = get_active_baseline_dir(create=True, migrate_legacy=True)
 
 
 TABLE_FROM_MODEL_PATTERN = re.compile(r"\|\s*[^|]+\|\s*(t_[a-zA-Z0-9_]+)\s*\|")
@@ -278,6 +277,7 @@ def write_schema_audit(
 def resolve_schema_context_sources(
     *,
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
+    profile: str | None = None,
     design_roots: list[Path | str] | None,
     schema_roots: list[Path | str] | None,
     project_root: Path | str | None,
@@ -300,7 +300,7 @@ def resolve_schema_context_sources(
             "source": "cli",
         }
 
-    attachment = load_attachment_config(attachment_path)
+    attachment = load_attachment_config(attachment_path, profile=profile)
     if attachment is not None:
         return {
             **attachment,
@@ -333,9 +333,10 @@ def main() -> int:
         default=str(DEFAULT_ATTACHMENT_PATH),
         help="附着目标项目配置文件路径，默认 .spec/attached-project.json",
     )
+    parser.add_argument("--profile", default=None, help="optional attachment profile name")
     parser.add_argument(
         "--output",
-        default=str(BASELINE_DIR / "schema-context.json"),
+        default=None,
         help="输出 schema-context.json 路径，默认写入 .spec/baseline/schema-context.json",
     )
     parser.add_argument("--from-polyquery", action="store_true", help="优先从 polyquery MCP 生成 schema-context.json")
@@ -363,8 +364,15 @@ def main() -> int:
     args = parser.parse_args()
     started_at = time.perf_counter()
 
-    BASELINE_DIR.mkdir(parents=True, exist_ok=True)
-    schema_context_path = Path(args.output)
+    attachment_path = Path(args.attachment_file)
+    baseline_dir = get_active_baseline_dir(
+        attachment_path=attachment_path,
+        profile=args.profile,
+        create=True,
+        migrate_legacy=True,
+    )
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    schema_context_path = Path(args.output) if args.output else (baseline_dir / "schema-context.json")
     schema_context_path = schema_context_path if schema_context_path.is_absolute() else (ROOT / schema_context_path).resolve()
     schema_context_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -374,7 +382,7 @@ def main() -> int:
                 payload = load_polyquery_snapshot(Path(args.polyquery_snapshot))
             elif args.auto_discover:
                 payload = fetch_schema_context_from_polyquery_discovery(
-                    resolve_feature_dir(args.auto_discover),
+                    resolve_feature_dir(args.auto_discover, attachment_path=attachment_path, profile=args.profile),
                     Path(args.polyquery_config),
                 )
             else:
@@ -436,7 +444,8 @@ def main() -> int:
             print(f"  - error: {exc}")
 
     source_settings = resolve_schema_context_sources(
-        attachment_path=Path(args.attachment_file),
+        attachment_path=attachment_path,
+        profile=args.profile,
         design_roots=[Path(item) for item in args.design_root] if args.design_root else None,
         schema_roots=[Path(item) for item in args.schema_root] if args.schema_root else None,
         project_root=Path(args.project_root) if args.project_root else None,

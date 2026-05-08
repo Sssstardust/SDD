@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-gate1.py
-
 Gate 1: design structure and design-pack completeness.
 """
 
@@ -15,8 +13,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ambiguity_tracker import sync_ambiguity_tracker
 from design_evidence import freeze_design_pack, hash_file, hash_tree
-from gate_report import write_gate_section
+from gate_report import build_violations, write_gate_section
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
@@ -71,17 +70,32 @@ def gate1(feature_dir: Path) -> dict[str, object]:
 
     errors: list[str] = []
     checks: list[str] = []
+    warnings: list[str] = []
     command_results: list[dict[str, object]] = []
+    ambiguity_tracker_path: str | None = None
 
     if not feature_brief.exists():
-        errors.append(f"缺少 feature-brief.md: {feature_brief}")
+        errors.append(f"missing feature-brief.md: {feature_brief}")
     if not design_path.exists():
-        errors.append(f"缺少设计文档: {design_path}")
+        errors.append(f"missing design document: {design_path}")
 
     feature_name = feature_dir.name
     if feature_brief.exists():
         yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8", errors="ignore")))
         feature_name = extract_scalar(yaml_text, "feature_name") or feature_name
+        tracker = sync_ambiguity_tracker(feature_dir)
+        ambiguity_tracker_path = str(feature_dir / "ambiguity-tracker.json")
+        items = tracker.get("items")
+        if isinstance(items, list):
+            open_items = [item for item in items if isinstance(item, dict) and item.get("status") == "open"]
+            resolved_count = int(tracker.get("resolved_count", 0))
+            waived_count = int(tracker.get("waived_count", 0))
+            if resolved_count or waived_count:
+                warnings.append(
+                    f"ambiguity tracker contains {resolved_count} resolved and {waived_count} waived items"
+                )
+            for item in open_items:
+                errors.append(f"open ambiguity {item.get('id')}: {item.get('text')}")
 
     if not errors:
         command_results.append(
@@ -103,7 +117,7 @@ def gate1(feature_dir: Path) -> dict[str, object]:
             checks.append(label)
             continue
         output = str(command_result.get("output") or "").strip()
-        errors.append(f"{label} 失败: {output or '无输出'}")
+        errors.append(f"{label} failed: {output or 'no output'}")
 
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     result = "PASS" if not errors else "FAIL"
@@ -111,9 +125,10 @@ def gate1(feature_dir: Path) -> dict[str, object]:
     payload = {
         "result": result,
         "checks": checks,
-        "warnings": [],
+        "warnings": warnings,
         "errors": errors,
         "commands": command_results,
+        "ambiguity_tracker": ambiguity_tracker_path,
         "design_pack_snapshot": str(snapshot_dir) if snapshot_dir else None,
         "evidence": {
             "design_hash": hash_file(design_path),
@@ -122,6 +137,7 @@ def gate1(feature_dir: Path) -> dict[str, object]:
             "confidence": "medium",
         },
     }
+    payload["violations"] = build_violations("gate1", payload)
     gate_report_path = write_gate_section(
         reports_dir,
         gate_name="gate1",
@@ -130,17 +146,15 @@ def gate1(feature_dir: Path) -> dict[str, object]:
         payload=payload,
     )
     sidecar_report_path = reports_dir / "gate1-report.json"
+    sidecar_payload = {
+        "feature_name": feature_name,
+        "design_version": design_path.name,
+        **payload,
+        "violations": payload.get("violations", []),
+        "gate_report": str(gate_report_path),
+    }
     sidecar_report_path.write_text(
-        json.dumps(
-            {
-                "feature_name": feature_name,
-                "design_version": design_path.name,
-                **payload,
-                "gate_report": str(gate_report_path),
-            },
-            ensure_ascii=False,
-            indent=2,
-        ),
+        json.dumps(sidecar_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     payload["report_file"] = str(sidecar_report_path)
@@ -149,7 +163,7 @@ def gate1(feature_dir: Path) -> dict[str, object]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    parser.add_argument("feature_dir", help="Path to specs/<feature>")
     args = parser.parse_args()
 
     result = gate1(resolve_feature_dir(args.feature_dir))

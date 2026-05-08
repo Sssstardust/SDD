@@ -35,20 +35,25 @@ def get_active_baseline_dir(
     *,
     root: Path = ROOT,
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
+    profile: str | None = None,
     create: bool = False,
     migrate_legacy: bool = False,
 ) -> Path:
     effective_attachment_path = attachment_path if attachment_path.is_absolute() else (root / attachment_path).resolve()
-    attachment = load_attachment_config(effective_attachment_path)
+    attachment = load_attachment_config(effective_attachment_path, profile=profile)
     if not isinstance(attachment, dict):
         baseline_dir = (root / ".spec" / "baseline").resolve()
         if create:
             baseline_dir.mkdir(parents=True, exist_ok=True)
         return baseline_dir
 
-    name = str(attachment.get("name") or "attached-project")
-    project_root = str(attachment.get("project_root") or "")
-    bucket_name = build_baseline_bucket_name(name, project_root)
+    explicit_project_id = attachment.get("project_id")
+    if isinstance(explicit_project_id, str) and explicit_project_id.strip():
+        bucket_name = explicit_project_id.strip()
+    else:
+        name = str(attachment.get("name") or "attached-project")
+        project_root = str(attachment.get("project_root") or "")
+        bucket_name = build_baseline_bucket_name(name, project_root)
     baseline_dir = (root / ".spec" / "baselines" / bucket_name).resolve()
 
     if create:

@@ -62,21 +62,35 @@ run_pipeline.py
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
+from attached_project import DEFAULT_ATTACHMENT_PATH
 from flow_state import inspect_feature_state
+from json_io import read_json
 from ops_log import append_project_op
 from polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
 from project_artifact_paths import get_active_project_artifacts_dir
+from pipeline_result import build_result, emit_result
 from versioning import detect_latest_design_path, get_primary_design_root, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent
 DOC_TEMPLATES = ROOT / "document" / "template"
+JSON_MODE = False
+EXECUTION_TRACE: list[dict[str, object]] = []
+
+
+def build_subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
+    return env
 
 
 def run_captured_command(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -87,7 +101,81 @@ def run_captured_command(command: list[str]) -> subprocess.CompletedProcess[str]
         text=True,
         encoding="utf-8",
         errors="replace",
+        env=build_subprocess_env(),
     )
+
+
+def set_json_mode(enabled: bool) -> None:
+    global JSON_MODE
+    JSON_MODE = enabled
+
+
+def reset_execution_trace() -> None:
+    EXECUTION_TRACE.clear()
+
+
+def console_print(message: str) -> None:
+    if not JSON_MODE:
+        print(message)
+
+
+def record_execution(command: list[str], result: subprocess.CompletedProcess[str]) -> None:
+    EXECUTION_TRACE.append(
+        {
+            "command": command,
+            "exit_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
+    )
+
+
+def run_traced_captured_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    result = run_captured_command(command)
+    record_execution(command, result)
+    return result
+
+
+def run_external_command(command: list[str]) -> int:
+    if JSON_MODE:
+        return run_traced_captured_command(command).returncode
+    result = subprocess.run(command, check=False, env=build_subprocess_env())
+    return result.returncode
+
+
+def extract_issue_lines(raw_text: str, marker: str) -> list[str]:
+    lines: list[str] = []
+    for line in raw_text.splitlines():
+        stripped = line.strip()
+        if marker in stripped:
+            lines.append(stripped)
+    return lines
+
+
+def collect_trace_warnings() -> list[str]:
+    warnings: list[str] = []
+    for entry in EXECUTION_TRACE:
+        warnings.extend(extract_issue_lines(str(entry.get("stdout") or ""), "[WARN]"))
+        warnings.extend(extract_issue_lines(str(entry.get("stderr") or ""), "[WARN]"))
+    return warnings
+
+
+def collect_trace_errors(exit_code: int) -> list[str]:
+    errors: list[str] = []
+    for entry in EXECUTION_TRACE:
+        errors.extend(extract_issue_lines(str(entry.get("stdout") or ""), "[ERROR]"))
+        errors.extend(extract_issue_lines(str(entry.get("stderr") or ""), "[ERROR]"))
+    if exit_code != 0 and not errors:
+        for entry in reversed(EXECUTION_TRACE):
+            stderr_text = str(entry.get("stderr") or "").strip()
+            stdout_text = str(entry.get("stdout") or "").strip()
+            if stderr_text:
+                errors.append(stderr_text.splitlines()[-1])
+                break
+            if stdout_text:
+                errors.append(stdout_text.splitlines()[-1])
+                break
+    return errors
 
 
 def init_feature(feature_name: str) -> int:
@@ -115,10 +203,10 @@ def init_feature(feature_name: str) -> int:
         else:
             task_slice.write_text("# Task Slice\n", encoding="utf-8")
 
-    print(f"[OK] 已初始化试点目录: {feature_dir}")
-    print(f"  - {feature_brief}")
-    print(f"  - {task_slice}")
-    print(f"  - {reports_dir}")
+    console_print(f"[OK] 已初始化试点目录: {feature_dir}")
+    console_print(f"  - {feature_brief}")
+    console_print(f"  - {task_slice}")
+    console_print(f"  - {reports_dir}")
     return 0
 
 
@@ -143,28 +231,23 @@ def generate_feature_brief(source_file: str, feature_name: str, force: bool = Fa
         if force:
             cmd.append("--force")
 
-        result = subprocess.run(cmd, check=False)
-        if result.returncode == 0:
+        result_code = run_external_command(cmd)
+        if result_code == 0:
             return 0
-        if result.returncode == 2:
+        if result_code == 2:
             return 2
-        print("[WARN] requirement-analyzer 运行失败，回退到 legacy generate_feature_brief.py")
+        console_print("[WARN] requirement-analyzer 运行失败，回退到 legacy generate_feature_brief.py")
 
     script = ROOT / "scripts" / "generate_feature_brief.py"
     cmd = [sys.executable, str(script), source_file, feature_name]
     if force:
         cmd.append("--force")
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def verify(feature_brief_path: str) -> int:
     script = ROOT / "scripts" / "check_feature_brief.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_brief_path],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_brief_path])
 
 
 def bootstrap(feature_dir: str, force: bool = False) -> int:
@@ -172,17 +255,12 @@ def bootstrap(feature_dir: str, force: bool = False) -> int:
     cmd = [sys.executable, str(script), feature_dir]
     if force:
         cmd.append("--force")
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def init_design(feature_dir: str) -> int:
     script = ROOT / "scripts" / "init_design.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def generate_design(feature_dir: str, feedback: str | None = None, force: bool = False, resume: bool = False) -> int:
@@ -191,7 +269,7 @@ def generate_design(feature_dir: str, feedback: str | None = None, force: bool =
     if resume:
         design_path = previous_design_path
         if not design_path.exists():
-            print(f"[ERROR] --resume 需要已存在的设计文档: {design_path}")
+            console_print(f"[ERROR] --resume 需要已存在的设计文档: {design_path}")
             return 1
     else:
         code = init_design(str(feature_dir_path))
@@ -200,7 +278,7 @@ def generate_design(feature_dir: str, feedback: str | None = None, force: bool =
         design_path = detect_latest_design_path(feature_dir_path)
     skill_script = ROOT / "skills" / "sdd-generation" / "run.py"
     if not skill_script.exists():
-        print("[WARN] 缺少 sdd-generation skill，回退到 init_design_pack")
+        console_print("[WARN] 缺少 sdd-generation skill，回退到 init_design_pack")
         return init_design_pack(str(feature_dir_path / "feature-brief.md"))
 
     feedback_path = feedback
@@ -228,44 +306,27 @@ def generate_design(feature_dir: str, feedback: str | None = None, force: bool =
         cmd.append("--resume")
     if force or not resume:
         cmd.append("--force")
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def check_design(design_file: str) -> int:
     script = ROOT / "scripts" / "check_design_structure.py"
-    result = subprocess.run(
-        [sys.executable, str(script), design_file],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), design_file])
 
 
 def init_design_pack(feature_brief_path: str) -> int:
     script = ROOT / "scripts" / "init_design_pack.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_brief_path],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_brief_path])
 
 
 def check_design_pack(feature_brief_path: str) -> int:
     script = ROOT / "scripts" / "check_design_pack.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_brief_path],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_brief_path])
 
 
 def gate1(feature_dir: str) -> int:
     script = ROOT / "scripts" / "gate1.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def gate2(feature_dir: str, strict: bool = False) -> int:
@@ -273,38 +334,22 @@ def gate2(feature_dir: str, strict: bool = False) -> int:
     cmd = [sys.executable, str(script), feature_dir]
     if strict:
         cmd.append("--strict")
-    result = subprocess.run(
-        cmd,
-        check=False,
-    )
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def gate3(feature_dir: str) -> int:
     script = ROOT / "scripts" / "check_arch_semantics.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def init_approval(feature_dir: str) -> int:
     script = ROOT / "scripts" / "init_approval.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def check_approval(feature_dir: str) -> int:
     script = ROOT / "scripts" / "check_approval.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def approve_design(feature_dir: str, approved_by: str, comments: str = "", status: str = "APPROVED") -> int:
@@ -320,35 +365,22 @@ def approve_design(feature_dir: str, approved_by: str, comments: str = "", statu
     ]
     if comments:
         cmd.extend(["--comments", comments])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def update_design_index(feature_dir: str) -> int:
     script = ROOT / "scripts" / "update_index_design.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def generate_task_slices(feature_dir: str) -> int:
     script = ROOT / "scripts" / "generate_task_slices.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def gate4(feature_dir: str) -> int:
     script = ROOT / "scripts" / "generate_test_skeleton.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def gate5(feature_dir: str, require_attached_execution: bool = False, strict: bool = False) -> int:
@@ -358,11 +390,7 @@ def gate5(feature_dir: str, require_attached_execution: bool = False, strict: bo
         cmd.append("--require-attached-execution")
     if strict:
         cmd.append("--strict")
-    result = subprocess.run(
-        cmd,
-        check=False,
-    )
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def release_gate(feature_dir: str, strict: bool = False) -> int:
@@ -370,20 +398,12 @@ def release_gate(feature_dir: str, strict: bool = False) -> int:
     cmd = [sys.executable, str(script), feature_dir]
     if strict:
         cmd.append("--strict")
-    result = subprocess.run(
-        cmd,
-        check=False,
-    )
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def check_arch_standards_sync() -> int:
     script = ROOT / "scripts" / "check_arch_standards_sync.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script)])
 
 
 def cancel_design(feature_dir: str, reason: str = "") -> int:
@@ -391,8 +411,7 @@ def cancel_design(feature_dir: str, reason: str = "") -> int:
     cmd = [sys.executable, str(script), "cancel", feature_dir]
     if reason:
         cmd.extend(["--reason", reason])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def archive_design(feature_name: str | None = None, intent_id: str | None = None, statuses: list[str] | None = None, reason: str = "") -> int:
@@ -406,8 +425,7 @@ def archive_design(feature_name: str | None = None, intent_id: str | None = None
         cmd.extend(["--status", status])
     if reason:
         cmd.extend(["--reason", reason])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    return run_external_command(cmd)
 
 
 def sync_baseline(feature_dir: str, design_version: str | None = None) -> int:
@@ -415,20 +433,17 @@ def sync_baseline(feature_dir: str, design_version: str | None = None) -> int:
     cmd = [sys.executable, str(script), feature_dir]
     if design_version:
         cmd.extend(["--design-version", design_version])
-    result = subprocess.run(
-        cmd,
-        check=False,
-    )
-    return result.returncode
+    return run_external_command(cmd)
 
 
-def refresh_module_map() -> int:
+def refresh_module_map(attachment_file: str | None = None, profile: str | None = None) -> int:
     script = ROOT / "scripts" / "refresh_module_map.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    cmd = [sys.executable, str(script)]
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
 def attach_project(
@@ -439,9 +454,17 @@ def attach_project(
     design_roots: list[str] | None = None,
     schema_roots: list[str] | None = None,
     components_file: str | None = None,
+    profile: str | None = None,
+    project_id: str | None = None,
+    list_profiles: bool = False,
+    activate_profile: str | None = None,
 ) -> int:
     script = ROOT / "scripts" / "attach_target_project.py"
     cmd = [sys.executable, str(script)]
+    if list_profiles:
+        cmd.append("--list-profiles")
+    elif activate_profile:
+        cmd.extend(["--activate-profile", activate_profile])
     if show:
         cmd.append("--show")
     elif clear:
@@ -457,8 +480,11 @@ def attach_project(
             cmd.extend(["--design-root", design_root])
         for schema_root in schema_roots or []:
             cmd.extend(["--schema-root", schema_root])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    if profile:
+        cmd.extend(["--profile", profile])
+    if project_id:
+        cmd.extend(["--project-id", project_id])
+    return run_external_command(cmd)
 
 
 def onboard_project(
@@ -468,6 +494,8 @@ def onboard_project(
     design_roots: list[str] | None = None,
     schema_roots: list[str] | None = None,
     components_file: str | None = None,
+    profile: str | None = None,
+    project_id: str | None = None,
 ) -> int:
     script = ROOT / "scripts" / "onboard_attached_project.py"
     cmd = [sys.executable, str(script)]
@@ -481,8 +509,11 @@ def onboard_project(
         cmd.extend(["--design-root", design_root])
     for schema_root in schema_roots or []:
         cmd.extend(["--schema-root", schema_root])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    if profile:
+        cmd.extend(["--profile", profile])
+    if project_id:
+        cmd.extend(["--project-id", project_id])
+    return run_external_command(cmd)
 
 
 def refresh_schema_context(
@@ -492,6 +523,8 @@ def refresh_schema_context(
     polyquery_snapshot: str | None = None,
     auto_discover: str | None = None,
     polyquery_fallback: str = "local",
+    attachment_file: str | None = None,
+    profile: str | None = None,
 ) -> int:
     script = ROOT / "scripts" / "refresh_schema_context.py"
     cmd = [sys.executable, str(script)]
@@ -505,118 +538,128 @@ def refresh_schema_context(
         cmd.extend(["--auto-discover", auto_discover])
     if polyquery_fallback:
         cmd.extend(["--polyquery-fallback", polyquery_fallback])
-    result = subprocess.run(
-        cmd,
-        check=False,
-    )
-    return result.returncode
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
 def refresh_baseline_governance() -> int:
     script = ROOT / "scripts" / "refresh_baseline_governance.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script)])
 
 
 def validate_reports(feature_dir: str, stage: str = "all") -> int:
     script = ROOT / "scripts" / "validate_reports.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir, "--stage", stage],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir, "--stage", stage])
 
 
-def validate_all_reports(stage: str = "all", require_verify: bool = False) -> int:
+def validate_all_reports(
+    stage: str = "all",
+    require_verify: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     script = ROOT / "scripts" / "validate_all_reports.py"
     cmd = [sys.executable, str(script), "--stage", stage]
     if require_verify:
         cmd.append("--require-verify")
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
 def build_approval_summary(feature_dir: str) -> int:
     script = ROOT / "scripts" / "build_approval_summary.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script), feature_dir])
 
 
-def build_flow_status(feature_dir: str) -> int:
+def build_flow_status(feature_dir: str, attachment_file: str | None = None, profile: str | None = None) -> int:
     script = ROOT / "scripts" / "build_flow_status.py"
-    result = subprocess.run(
-        [sys.executable, str(script), feature_dir],
-        check=False,
-    )
-    return result.returncode
+    cmd = [sys.executable, str(script), feature_dir]
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
-def refresh_feature_state(feature_dir: str) -> int:
-    return build_flow_status(feature_dir)
+def refresh_feature_state(feature_dir: str, attachment_file: str | None = None, profile: str | None = None) -> int:
+    return build_flow_status(feature_dir, attachment_file=attachment_file, profile=profile)
 
 
-def build_flow_overview() -> int:
+def build_flow_overview(attachment_file: str | None = None, profile: str | None = None) -> int:
     script = ROOT / "scripts" / "build_flow_overview.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    cmd = [sys.executable, str(script)]
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
-def build_project_next() -> int:
+def build_project_next(attachment_file: str | None = None, profile: str | None = None) -> int:
     script = ROOT / "scripts" / "build_project_next.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    cmd = [sys.executable, str(script)]
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
-def build_project_console() -> int:
+def build_project_console(attachment_file: str | None = None, profile: str | None = None) -> int:
     script = ROOT / "scripts" / "build_project_console.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    cmd = [sys.executable, str(script)]
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
 def build_workspace_hygiene() -> int:
     script = ROOT / "scripts" / "build_workspace_hygiene.py"
-    result = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-    )
-    return result.returncode
+    return run_external_command([sys.executable, str(script)])
 
 
 def build_tooling_hygiene() -> int:
     return build_workspace_hygiene()
 
 
-def refresh_project_state(feature_name: str | None = None) -> int:
+def refresh_project_state(
+    feature_name: str | None = None,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     script = ROOT / "scripts" / "refresh_project_state.py"
     cmd = [sys.executable, str(script)]
     if feature_name:
         cmd.extend(["--feature", feature_name])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
-def upgrade_design_tests(feature_name: str | None = None) -> int:
+def upgrade_design_tests(
+    feature_name: str | None = None,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     script = ROOT / "scripts" / "upgrade_design_tests.py"
     cmd = [sys.executable, str(script)]
     if feature_name:
         cmd.extend(["--feature", feature_name])
-    result = subprocess.run(cmd, check=False)
-    return result.returncode
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
 def latest_design_file(feature_dir: str) -> str:
@@ -661,18 +704,31 @@ def resolve_schema_refresh_strategy(
 
 def run_steps(steps: list[tuple[str, callable]]) -> int:
     for label, step in steps:
-        print(f"[RUN] {label}")
+        console_print(f"[RUN] {label}")
         code = step()
         if code != 0:
-            print(f"[STOP] {label} failed with exit code {code}")
+            console_print(f"[STOP] {label} failed with exit code {code}")
             return code
     return 0
 
 
-def run_design_gates(feature_dir: str, strict: bool = False) -> int:
+def run_design_gates(
+    feature_dir: str,
+    strict: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     return run_steps(
         [
-            ("refresh-baseline", lambda: run_refresh_baseline(strict=strict, feature_dir=feature_dir)),
+            (
+                "refresh-baseline",
+                lambda: run_refresh_baseline(
+                    strict=strict,
+                    feature_dir=feature_dir,
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
             ("gate1", lambda: gate1(feature_dir)),
             ("gate2", lambda: gate2(feature_dir, strict=strict)),
             ("gate3", lambda: gate3(feature_dir)),
@@ -696,11 +752,24 @@ def run_prepare_design_cycle(feature_dir: str) -> int:
     )
 
 
-def run_design_cycle(feature_dir: str, strict: bool = False) -> int:
+def run_design_cycle(
+    feature_dir: str,
+    strict: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     return run_steps(
         [
             ("prepare-design-cycle", lambda: run_prepare_design_cycle(feature_dir)),
-            ("refresh-baseline", lambda: run_refresh_baseline(strict=strict, feature_dir=feature_dir)),
+            (
+                "refresh-baseline",
+                lambda: run_refresh_baseline(
+                    strict=strict,
+                    feature_dir=feature_dir,
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
             ("gate1", lambda: gate1(feature_dir)),
             ("gate2", lambda: gate2(feature_dir, strict=strict)),
             ("gate3", lambda: gate3(feature_dir)),
@@ -709,8 +778,21 @@ def run_design_cycle(feature_dir: str, strict: bool = False) -> int:
             ("generate-task-slices", lambda: generate_task_slices(feature_dir)),
             ("validate-reports(design)", lambda: validate_reports(feature_dir, "design")),
             ("build-approval-summary", lambda: build_approval_summary(feature_dir)),
-            ("flow-status", lambda: refresh_feature_state(feature_dir)),
-            ("project-console-cycle", run_project_console_cycle),
+            (
+                "flow-status",
+                lambda: refresh_feature_state(
+                    feature_dir,
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
+            (
+                "project-console-cycle",
+                lambda: run_project_console_cycle(
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
         ]
     )
 
@@ -727,20 +809,38 @@ def run_implementation_gates(feature_dir: str, strict: bool = False) -> int:
     )
 
 
-def run_approved_implementation_cycle(feature_dir: str, strict: bool = False) -> int:
+def run_approved_implementation_cycle(
+    feature_dir: str,
+    strict: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     return run_steps(
         [
             ("check-approval", lambda: check_approval(feature_dir)),
             ("implementation-gates", lambda: run_implementation_gates(feature_dir, strict=strict)),
-            ("flow-status", lambda: refresh_feature_state(feature_dir)),
-            ("project-console-cycle", run_project_console_cycle),
+            (
+                "flow-status",
+                lambda: refresh_feature_state(
+                    feature_dir,
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
+            (
+                "project-console-cycle",
+                lambda: run_project_console_cycle(
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
         ]
     )
 
 
 def detect_next_flow_step(feature_dir: str) -> tuple[str, callable]:
     normalized_feature_dir = resolve_feature_dir(feature_dir)
-    state = inspect_feature_state(normalized_feature_dir)
+    state = inspect_feature_state(normalized_feature_dir, prefer_persisted=False)
     next_command = str(state.get("next_command") or "")
     feature_dir_path = normalized_feature_dir
     strict = next_command_requires_strict(next_command)
@@ -783,30 +883,46 @@ def run_feature_cycle(feature_dir: str) -> int:
     )
 
 
-def run_continue_project_flow() -> int:
+def run_continue_project_flow(
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     script = ROOT / "scripts" / "build_project_next.py"
-    result = run_captured_command([sys.executable, str(script)])
+    command = [sys.executable, str(script)]
+    if attachment_file:
+        command.extend(["--attachment-file", attachment_file])
+    if profile:
+        command.extend(["--profile", profile])
+    result = run_traced_captured_command(command)
     if result.returncode != 0:
-        print(result.stdout)
-        print(result.stderr)
+        if not JSON_MODE:
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
         return result.returncode
 
-    project_next_path = get_active_project_artifacts_dir(create=True) / "project-next.json"
+    project_next_path = (
+        get_active_project_artifacts_dir(
+            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+            profile=profile,
+            create=True,
+        )
+        / "project-next.json"
+    )
     if not project_next_path.exists():
-        print("[ERROR] project-next.json 未生成")
+        console_print("[ERROR] project-next.json 未生成")
         return 1
-
-    from json_io import read_json
 
     payload = read_json(project_next_path)
     if not isinstance(payload, dict):
-        print("[ERROR] project-next.json 结构非法")
+        console_print("[ERROR] project-next.json 结构非法")
         return 1
 
     candidate = payload.get("candidate")
     if not isinstance(candidate, dict):
         append_project_op("continue-project-flow", {"result": "no_candidate"})
-        print("[OK] 当前没有需要自动推进的 feature")
+        console_print("[OK] 当前没有需要自动推进的 feature")
         return 0
 
     next_command = str(candidate.get("next_command") or "")
@@ -816,11 +932,11 @@ def run_continue_project_flow() -> int:
     reason = str(candidate.get("reason") or "")
     strict = next_command_requires_strict(next_command)
     if not next_command:
-        print("[ERROR] 候选 feature 缺少 next_command")
+        console_print("[ERROR] 候选 feature 缺少 next_command")
         return 1
 
-    print(f"[OK] 选择推进 feature: {feature_name}")
-    print(f"  - command: {next_command}")
+    console_print(f"[OK] 选择推进 feature: {feature_name}")
+    console_print(f"  - command: {next_command}")
     summary = {
         "feature": feature_name,
         "feature_dir": feature_dir,
@@ -830,24 +946,39 @@ def run_continue_project_flow() -> int:
     }
 
     if "full-flow" in next_command:
-        code = run_full_flow(feature_dir, strict=strict)
+        code = run_full_flow(
+            feature_dir,
+            strict=strict,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     elif "bootstrap" in next_command:
         code = bootstrap(feature_dir)
     elif "design-cycle" in next_command:
-        code = run_design_cycle(feature_dir, strict=strict)
+        code = run_design_cycle(
+            feature_dir,
+            strict=strict,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     elif "build-approval-summary" in next_command:
         code = build_approval_summary(feature_dir)
     elif "approved-implementation-cycle" in next_command:
-        code = run_approved_implementation_cycle(feature_dir, strict=strict)
+        code = run_approved_implementation_cycle(
+            feature_dir,
+            strict=strict,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     elif "release-gate" in next_command:
         code = release_gate(feature_dir, strict=strict)
     elif "init-feature" in next_command:
         code = init_feature(Path(feature_dir).name)
     else:
-        print("[ERROR] 无法解析 project-next 推荐命令")
+        console_print("[ERROR] 无法解析 project-next 推荐命令")
         return 1
 
-    after_state = inspect_feature_state(Path(feature_dir))
+    after_state = inspect_feature_state(Path(feature_dir), prefer_persisted=False)
     summary["result"] = "ok" if code == 0 else "fail"
     summary["exit_code"] = code
     summary["after_stage"] = after_state.get("current_stage")
@@ -856,39 +987,70 @@ def run_continue_project_flow() -> int:
     return code
 
 
-def run_project_console_cycle() -> int:
+def run_project_console_cycle(
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     steps = [
-        ("refresh-project-state", lambda: refresh_project_state()),
-        ("flow-overview", build_flow_overview),
-        ("project-next", build_project_next),
+        (
+            "refresh-project-state",
+            lambda: refresh_project_state(
+                attachment_file=attachment_file,
+                profile=profile,
+            ),
+        ),
+        (
+            "flow-overview",
+            lambda: build_flow_overview(
+                attachment_file=attachment_file,
+                profile=profile,
+            ),
+        ),
+        (
+            "project-next",
+            lambda: build_project_next(
+                attachment_file=attachment_file,
+                profile=profile,
+            ),
+        ),
         ("tooling-hygiene", build_tooling_hygiene),
     ]
     for label, step in steps:
-        print(f"[RUN] {label}")
+        console_print(f"[RUN] {label}")
         code = step()
         if code != 0:
             append_project_op("project-console-cycle", {"result": "fail", "failed_step": label})
-            print(f"[STOP] {label} failed with exit code {code}")
+            console_print(f"[STOP] {label} failed with exit code {code}")
             return code
 
     append_project_op("project-console-cycle", {"result": "ok"})
-    print("[RUN] project-console")
-    return build_project_console()
+    console_print("[RUN] project-console")
+    return build_project_console(attachment_file=attachment_file, profile=profile)
 
 
-def run_project_cycle() -> int:
-    before = run_project_console_cycle()
+def run_project_cycle(
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
+    before = run_project_console_cycle(attachment_file=attachment_file, profile=profile)
     if before != 0:
         append_project_op("project-cycle", {"result": "fail", "failed_step": "project-console-cycle(before)"})
         return before
 
-    project_next_path = get_active_project_artifacts_dir(create=True) / "project-next.json"
+    project_next_path = (
+        get_active_project_artifacts_dir(
+            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+            profile=profile,
+            create=True,
+        )
+        / "project-next.json"
+    )
     before_payload = read_json(project_next_path) if project_next_path.exists() else {}
     before_candidate = before_payload.get("candidate") if isinstance(before_payload, dict) else None
 
-    continue_code = run_continue_project_flow()
+    continue_code = run_continue_project_flow(attachment_file=attachment_file, profile=profile)
 
-    after = run_project_console_cycle()
+    after = run_project_console_cycle(attachment_file=attachment_file, profile=profile)
     if after != 0:
         append_project_op("project-cycle", {"result": "fail", "failed_step": "project-console-cycle(after)"})
         return after
@@ -908,36 +1070,303 @@ def run_project_cycle() -> int:
     return continue_code
 
 
-def run_full_flow(feature_dir: str, strict: bool = False) -> int:
+def run_full_flow(
+    feature_dir: str,
+    strict: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     feature_brief = str(Path(feature_dir) / "feature-brief.md")
     return run_steps(
         [
             ("verify", lambda: verify(feature_brief)),
-            ("design-gates", lambda: run_design_gates(feature_dir, strict=strict)),
+            (
+                "design-gates",
+                lambda: run_design_gates(
+                    feature_dir,
+                    strict=strict,
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
             ("implementation-gates", lambda: run_implementation_gates(feature_dir, strict=strict)),
-            ("flow-status", lambda: refresh_feature_state(feature_dir)),
-            ("project-console-cycle", run_project_console_cycle),
+            (
+                "flow-status",
+                lambda: refresh_feature_state(
+                    feature_dir,
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
+            (
+                "project-console-cycle",
+                lambda: run_project_console_cycle(
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
         ]
     )
 
 
-def run_refresh_baseline(*, strict: bool = False, feature_dir: str | None = None) -> int:
+def run_refresh_baseline(
+    *,
+    strict: bool = False,
+    feature_dir: str | None = None,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     refresh_strategy = resolve_schema_refresh_strategy(strict=strict, feature_dir=feature_dir)
 
     if is_strict_enabled(strict) and not refresh_strategy:
-        print("[WARN] strict 模式下未检测到 polyquery 配置或 snapshot，refresh-schema-context 将沿用本地快照策略")
+        console_print("[WARN] strict 模式下未检测到 polyquery 配置或 snapshot，refresh-schema-context 将沿用本地快照策略")
 
     return run_steps(
         [
-            ("refresh-module-map", refresh_module_map),
-            ("refresh-schema-context", lambda: refresh_schema_context(**refresh_strategy)),
+            (
+                "refresh-module-map",
+                lambda: refresh_module_map(
+                    attachment_file=attachment_file,
+                    profile=profile,
+                ),
+            ),
+            (
+                "refresh-schema-context",
+                lambda: refresh_schema_context(
+                    attachment_file=attachment_file,
+                    profile=profile,
+                    **refresh_strategy,
+                ),
+            ),
             ("refresh-baseline-governance", refresh_baseline_governance),
         ]
     )
 
 
-def main() -> int:
+def latest_report_artifact(feature_dir: str, filename: str) -> str | None:
+    feature_dir_path = resolve_feature_dir(feature_dir)
+    design_path = detect_latest_design_path(feature_dir_path)
+    if not design_path.exists():
+        return None
+    report_path = reports_dir_for_design(feature_dir_path, design_path) / filename
+    return str(report_path) if report_path.exists() else None
+
+
+def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, object]:
+    artifacts: dict[str, object] = {}
+    cmd = getattr(args, "cmd", "")
+    attachment_file = getattr(args, "attachment_file", None)
+    profile = getattr(args, "profile", None)
+    resolve_kwargs = {}
+    if attachment_file:
+        resolve_kwargs["attachment_path"] = Path(attachment_file)
+    if profile:
+        resolve_kwargs["profile"] = profile
+    if cmd == "flow-status":
+        flow_status_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "flow-status.json"
+        project_state_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "project-state.json"
+        if project_state_path.exists():
+            artifacts["project_state_path"] = str(project_state_path)
+        if flow_status_path.exists():
+            artifacts["flow_status_path"] = str(flow_status_path)
+    elif cmd == "generate-task-slices":
+        task_slices_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "tasks" / "task-slices.generated.json"
+        if task_slices_path.exists():
+            artifacts["task_slices_path"] = str(task_slices_path)
+    elif cmd == "gate5":
+        verify_report_path = latest_report_artifact(args.feature_dir, "verify-report.json")
+        if verify_report_path:
+            artifacts["verify_report_path"] = verify_report_path
+    elif cmd in {"release-gate", "pre-release-check", "go-live-check"}:
+        release_gate_report_path = latest_report_artifact(args.feature_dir, "release-gate-report.json")
+        if release_gate_report_path:
+            artifacts["release_gate_report_path"] = release_gate_report_path
+    elif cmd in {"project-next", "project-console-cycle", "project-cycle", "continue-project-flow"}:
+        artifacts_dir = get_active_project_artifacts_dir(
+            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+            profile=profile,
+            create=True,
+        )
+        project_next_path = artifacts_dir / "project-next.json"
+        project_console_path = artifacts_dir / "project-console.json"
+        if project_next_path.exists():
+            artifacts["project_next_path"] = str(project_next_path)
+        if project_console_path.exists():
+            artifacts["project_console_path"] = str(project_console_path)
+    return artifacts
+
+
+def build_json_payload(args: argparse.Namespace, exit_code: int, duration_ms: int) -> dict[str, object]:
+    warnings = collect_trace_warnings()
+    errors = collect_trace_errors(exit_code)
+    status = "error" if exit_code != 0 else ("warn" if warnings else "ok")
+    message = f"{args.cmd} completed" if exit_code == 0 else f"{args.cmd} failed"
+    return build_result(
+        status=status,
+        message=message,
+        data={
+            "command": args.cmd,
+            "exit_code": exit_code,
+            "duration_ms": duration_ms,
+            "execution_trace": list(EXECUTION_TRACE),
+        },
+        errors=errors,
+        warnings=warnings,
+        artifacts=collect_artifacts_for_command(args),
+    )
+
+
+def dispatch_command(args: argparse.Namespace) -> int:
+    if args.cmd == "generate-feature-brief":
+        return generate_feature_brief(args.source_file, args.feature_name, args.force)
+    if args.cmd == "init-feature":
+        return init_feature(args.feature_name)
+    if args.cmd in {"bootstrap", "greenfield-init", "scaffold"}:
+        return bootstrap(args.feature_dir, args.force)
+    if args.cmd == "verify":
+        return verify(args.feature_brief)
+    if args.cmd == "init-design":
+        return init_design(args.feature_dir)
+    if args.cmd == "generate-design":
+        return generate_design(args.feature_dir, args.feedback, args.force, args.resume)
+    if args.cmd == "check-design":
+        return check_design(args.design_file)
+    if args.cmd == "init-design-pack":
+        return init_design_pack(args.feature_brief)
+    if args.cmd == "check-design-pack":
+        return check_design_pack(args.feature_brief)
+    if args.cmd == "gate1":
+        return gate1(args.feature_dir)
+    if args.cmd == "gate2":
+        return gate2(args.feature_dir, args.strict)
+    if args.cmd == "gate3":
+        return gate3(args.feature_dir)
+    if args.cmd == "init-approval":
+        return init_approval(args.feature_dir)
+    if args.cmd == "approve-design":
+        return approve_design(args.feature_dir, args.approved_by, args.comments, args.status)
+    if args.cmd == "check-approval":
+        return check_approval(args.feature_dir)
+    if args.cmd == "update-design-index":
+        return update_design_index(args.feature_dir)
+    if args.cmd == "generate-task-slices":
+        return generate_task_slices(args.feature_dir)
+    if args.cmd == "gate4":
+        return gate4(args.feature_dir)
+    if args.cmd == "gate5":
+        return gate5(args.feature_dir, args.require_attached_execution, args.strict)
+    if args.cmd in {"release-gate", "pre-release-check", "go-live-check"}:
+        return release_gate(args.feature_dir, args.strict)
+    if args.cmd == "check-arch-standards-sync":
+        return check_arch_standards_sync()
+    if args.cmd == "cancel-design":
+        return cancel_design(args.feature_dir, args.reason)
+    if args.cmd == "archive-design":
+        return archive_design(args.feature_name, args.intent_id, args.status, args.reason)
+    if args.cmd == "sync-baseline":
+        return sync_baseline(args.feature_dir, args.design_version)
+    if args.cmd == "refresh-module-map":
+        return refresh_module_map(args.attachment_file, args.profile)
+    if args.cmd == "attach-project":
+        return attach_project(
+            args.project_root,
+            show=False,
+            clear=args.clear,
+            name=args.name,
+            design_roots=args.design_root,
+            schema_roots=args.schema_root,
+            components_file=args.components_file,
+            profile=args.profile,
+            project_id=args.project_id,
+            list_profiles=args.list_profiles,
+            activate_profile=args.activate_profile,
+        )
+    if args.cmd == "show-attachment":
+        return attach_project(show=True, profile=args.profile)
+    if args.cmd in {"onboard-project", "bootstrap-attached-project"}:
+        return onboard_project(
+            args.project_root,
+            name=args.name,
+            design_roots=args.design_root,
+            schema_roots=args.schema_root,
+            components_file=args.components_file,
+            profile=args.profile,
+            project_id=args.project_id,
+        )
+    if args.cmd == "refresh-schema-context":
+        return refresh_schema_context(
+            from_polyquery=args.from_polyquery,
+            polyquery_config=args.polyquery_config,
+            polyquery_snapshot=args.polyquery_snapshot,
+            auto_discover=args.auto_discover,
+            polyquery_fallback=args.polyquery_fallback,
+            attachment_file=args.attachment_file,
+            profile=args.profile,
+        )
+    if args.cmd == "refresh-baseline-governance":
+        return refresh_baseline_governance()
+    if args.cmd == "refresh-baseline":
+        return run_refresh_baseline(
+            strict=getattr(args, "strict", False),
+            feature_dir=getattr(args, "feature_dir", None),
+            attachment_file=args.attachment_file,
+            profile=args.profile,
+        )
+    if args.cmd == "refresh-project-state":
+        return refresh_project_state(args.feature, args.attachment_file, args.profile)
+    if args.cmd == "validate-reports":
+        return validate_reports(args.feature_dir, args.stage)
+    if args.cmd == "validate-all-reports":
+        return validate_all_reports(args.stage, args.require_verify, args.attachment_file, args.profile)
+    if args.cmd == "build-approval-summary":
+        return build_approval_summary(args.feature_dir)
+    if args.cmd == "approved-implementation-cycle":
+        return run_approved_implementation_cycle(
+            args.feature_dir,
+            args.strict,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        )
+    if args.cmd == "continue-flow":
+        return run_continue_flow(args.feature_dir)
+    if args.cmd == "flow-status":
+        return build_flow_status(args.feature_dir, args.attachment_file, args.profile)
+    if args.cmd == "feature-cycle":
+        return run_feature_cycle(args.feature_dir)
+    if args.cmd == "flow-overview":
+        return build_flow_overview(args.attachment_file, args.profile)
+    if args.cmd == "project-next":
+        return build_project_next(args.attachment_file, args.profile)
+    if args.cmd == "project-console":
+        return build_project_console(args.attachment_file, args.profile)
+    if args.cmd == "project-console-cycle":
+        return run_project_console_cycle(args.attachment_file, args.profile)
+    if args.cmd == "continue-project-flow":
+        return run_continue_project_flow(args.attachment_file, args.profile)
+    if args.cmd == "project-cycle":
+        return run_project_cycle(args.attachment_file, args.profile)
+    if args.cmd == "tooling-hygiene":
+        return build_tooling_hygiene()
+    if args.cmd == "workspace-hygiene":
+        return build_workspace_hygiene()
+    if args.cmd == "upgrade-design-tests":
+        return upgrade_design_tests(args.feature, args.attachment_file, args.profile)
+    if args.cmd == "prepare-design-cycle":
+        return run_prepare_design_cycle(args.feature_dir)
+    if args.cmd == "design-cycle":
+        return run_design_cycle(args.feature_dir, args.strict, args.attachment_file, args.profile)
+    if args.cmd == "design-gates":
+        return run_design_gates(args.feature_dir, args.strict, args.attachment_file, args.profile)
+    if args.cmd == "implementation-gates":
+        return run_implementation_gates(args.feature_dir, args.strict)
+    if args.cmd == "full-flow":
+        return run_full_flow(args.feature_dir, args.strict, args.attachment_file, args.profile)
+    return 1
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--json", dest="json_output", action="store_true", help="emit structured JSON result")
     subparsers = parser.add_subparsers(dest="cmd", required=True)
 
     p_generate_brief = subparsers.add_parser("generate-feature-brief")
@@ -1056,28 +1485,41 @@ def main() -> int:
     p_sync.add_argument("feature_dir", help="specs/<feature> 目录路径")
     p_sync.add_argument("--design-version", default=None, help="显式同步 design-vN.md / vN / N")
 
-    subparsers.add_parser("refresh-module-map")
+    p_refresh_module_map = subparsers.add_parser("refresh-module-map")
+    p_refresh_module_map.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_refresh_module_map.add_argument("--profile", default=None, help="attachment profile name")
     p_attach = subparsers.add_parser("attach-project")
     p_attach.add_argument("--project-root", default=None, help="目标项目根目录")
     p_attach.add_argument("--name", default=None, help="附着项目显示名称")
+    p_attach.add_argument("--profile", default=None, help="多项目 profile 名称")
+    p_attach.add_argument("--project-id", default=None, help="显式 project_id")
     p_attach.add_argument("--design-root", action="append", default=None, help="显式 design 根目录，可重复传入")
     p_attach.add_argument("--schema-root", action="append", default=None, help="显式 schema 根目录，可重复传入")
     p_attach.add_argument("--components-file", default=None, help="components[] 或完整 attached-project payload JSON")
+    p_attach.add_argument("--list-profiles", action="store_true", help="列出 attachment profiles")
+    p_attach.add_argument("--activate-profile", default=None, help="切换 active attachment profile")
     p_attach.add_argument("--clear", action="store_true", help="清空附着配置")
-    subparsers.add_parser("show-attachment")
+    p_show_attachment = subparsers.add_parser("show-attachment")
+    p_show_attachment.add_argument("--profile", default=None, help="查看指定 profile 的 attachment 配置")
     p_onboard = subparsers.add_parser("onboard-project")
     p_onboard.add_argument("--project-root", default=None, help="目标项目根目录")
     p_onboard.add_argument("--name", default=None, help="附着项目显示名称")
+    p_onboard.add_argument("--profile", default=None, help="多项目 profile 名称")
+    p_onboard.add_argument("--project-id", default=None, help="显式 project_id")
     p_onboard.add_argument("--design-root", action="append", default=None, help="显式 design 根目录，可重复传入")
     p_onboard.add_argument("--schema-root", action="append", default=None, help="显式 schema 根目录，可重复传入")
     p_onboard.add_argument("--components-file", default=None, help="components[] 或完整 attached-project payload JSON")
     p_bootstrap_attached = subparsers.add_parser("bootstrap-attached-project")
     p_bootstrap_attached.add_argument("--project-root", default=None, help="目标项目根目录")
     p_bootstrap_attached.add_argument("--name", default=None, help="附着项目显示名称")
+    p_bootstrap_attached.add_argument("--profile", default=None, help="多项目 profile 名称")
+    p_bootstrap_attached.add_argument("--project-id", default=None, help="显式 project_id")
     p_bootstrap_attached.add_argument("--design-root", action="append", default=None, help="显式 design 根目录，可重复传入")
     p_bootstrap_attached.add_argument("--schema-root", action="append", default=None, help="显式 schema 根目录，可重复传入")
     p_bootstrap_attached.add_argument("--components-file", default=None, help="components[] 或完整 attached-project payload JSON")
     p_refresh_schema = subparsers.add_parser("refresh-schema-context")
+    p_refresh_schema.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_refresh_schema.add_argument("--profile", default=None, help="attachment profile name")
     p_refresh_schema.add_argument("--from-polyquery", action="store_true", help="优先从 polyquery MCP 生成 schema-context")
     p_refresh_schema.add_argument("--polyquery-config", default=None, help="polyquery 配置文件路径")
     p_refresh_schema.add_argument("--polyquery-snapshot", default=None, help="polyquery snapshot 文件路径")
@@ -1089,8 +1531,14 @@ def main() -> int:
         help="polyquery 失败时是否回退本地快照",
     )
     subparsers.add_parser("refresh-baseline-governance")
-    subparsers.add_parser("refresh-baseline")
+    p_refresh_baseline = subparsers.add_parser("refresh-baseline")
+    p_refresh_baseline.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_refresh_baseline.add_argument("--profile", default=None, help="attachment profile name")
+    p_refresh_baseline.add_argument("--feature-dir", default=None, help="optional feature dir used for strict auto-discovery")
+    p_refresh_baseline.add_argument("--strict", action="store_true", help="strict mode")
     p_refresh_project = subparsers.add_parser("refresh-project-state")
+    p_refresh_project.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_refresh_project.add_argument("--profile", default=None, help="attachment profile name")
     p_refresh_project.add_argument("--feature", default=None, help="仅刷新指定 feature 目录名")
 
     p_validate_reports = subparsers.add_parser("validate-reports")
@@ -1109,6 +1557,8 @@ def main() -> int:
         default="all",
         help="仅校验设计阶段报告、实现阶段报告，或全部",
     )
+    p_validate_all_reports.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_validate_all_reports.add_argument("--profile", default=None, help="attachment profile name")
     p_validate_all_reports.add_argument("--require-verify", action="store_true", help="要求所有正式 feature 都必须已有 verify-report.json")
 
     p_build_summary = subparsers.add_parser("build-approval-summary")
@@ -1116,27 +1566,45 @@ def main() -> int:
 
     p_approved_impl = subparsers.add_parser("approved-implementation-cycle")
     p_approved_impl.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_approved_impl.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_approved_impl.add_argument("--profile", default=None, help="attachment profile name")
     p_approved_impl.add_argument("--strict", action="store_true", help="严格模式")
 
     p_continue = subparsers.add_parser("continue-flow")
     p_continue.add_argument("feature_dir", help="specs/<feature> 目录路径")
 
     p_flow_status = subparsers.add_parser("flow-status")
+    p_flow_status.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_flow_status.add_argument("--profile", default=None, help="attachment profile name")
     p_flow_status.add_argument("feature_dir", help="specs/<feature> 目录路径")
 
     p_feature_cycle = subparsers.add_parser("feature-cycle")
     p_feature_cycle.add_argument("feature_dir", help="specs/<feature> 目录路径")
 
-    subparsers.add_parser("flow-overview")
-    subparsers.add_parser("project-next")
-    subparsers.add_parser("project-console")
-    subparsers.add_parser("project-console-cycle")
-    subparsers.add_parser("continue-project-flow")
-    subparsers.add_parser("project-cycle")
+    p_flow_overview = subparsers.add_parser("flow-overview")
+    p_flow_overview.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_flow_overview.add_argument("--profile", default=None, help="attachment profile name")
+    p_project_next = subparsers.add_parser("project-next")
+    p_project_next.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_project_next.add_argument("--profile", default=None, help="attachment profile name")
+    p_project_console = subparsers.add_parser("project-console")
+    p_project_console.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_project_console.add_argument("--profile", default=None, help="attachment profile name")
+    p_project_console_cycle = subparsers.add_parser("project-console-cycle")
+    p_project_console_cycle.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_project_console_cycle.add_argument("--profile", default=None, help="attachment profile name")
+    p_continue_project_flow = subparsers.add_parser("continue-project-flow")
+    p_continue_project_flow.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_continue_project_flow.add_argument("--profile", default=None, help="attachment profile name")
+    p_project_cycle = subparsers.add_parser("project-cycle")
+    p_project_cycle.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_project_cycle.add_argument("--profile", default=None, help="attachment profile name")
     subparsers.add_parser("tooling-hygiene")
     subparsers.add_parser("workspace-hygiene")
 
     p_upgrade_design = subparsers.add_parser("upgrade-design-tests")
+    p_upgrade_design.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_upgrade_design.add_argument("--profile", default=None, help="attachment profile name")
     p_upgrade_design.add_argument("--feature", default=None, help="仅升级指定 feature_name 对应的测试")
 
     p_prepare_design = subparsers.add_parser("prepare-design-cycle")
@@ -1144,10 +1612,14 @@ def main() -> int:
 
     p_design_cycle = subparsers.add_parser("design-cycle")
     p_design_cycle.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_design_cycle.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_design_cycle.add_argument("--profile", default=None, help="attachment profile name")
     p_design_cycle.add_argument("--strict", action="store_true", help="严格模式")
 
     p_design_gates = subparsers.add_parser("design-gates")
     p_design_gates.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_design_gates.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_design_gates.add_argument("--profile", default=None, help="attachment profile name")
     p_design_gates.add_argument("--strict", action="store_true", help="严格模式")
 
     p_impl_gates = subparsers.add_parser("implementation-gates")
@@ -1156,137 +1628,37 @@ def main() -> int:
 
     p_full = subparsers.add_parser("full-flow")
     p_full.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_full.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_full.add_argument("--profile", default=None, help="attachment profile name")
     p_full.add_argument("--strict", action="store_true", help="严格模式")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    if args.cmd == "generate-feature-brief":
-        return generate_feature_brief(args.source_file, args.feature_name, args.force)
-    if args.cmd == "init-feature":
-        return init_feature(args.feature_name)
-    if args.cmd in {"bootstrap", "greenfield-init", "scaffold"}:
-        return bootstrap(args.feature_dir, args.force)
-    if args.cmd == "verify":
-        return verify(args.feature_brief)
-    if args.cmd == "init-design":
-        return init_design(args.feature_dir)
-    if args.cmd == "generate-design":
-        return generate_design(args.feature_dir, args.feedback, args.force, args.resume)
-    if args.cmd == "check-design":
-        return check_design(args.design_file)
-    if args.cmd == "init-design-pack":
-        return init_design_pack(args.feature_brief)
-    if args.cmd == "check-design-pack":
-        return check_design_pack(args.feature_brief)
-    if args.cmd == "gate1":
-        return gate1(args.feature_dir)
-    if args.cmd == "gate2":
-        return gate2(args.feature_dir, args.strict)
-    if args.cmd == "gate3":
-        return gate3(args.feature_dir)
-    if args.cmd == "init-approval":
-        return init_approval(args.feature_dir)
-    if args.cmd == "approve-design":
-        return approve_design(args.feature_dir, args.approved_by, args.comments, args.status)
-    if args.cmd == "check-approval":
-        return check_approval(args.feature_dir)
-    if args.cmd == "update-design-index":
-        return update_design_index(args.feature_dir)
-    if args.cmd == "generate-task-slices":
-        return generate_task_slices(args.feature_dir)
-    if args.cmd == "gate4":
-        return gate4(args.feature_dir)
-    if args.cmd == "gate5":
-        return gate5(args.feature_dir, args.require_attached_execution, args.strict)
-    if args.cmd in {"release-gate", "pre-release-check", "go-live-check"}:
-        return release_gate(args.feature_dir, args.strict)
-    if args.cmd == "check-arch-standards-sync":
-        return check_arch_standards_sync()
-    if args.cmd == "cancel-design":
-        return cancel_design(args.feature_dir, args.reason)
-    if args.cmd == "archive-design":
-        return archive_design(args.feature_name, args.intent_id, args.status, args.reason)
-    if args.cmd == "sync-baseline":
-        return sync_baseline(args.feature_dir, args.design_version)
-    if args.cmd == "refresh-module-map":
-        return refresh_module_map()
-    if args.cmd == "attach-project":
-        return attach_project(
-            args.project_root,
-            show=False,
-            clear=args.clear,
-            name=args.name,
-            design_roots=args.design_root,
-            schema_roots=args.schema_root,
-            components_file=args.components_file,
-        )
-    if args.cmd == "show-attachment":
-        return attach_project(show=True)
-    if args.cmd in {"onboard-project", "bootstrap-attached-project"}:
-        return onboard_project(
-            args.project_root,
-            name=args.name,
-            design_roots=args.design_root,
-            schema_roots=args.schema_root,
-            components_file=args.components_file,
-        )
-    if args.cmd == "refresh-schema-context":
-        return refresh_schema_context(
-            from_polyquery=args.from_polyquery,
-            polyquery_config=args.polyquery_config,
-            polyquery_snapshot=args.polyquery_snapshot,
-            auto_discover=args.auto_discover,
-            polyquery_fallback=args.polyquery_fallback,
-        )
-    if args.cmd == "refresh-baseline-governance":
-        return refresh_baseline_governance()
-    if args.cmd == "refresh-baseline":
-        return run_refresh_baseline()
-    if args.cmd == "refresh-project-state":
-        return refresh_project_state(args.feature)
-    if args.cmd == "validate-reports":
-        return validate_reports(args.feature_dir, args.stage)
-    if args.cmd == "validate-all-reports":
-        return validate_all_reports(args.stage, args.require_verify)
-    if args.cmd == "build-approval-summary":
-        return build_approval_summary(args.feature_dir)
-    if args.cmd == "approved-implementation-cycle":
-        return run_approved_implementation_cycle(args.feature_dir, args.strict)
-    if args.cmd == "continue-flow":
-        return run_continue_flow(args.feature_dir)
-    if args.cmd == "flow-status":
-        return build_flow_status(args.feature_dir)
-    if args.cmd == "feature-cycle":
-        return run_feature_cycle(args.feature_dir)
-    if args.cmd == "flow-overview":
-        return build_flow_overview()
-    if args.cmd == "project-next":
-        return build_project_next()
-    if args.cmd == "project-console":
-        return build_project_console()
-    if args.cmd == "project-console-cycle":
-        return run_project_console_cycle()
-    if args.cmd == "continue-project-flow":
-        return run_continue_project_flow()
-    if args.cmd == "project-cycle":
-        return run_project_cycle()
-    if args.cmd == "tooling-hygiene":
-        return build_tooling_hygiene()
-    if args.cmd == "workspace-hygiene":
-        return build_workspace_hygiene()
-    if args.cmd == "upgrade-design-tests":
-        return upgrade_design_tests(args.feature)
-    if args.cmd == "prepare-design-cycle":
-        return run_prepare_design_cycle(args.feature_dir)
-    if args.cmd == "design-cycle":
-        return run_design_cycle(args.feature_dir, args.strict)
-    if args.cmd == "design-gates":
-        return run_design_gates(args.feature_dir, args.strict)
-    if args.cmd == "implementation-gates":
-        return run_implementation_gates(args.feature_dir, args.strict)
-    if args.cmd == "full-flow":
-        return run_full_flow(args.feature_dir, args.strict)
-    return 1
+    if args.json_output:
+        set_json_mode(True)
+        reset_execution_trace()
+        started_at = time.time()
+        try:
+            exit_code = dispatch_command(args)
+            payload = build_json_payload(args, exit_code, int((time.time() - started_at) * 1000))
+        except Exception as exc:
+            payload = build_result(
+                status="error",
+                message=f"{args.cmd} failed with an unexpected exception",
+                data={
+                    "command": args.cmd,
+                    "duration_ms": int((time.time() - started_at) * 1000),
+                    "execution_trace": list(EXECUTION_TRACE),
+                },
+                errors=[f"{type(exc).__name__}: {exc}"],
+                artifacts=collect_artifacts_for_command(args),
+            )
+            emit_result(payload)
+            return 1
+        emit_result(payload)
+        return exit_code
+
+    return dispatch_command(args)
 
 
 if __name__ == "__main__":

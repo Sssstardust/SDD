@@ -2,19 +2,22 @@
 """
 build_project_next.py
 
-基于项目级 feature 状态，挑选当前最值得推进的 feature。
+Pick the next best feature to advance at the project level.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
+from collections import Counter
 from pathlib import Path
 
+from attached_project import DEFAULT_ATTACHMENT_PATH
 from flow_state import inspect_feature_state
+from json_io import write_json
 from ops_log import read_latest_op
-from project_artifact_paths import get_active_project_artifacts_dir
-from versioning import get_primary_design_root, iter_feature_dirs
+from project_artifact_paths import describe_active_project_artifacts, get_active_project_artifacts_dir
+from versioning import iter_feature_dirs
+
 
 STAGE_PRIORITY = {
     "uninitialized": 0,
@@ -27,6 +30,7 @@ STAGE_PRIORITY = {
     "verified-ready-for-release": 6,
     "release-ready": 7,
 }
+
 
 def choose_candidate(states: list[dict[str, object]]) -> dict[str, object] | None:
     actionable = [
@@ -48,63 +52,83 @@ def choose_candidate(states: list[dict[str, object]]) -> dict[str, object] | Non
     return sorted(actionable, key=sort_key)[0]
 
 
-def render_markdown(states: list[dict[str, object]], candidate: dict[str, object] | None) -> str:
+def render_markdown(
+    states: list[dict[str, object]],
+    candidate: dict[str, object] | None,
+    project_context: dict[str, object],
+) -> str:
+    latest_execution = read_latest_op(["continue-project-flow", "project-cycle"])
+    source_counter = Counter(str(state.get("state_source", "unknown")) for state in states)
     lines = [
         "# Project Next Action",
         "",
+        "## Project Context",
+        "",
+        f"- Project ID: `{project_context.get('project_id')}`",
+        f"- Project Name: `{project_context.get('project_name')}`",
+        f"- Artifacts Dir: `{project_context.get('artifacts_dir')}`",
+        "",
+        "## Recent Execution",
+        "",
     ]
 
-    latest_execution = read_latest_op(["continue-project-flow", "project-cycle"])
-    lines.extend(
-        [
-            "## 最近推进结果",
-            "",
-        ]
-    )
     if latest_execution:
         lines.append(
             f"- `{latest_execution.get('at')}` `{latest_execution.get('op_type')}` {latest_execution.get('payload', {})}"
         )
     else:
-        lines.append("- 无")
+        lines.append("- None")
+
+    lines.extend(
+        [
+            "",
+            "## State Sources",
+            "",
+        ]
+    )
+    for source, count in sorted(source_counter.items()):
+        lines.append(f"- `{source}`: {count}")
 
     if candidate is None:
         lines.extend(
             [
                 "",
-                "- 当前没有需要自动推进的 feature。",
-                "- 所有正式 feature 都已处于 `release-ready`，或缺少可执行的下一步命令。",
+                "- No feature currently needs automatic advancement.",
+                "- All tracked features are `release-ready`, or they do not have an actionable next command.",
                 "",
             ]
         )
     else:
         lines.extend(
             [
-                f"- 推荐 feature：`{candidate.get('feature_name')}`",
-                f"- 当前阶段：`{candidate.get('current_stage')}`",
-                f"- 风险级别：`{candidate.get('risk_tier')}`",
-                f"- 原因：{candidate.get('reason')}",
-                f"- 下一步命令：`{candidate.get('next_command')}`",
+                "",
+                f"- Recommended feature: `{candidate.get('feature_name')}`",
+                f"- Current stage: `{candidate.get('current_stage')}`",
+                f"- Source: `{candidate.get('state_source')}`",
+                f"- Risk tier: `{candidate.get('risk_tier')}`",
+                f"- Reason: {candidate.get('reason')}",
+                f"- Next command: `{candidate.get('next_command')}`",
                 "",
             ]
         )
 
     lines.extend(
         [
-            "## 候选列表",
+            "## Candidates",
             "",
-            "| Feature | 阶段 | 风险 | 缺失产物 | 阻塞项 | 下一步 |",
-            "| --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for state in states:
         feature_name = str(state.get("feature_name", "N/A"))
         stage = str(state.get("current_stage", "N/A"))
+        source = str(state.get("state_source", "N/A"))
         risk = str(state.get("risk_tier", "N/A"))
         missing = len(state.get("missing_artifacts", [])) if isinstance(state.get("missing_artifacts"), list) else 0
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
-        lines.append(f"| {feature_name} | {stage} | {risk} | {missing} | {blockers} | `{next_command}` |")
+        lines.append(f"| {feature_name} | {stage} | {source} | {risk} | {missing} | {blockers} | `{next_command}` |")
     lines.append("")
     return "\n".join(lines)
 
@@ -113,19 +137,34 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-dir",
-        default=str(get_active_project_artifacts_dir(create=True)),
-        help="输出目录，默认写到当前附着项目对应的项目级产物目录",
+        default=None,
+        help="Directory for project-level next-step artifacts.",
     )
+    parser.add_argument(
+        "--attachment-file",
+        default=str(DEFAULT_ATTACHMENT_PATH),
+        help="Attachment config path used to resolve design roots and artifact buckets.",
+    )
+    parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
     args = parser.parse_args()
 
-    output_dir = Path(args.output_dir)
+    attachment_path = Path(args.attachment_file)
+    output_dir = (
+        Path(args.output_dir)
+        if args.output_dir
+        else get_active_project_artifacts_dir(attachment_path=attachment_path, profile=args.profile, create=True)
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    states = [inspect_feature_state(feature_dir) for feature_dir in iter_feature_dirs()]
+    states = [inspect_feature_state(feature_dir) for feature_dir in iter_feature_dirs(attachment_path=attachment_path, profile=args.profile)]
     candidate = choose_candidate(states)
+    project_context = describe_active_project_artifacts(attachment_path=attachment_path, profile=args.profile, create=True)
 
     payload = {
+        "project": project_context,
         "feature_count": len(states),
+        "state_source_policy": "prefer_persisted",
+        "state_source_counts": dict(Counter(str(state.get("state_source", "unknown")) for state in states)),
         "candidate": candidate,
         "latest_execution": read_latest_op(["continue-project-flow", "project-cycle"]),
         "features": states,
@@ -133,10 +172,10 @@ def main() -> int:
 
     json_path = output_dir / "project-next.json"
     md_path = output_dir / "project-next.md"
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    md_path.write_text(render_markdown(states, candidate), encoding="utf-8")
+    write_json(json_path, payload)
+    md_path.write_text(render_markdown(states, candidate, project_context), encoding="utf-8")
 
-    print("[OK] project-next 已生成")
+    print("[OK] project-next generated")
     print(f"  - json: {json_path}")
     print(f"  - md:   {md_path}")
     if candidate is not None:

@@ -1,20 +1,27 @@
 {
   "feature_dir": "D:\\project\\SDD\\specs\\tob-oa-office-demo",
   "feature_name": "tob-oa-office-demo",
-  "current_stage": "feature-brief-ready",
+  "current_stage": "awaiting-approval",
   "risk_tier": "high",
-  "design_version": null,
-  "reports_dir": null,
-  "approval_status": null,
-  "gate2_result": null,
-  "gate3_result": null,
-  "gate4_result": null,
-  "gate5_result": null,
+  "design_version": "design-v9.md",
+  "reports_dir": "D:\\project\\SDD\\specs\\tob-oa-office-demo\\reports\\v9",
+  "approval_status": "PENDING",
+  "gate2_result": "PASS",
+  "gate3_result": "PASS",
+  "gate4_result": "PASS",
+  "gate5_result": "PASS",
   "release_gate_result": null,
-  "next_command": "python scripts/run_pipeline.py design-cycle D:\\project\\SDD\\specs\\tob-oa-office-demo --strict",
-  "reason": "尚未生成 design-v{N}.md",
-  "missing_artifacts": [
-    "design-v{N}.md"
-  ],
-  "blockers": []
+  "next_command": "python scripts/run_pipeline.py build-approval-summary D:\\project\\SDD\\specs\\tob-oa-office-demo",
+  "reason": "high-risk design is still waiting for approval",
+  "missing_artifacts": [],
+  "blockers": [
+    "gate5: REQ-001 仍包含 TODO 占位符",
+    "gate5: REQ-002 仍包含 TODO 占位符",
+    "gate5: REQ-003 仍包含 TODO 占位符",
+    "gate5: REQ-004 仍包含 TODO 占位符",
+    "gate5: REQ-005 仍包含 TODO 占位符",
+    "gate5: REQ-006 仍包含 TODO 占位符",
+    "gate5: REQ-007 仍包含 TODO 占位符",
+    "gate5: REQ-008 仍包含 TODO 占位符"
+  ]
 }

@@ -16,19 +16,26 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_DIR = ROOT / ".spec" / "baseline"
 ARCH_STANDARD_SERVER = ROOT / "mcp-servers" / "arch-standard" / "dist" / "server.js"
-GENERIC_SCHEMA_MATCH_TOKENS = {
+GENERIC_MATCH_TOKENS = {
     "api",
     "app",
     "demo",
+    "detail",
+    "details",
     "feature",
     "general",
     "module",
     "oa",
     "office",
     "platform",
+    "process",
+    "push",
+    "record",
+    "records",
     "service",
     "system",
     "tob",
+    "tree",
 }
 
 
@@ -149,9 +156,12 @@ def canonical_match_token(value: str) -> str:
 def split_match_tokens(text: str) -> set[str]:
     tokens: set[str] = set()
     for part in re.split(r"[^a-zA-Z0-9]+", text):
-        canonical = canonical_match_token(part)
-        if len(canonical) >= 3:
-            tokens.add(canonical)
+        if not part:
+            continue
+        for chunk in re.findall(r"[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|\d+", part):
+            canonical = canonical_match_token(chunk)
+            if len(canonical) >= 3:
+                tokens.add(canonical)
     return tokens
 
 
@@ -330,21 +340,15 @@ def collect_match_tokens(structured_prd: dict[str, Any], workspace: Path) -> lis
     feature_name = str(structured_prd.get("feature_name") or workspace.name)
     feature_type = str(structured_prd.get("feature_type") or "")
     for raw in [feature_name, feature_type, workspace.name]:
-        for part in re.split(r"[^a-zA-Z0-9]+", raw):
-            if len(part) >= 3:
-                tokens.add(part.lower())
+        tokens.update(split_match_tokens(raw))
 
     for entity in structured_prd.get("entities", []) or []:
         name = entity.get("name") if isinstance(entity, dict) else str(entity)
-        for part in re.split(r"[^a-zA-Z0-9]+", str(name)):
-            if len(part) >= 3:
-                tokens.add(part.lower())
+        tokens.update(split_match_tokens(str(name)))
 
     for api in structured_prd.get("apis", []) or []:
         path = api.get("path") if isinstance(api, dict) else ""
-        for part in re.split(r"[^a-zA-Z0-9]+", str(path)):
-            if len(part) >= 3 and part.lower() not in {"api"}:
-                tokens.add(part.lower())
+        tokens.update(token for token in split_match_tokens(str(path)) if token not in {"api"})
 
     return sorted(tokens)
 
@@ -352,17 +356,24 @@ def collect_match_tokens(structured_prd: dict[str, Any], workspace: Path) -> lis
 def filter_module_map(classes: list[dict[str, Any]], tokens: list[str]) -> list[dict[str, Any]]:
     if not tokens:
         return classes[:8]
+    normalized_tokens = {canonical_match_token(token) for token in tokens if len(canonical_match_token(token)) >= 3}
+    specific_tokens = {token for token in normalized_tokens if token not in GENERIC_MATCH_TOKENS}
+    if not specific_tokens:
+        return []
+    candidate_tokens = specific_tokens
     matched = []
     for item in classes:
-        haystack = " ".join(
-            [
-                str(item.get("class_name") or ""),
-                str(item.get("simple_name") or ""),
-                str(item.get("source_file") or ""),
-                " ".join(str(method) for method in item.get("public_methods", []) if isinstance(method, str)),
-            ]
-        ).lower()
-        if any(token in haystack for token in tokens):
+        haystack_tokens = split_match_tokens(
+            " ".join(
+                [
+                    str(item.get("class_name") or ""),
+                    str(item.get("simple_name") or ""),
+                    str(item.get("source_file") or ""),
+                    " ".join(str(method) for method in item.get("public_methods", []) if isinstance(method, str)),
+                ]
+            )
+        )
+        if haystack_tokens & candidate_tokens:
             matched.append(item)
     return matched
 
@@ -371,8 +382,10 @@ def filter_schema_context(tables: list[dict[str, Any]], tokens: list[str]) -> li
     if not tokens:
         return tables[:6]
     normalized_tokens = {canonical_match_token(token) for token in tokens if len(canonical_match_token(token)) >= 3}
-    specific_tokens = {token for token in normalized_tokens if token not in GENERIC_SCHEMA_MATCH_TOKENS}
-    candidate_tokens = specific_tokens or normalized_tokens
+    specific_tokens = {token for token in normalized_tokens if token not in GENERIC_MATCH_TOKENS}
+    if not specific_tokens:
+        return []
+    candidate_tokens = specific_tokens
     matched = []
     for item in tables:
         haystack_tokens = split_match_tokens(

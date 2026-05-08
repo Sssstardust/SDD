@@ -2,29 +2,30 @@
 """
 build_flow_status.py
 
-生成 feature 当前主流程状态的 JSON 与 Markdown 概览。
+Refresh feature flow status artifacts from the latest computed project state.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
-from flow_state import inspect_feature_state
+from attached_project import DEFAULT_ATTACHMENT_PATH
+from flow_state import compute_feature_state, write_project_state
+from json_io import write_json
 from versioning import resolve_feature_dir
 
 
 def render_markdown(state: dict[str, object]) -> str:
     lines = [
-        f"# Flow Status：{state.get('feature_name')}",
+        f"# Flow Status: {state.get('feature_name')}",
         "",
-        f"- 当前阶段：`{state.get('current_stage')}`",
-        f"- 风险级别：`{state.get('risk_tier')}`",
-        f"- 设计版本：`{state.get('design_version', 'N/A')}`",
-        f"- 审批状态：`{state.get('approval_status', 'N/A')}`",
+        f"- Current Stage: `{state.get('current_stage')}`",
+        f"- Risk Tier: `{state.get('risk_tier')}`",
+        f"- Design Version: `{state.get('design_version', 'N/A')}`",
+        f"- Approval Status: `{state.get('approval_status', 'N/A')}`",
         "",
-        "## 门禁结果",
+        "## Gate Results",
         "",
         f"- `gate2`: `{state.get('gate2_result', 'N/A')}`",
         f"- `gate3`: `{state.get('gate3_result', 'N/A')}`",
@@ -32,7 +33,7 @@ def render_markdown(state: dict[str, object]) -> str:
         f"- `gate5`: `{state.get('gate5_result', 'N/A')}`",
         f"- `release_gate`: `{state.get('release_gate_result', 'N/A')}`",
         "",
-        "## 缺失产物",
+        "## Missing Artifacts",
         "",
     ]
 
@@ -40,12 +41,12 @@ def render_markdown(state: dict[str, object]) -> str:
     if missing:
         lines.extend([f"- `{item}`" for item in missing])
     else:
-        lines.append("- 无")
+        lines.append("- None")
 
     lines.extend(
         [
             "",
-            "## 阻塞项",
+            "## Blockers",
             "",
         ]
     )
@@ -53,16 +54,16 @@ def render_markdown(state: dict[str, object]) -> str:
     if blockers:
         lines.extend([f"- {item}" for item in blockers])
     else:
-        lines.append("- 无")
+        lines.append("- None")
 
     lines.extend(
         [
             "",
-        "## 下一步建议",
-        "",
-        f"- 原因：{state.get('reason', '无')}",
-        f"- 命令：`{state.get('next_command', 'N/A')}`",
-        "",
+            "## Next Action",
+            "",
+            f"- Reason: {state.get('reason', 'N/A')}",
+            f"- Command: `{state.get('next_command', 'N/A')}`",
+            "",
         ]
     )
     return "\n".join(lines)
@@ -70,24 +71,36 @@ def render_markdown(state: dict[str, object]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    parser.add_argument("feature_dir", help="Path to specs/<feature>")
+    parser.add_argument(
+        "--attachment-file",
+        default=None,
+        help="Optional attachment config path used to resolve relative feature paths.",
+    )
+    parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
     args = parser.parse_args()
 
-    feature_dir = resolve_feature_dir(args.feature_dir)
+    feature_dir = resolve_feature_dir(
+        args.feature_dir,
+        attachment_path=Path(args.attachment_file) if args.attachment_file else DEFAULT_ATTACHMENT_PATH,
+        profile=args.profile,
+    )
     if not feature_dir.exists():
-        print(f"[ERROR] feature 目录不存在: {feature_dir}")
+        print(f"[ERROR] feature directory does not exist: {feature_dir}")
         return 1
 
-    state = inspect_feature_state(feature_dir)
-    json_path = feature_dir / "flow-status.json"
-    md_path = feature_dir / "flow-status.md"
+    state = compute_feature_state(feature_dir)
+    project_state_json_path = write_project_state(feature_dir, state)
+    flow_status_json_path = feature_dir / "flow-status.json"
+    flow_status_md_path = feature_dir / "flow-status.md"
 
-    json_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    md_path.write_text(render_markdown(state), encoding="utf-8")
+    write_json(flow_status_json_path, state)
+    flow_status_md_path.write_text(render_markdown(state), encoding="utf-8")
 
-    print("[OK] flow-status 已生成")
-    print(f"  - json: {json_path}")
-    print(f"  - md:   {md_path}")
+    print("[OK] flow status refreshed")
+    print(f"  - project-state: {project_state_json_path}")
+    print(f"  - flow-status json: {flow_status_json_path}")
+    print(f"  - flow-status md:   {flow_status_md_path}")
     print(f"  - next: {state.get('next_command')}")
     return 0
 

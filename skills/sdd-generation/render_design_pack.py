@@ -731,7 +731,7 @@ def render_sql(context: dict[str, Any]) -> str:
     for entry in entries:
         table_name = entry["table_name"]
         sql_columns = entry["sql_columns"] or entry["columns"][:3]
-        if table_name.startswith("t_"):
+        if entry.get("existing_table", False):
             for column in sql_columns:
                 lines.append(f"ALTER TABLE {table_name} ADD COLUMN {column} {infer_column_type(column)};")
             for index_columns in [entry["indexed_columns"]] if entry["indexed_columns"] else []:
@@ -747,7 +747,7 @@ def render_sql(context: dict[str, Any]) -> str:
     lines.extend(["", "-- DOWN", ""])
     for entry in reversed(entries):
         table_name = entry["table_name"]
-        if table_name.startswith("t_"):
+        if entry.get("existing_table", False):
             lines.append(f"-- ROLLBACK for {table_name}")
             for column in reversed(entry["sql_columns"] or entry["columns"][:3]):
                 lines.append(f"ALTER TABLE {table_name} DROP COLUMN {column};")

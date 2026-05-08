@@ -17,6 +17,8 @@ Use `sdd-pipeline` as the preferred entry for flow control and governance artifa
 
 Do not produce implementation changes until the relevant SDD gates have passed or the user explicitly asks for exploratory code.
 
+Do not proceed while `[AMBIGUOUS: ...]` items remain unresolved.
+
 For the normal flow:
 
 ```powershell

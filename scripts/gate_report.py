@@ -13,6 +13,29 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def build_violations(gate_name: str, payload: dict) -> list[dict[str, object]]:
+    existing = payload.get("violations")
+    if isinstance(existing, list):
+        return existing
+
+    violations: list[dict[str, object]] = []
+    location = payload.get("report_file")
+    for severity, key in (("error", "errors"), ("warn", "warnings")):
+        items = payload.get(key)
+        if not isinstance(items, list):
+            continue
+        for index, detail in enumerate(items, start=1):
+            violations.append(
+                {
+                    "rule": f"{gate_name}-{severity}-{index:03d}",
+                    "severity": severity,
+                    "location": location,
+                    "detail": str(detail),
+                }
+            )
+    return violations
+
+
 def write_gate_section(
     reports_dir: Path,
     *,
@@ -37,7 +60,9 @@ def write_gate_section(
     report["feature_name"] = feature_name
     report["design_version"] = design_version
     report["updated_at"] = datetime.now(timezone.utc).isoformat()
-    report[gate_name] = payload
+    normalized_payload = dict(payload)
+    normalized_payload["violations"] = build_violations(gate_name, normalized_payload)
+    report[gate_name] = normalized_payload
 
     content = json.dumps(report, ensure_ascii=False, indent=2)
     last_error: OSError | None = None

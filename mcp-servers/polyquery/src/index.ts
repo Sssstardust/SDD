@@ -10,9 +10,11 @@ import {
 import { Config } from './config';
 import { getAdapter, listConfiguredDatabases, closeAllAdapters } from './factory';
 
+Config.assertSafeServerConfig();
+
 // 创建 MCP Server
 const server = new Server(
-  { name: 'polyquery-mcp', version: '1.1.0' },
+  { name: 'polyquery-mcp', version: '1.2.0' },
   { capabilities: { tools: {} } }
 );
 

@@ -2,7 +2,7 @@
 """
 refresh_module_map.py
 
-通过 project-explorer 扫描器生成最小 module-map.json。
+Generate the latest module-map.json through the project-explorer scanner.
 """
 
 from __future__ import annotations
@@ -13,11 +13,16 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH, component_id_for_path, resolve_module_map_scan_settings, source_signature
+from attached_project import (
+    DEFAULT_ATTACHMENT_PATH,
+    component_id_for_path,
+    resolve_module_map_scan_settings,
+    source_signature,
+)
 from baseline_paths import get_active_baseline_dir
 
+
 ROOT = Path(__file__).resolve().parent.parent
-BASELINE_DIR = get_active_baseline_dir(create=True, migrate_legacy=True)
 
 
 def build_module_resource_key(item: dict[str, object], component_id: str | None) -> str:
@@ -88,29 +93,33 @@ def load_node_payload(force_refresh: bool, scan_roots: list[str] | None = None, 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--force-refresh", action="store_true", help="忽略缓存并强制重新扫描")
-    parser.add_argument("--project-root", default=None, help="显式目标项目根目录")
-    parser.add_argument("--scan-root", action="append", default=None, help="显式扫描根目录，可重复传入")
-    parser.add_argument("--design-root", action="append", default=None, help="显式设计根目录，可重复传入")
+    parser.add_argument("--force-refresh", action="store_true", help="Ignore cache and force a fresh scan.")
+    parser.add_argument("--project-root", default=None, help="Explicit target project root")
+    parser.add_argument("--scan-root", action="append", default=None, help="Explicit scan root, repeatable")
+    parser.add_argument("--design-root", action="append", default=None, help="Explicit design root, repeatable")
     parser.add_argument(
         "--attachment-file",
         default=str(DEFAULT_ATTACHMENT_PATH),
-        help="附着目标项目配置文件路径，默认 .spec/attached-project.json",
+        help="Attachment config path, defaults to .spec/attached-project.json",
     )
-    parser.add_argument(
-        "--output",
-        default=str(BASELINE_DIR / "module-map.json"),
-        help="输出 module-map.json 路径，默认写入 .spec/baseline/module-map.json",
-    )
+    parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
+    parser.add_argument("--output", default=None, help="Optional module-map.json output path")
     args = parser.parse_args()
 
-    BASELINE_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = Path(args.output)
+    attachment_path = Path(args.attachment_file)
+    baseline_dir = get_active_baseline_dir(
+        attachment_path=attachment_path,
+        profile=args.profile,
+        create=True,
+        migrate_legacy=True,
+    )
+    output_path = Path(args.output) if args.output else (baseline_dir / "module-map.json")
     output_path = output_path if output_path.is_absolute() else (ROOT / output_path).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     scan_settings = resolve_module_map_scan_settings(
-        attachment_path=Path(args.attachment_file),
+        attachment_path=attachment_path,
+        profile=args.profile,
         scan_roots=[Path(item) for item in args.scan_root] if args.scan_root else None,
         design_roots=[Path(item) for item in args.design_root] if args.design_root else None,
         project_root=Path(args.project_root) if args.project_root else None,
@@ -121,7 +130,7 @@ def main() -> int:
         design_roots=[str(item) for item in scan_settings["design_roots"]] if isinstance(scan_settings.get("design_roots"), list) else None,
     )
     if not isinstance(payload, dict):
-        raise RuntimeError("project-explorer Node/TS 运行入口不可用，请先确保 dist/server.js 存在并可执行")
+        raise RuntimeError("project-explorer Node/TS entry is unavailable; please ensure dist/server.js exists and is runnable")
 
     payload = annotate_module_map_payload(payload, scan_settings)
     payload.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
@@ -134,7 +143,7 @@ def main() -> int:
     payload["attachment"] = scan_settings
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print("[OK] module-map 快照已生成")
+    print("[OK] module-map snapshot generated")
     print(f"  - file:  {output_path}")
     print(f"  - count: {len(payload['classes'])}")
     print(f"  - stats: {payload.get('source_stats', {})}")

@@ -2,20 +2,23 @@
 """
 upgrade_design_tests.py
 
-把已有设计验证测试升级成可直接执行的 Java 类：
+Upgrade generated design verification tests into directly executable Java classes:
 - public class
 - public test methods
-- main() 入口
+- main() entrypoint
 
-仅处理正式 feature 对应的 generated/design 目录，不处理 _validation-* 临时目录。
+Only formal features under generated/design are handled; temporary _validation-* directories are ignored.
 """
 
 from __future__ import annotations
 
 import argparse
 import re
+from pathlib import Path
 
+from attached_project import DEFAULT_ATTACHMENT_PATH
 from versioning import iter_feature_dirs
+
 
 ROOT = Path(__file__).resolve().parent.parent
 DESIGN_TEST_ROOT = ROOT / "src" / "test" / "java" / "generated" / "design"
@@ -25,13 +28,13 @@ CLASS_DECL_PATTERN = re.compile(r"(?m)^class\s+([A-Z][A-Za-z0-9_]*)\s*\{")
 METHOD_PATTERN = re.compile(r"(?m)^\s*void\s+(test_[a-z0-9_]+)\s*\(\)\s*\{")
 
 
-def is_official_feature_dir(path: Path) -> bool:
-    return path.is_dir() and not path.name.startswith("_") and not path.name.startswith(".")
-
-
-def official_feature_names() -> set[str]:
+def official_feature_names(
+    *,
+    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
+    profile: str | None = None,
+) -> set[str]:
     names: set[str] = set()
-    for feature_dir in iter_feature_dirs():
+    for feature_dir in iter_feature_dirs(attachment_path=attachment_path, profile=profile):
         feature_brief = feature_dir / "feature-brief.md"
         if not feature_brief.exists():
             continue
@@ -86,16 +89,21 @@ def upgrade_java_test(path: Path) -> bool:
     return False
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--feature", default=None, help="Only upgrade generated/design tests for the named feature")
     parser.add_argument(
-        "--feature",
-        default=None,
-        help="仅升级指定 feature_name 对应的 generated/design 目录",
+        "--attachment-file",
+        default=str(DEFAULT_ATTACHMENT_PATH),
+        help="Attachment config path used to enumerate formal features.",
     )
-    args = parser.parse_args()
+    parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
+    args = parser.parse_args(argv)
 
-    feature_names = official_feature_names()
+    feature_names = official_feature_names(
+        attachment_path=Path(args.attachment_file),
+        profile=args.profile,
+    )
     if args.feature:
         feature_names = {name for name in feature_names if name == args.feature}
 
@@ -111,7 +119,7 @@ def main() -> int:
                 changed += 1
                 print(f"[UPDATED] {path}")
 
-    print("[OK] 设计验证测试升级完成")
+    print("[OK] design verification test upgrade completed")
     print(f"  - scanned: {scanned}")
     print(f"  - changed: {changed}")
     return 0

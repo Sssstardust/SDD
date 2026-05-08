@@ -23,7 +23,7 @@ if str(SKILL_DIR) not in sys.path:
     sys.path.insert(0, str(SKILL_DIR))
 
 from assemble_context import assemble  # noqa: E402
-from render_design_pack import build_design_pack, build_default_apis, infer_table_entries  # noqa: E402
+from render_design_pack import build_design_pack, build_default_apis, infer_table_entries, preferred_entities  # noqa: E402
 
 
 MAX_RETRIES = 3
@@ -266,19 +266,14 @@ def method_name(item: dict | None, prefer: tuple[str, ...] = ()) -> str | None:
 
 
 def build_entity_rows(context: dict) -> tuple[list[str], list[str]]:
-    structured_prd = context["structured_prd"]
     schema_entries = infer_table_entries(context)
-    entity_names = []
-    for item in structured_prd.get("entities", []) or []:
-        if isinstance(item, dict) and item.get("name"):
-            entity_names.append(str(item["name"]))
-    entity_names = entity_names or [entry["entity"] for entry in schema_entries]
+    entity_names = [str(entry["entity"]) for entry in schema_entries if entry.get("entity")] or preferred_entities(context)
     mapping_rows: list[str] = []
     er_entities: list[str] = []
-    for index, entity in enumerate(entity_names[:4], start=1):
-        table_entry = schema_entries[index - 1] if index - 1 < len(schema_entries) else schema_entries[0] if schema_entries else None
+    for index, entity in enumerate(entity_names[:4]):
+        table_entry = schema_entries[index] if index < len(schema_entries) else None
         table_name = table_entry["table_name"] if table_entry else "待确认"
-        note = "来自 schema-context" if table_name.startswith("t_") else "新领域模式/待确认"
+        note = "来自 schema-context" if (table_entry and table_entry.get("existing_table", False)) else "新领域模式/待确认"
         mapping_rows.append(f"| {entity} | {entity} 相关领域对象 | {table_name} | {note} |")
         er_entities.append(str(entity).upper().replace("-", "_").replace(" ", "_"))
     if not mapping_rows:
@@ -518,6 +513,21 @@ def has_blocking_feedback(items: list[dict[str, str]]) -> bool:
     return any(item.get("severity") == "ERROR" for item in items)
 
 
+def is_low_quality_design_markdown(content: str) -> bool:
+    text = content.strip()
+    if not text:
+        return True
+    placeholder_table_rows = len(re.findall(r"(?m)^\|\s*(?:\|\s*){2,}$", text))
+    empty_mermaid_blocks = len(re.findall(r"```mermaid\s+(?:sequenceDiagram|erDiagram)\s*```", text, re.IGNORECASE))
+    return any(
+        [
+            "**状态:** `Draft | Review | Approved`" in text,
+            placeholder_table_rows >= 2,
+            empty_mermaid_blocks >= 2,
+        ]
+    )
+
+
 def validate_outputs(workspace: Path, design_path: Path) -> tuple[bool, list[dict[str, str]]]:
     feature_brief = workspace / "feature-brief.md"
     commands = [
@@ -609,6 +619,8 @@ def generate_with_ai(
             design_markdown = existing_design
         else:
             raise RuntimeError("AI 未返回 design_markdown")
+    if is_low_quality_design_markdown(design_markdown):
+        raise RuntimeError("AI 输出疑似空模板或低质量设计稿")
     design_pack = sanitize_design_pack(payload.get("design_pack"), fallback_pack, existing_pack)
     return design_markdown, design_pack
 

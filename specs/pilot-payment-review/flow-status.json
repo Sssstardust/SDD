@@ -11,8 +11,8 @@
   "gate4_result": "PASS",
   "gate5_result": "PASS",
   "release_gate_result": "PASS",
-  "next_command": "python scripts/run_pipeline.py release-gate D:\\project\\SDD\\specs\\pilot-payment-review --strict",
-  "reason": "当前 feature 已完成实现验证与上线前治理检查",
+  "next_command": null,
+  "reason": "feature passed implementation verification and release governance",
   "missing_artifacts": [],
   "blockers": []
 }

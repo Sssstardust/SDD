@@ -2,7 +2,7 @@
 """
 json_io.py
 
-统一处理 JSON 文件读写，兼容 Windows 编辑器可能写入的 UTF-8 BOM。
+Shared JSON read/write helpers with UTF-8 BOM tolerance.
 """
 
 from __future__ import annotations
@@ -13,3 +13,7 @@ from pathlib import Path
 
 def read_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def write_json(path: Path, payload: object) -> None:
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

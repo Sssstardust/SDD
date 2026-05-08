@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from attached_project import DEFAULT_ATTACHMENT_PATH
 from json_io import read_json
 from sdd_yaml import get_scalar, load_merged_yaml_mapping
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
@@ -171,19 +172,29 @@ def validate_release_gate(report_path: Path, errors: list[str]) -> None:
     validate_by_schema(data, load_schema("release-gate-report.schema.json"), "release-gate-report.json", errors)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    parser.add_argument(
+        "--attachment-file",
+        default=None,
+        help="Optional attachment config path used to resolve relative feature paths.",
+    )
+    parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
     parser.add_argument(
         "--stage",
         choices=["design", "implementation", "all"],
         default="all",
         help="仅校验设计阶段报告、实现阶段报告，或全部",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     workspace_root = ROOT
-    feature_dir = resolve_feature_dir(args.feature_dir)
+    feature_dir = resolve_feature_dir(
+        args.feature_dir,
+        attachment_path=Path(args.attachment_file) if args.attachment_file else DEFAULT_ATTACHMENT_PATH,
+        profile=args.profile,
+    )
     design_path = detect_latest_design_path(feature_dir)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     feature_brief = feature_dir / "feature-brief.md"

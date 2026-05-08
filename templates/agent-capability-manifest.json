@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "required_snippets": [
+    "sdd-pipeline.show_attachment",
+    "sdd-pipeline.flow_status",
+    "sdd-project-explorer",
+    "sdd-arch-standard",
+    "sdd-pipeline",
+    "python scripts/run_pipeline.py generate-feature-brief",
+    "python scripts/run_pipeline.py generate-design",
+    "python scripts/run_pipeline.py gate4",
+    "sdd-pipeline.gate5",
+    "AMBIGUOUS",
+    "If the host environment blocks Node subprocess execution, fall back to direct `python scripts/run_pipeline.py ...` commands."
+  ],
+  "templates": {
+    "codex": "templates/codex/AGENTS.md",
+    "gemini": "templates/gemini/GEMINI.md",
+    "opencode": "templates/opencode/AGENTS.md"
+  }
+}

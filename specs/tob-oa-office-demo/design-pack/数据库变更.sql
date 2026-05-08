@@ -1,16 +1,16 @@
 -- UP
 
-CREATE TABLE PENDING_TABLE_TOB (
+CREATE TABLE t_tob_oa_office_demo_employee (
   id varchar(64) primary key,
   status varchar(32),
   created_at datetime
 );
-CREATE TABLE PENDING_TABLE_TOB_OA_OFFICE_DEMO (
+CREATE TABLE t_tob_oa_office_demo_org (
   id varchar(64) primary key,
   status varchar(32),
   created_at datetime
 );
-CREATE TABLE PENDING_TABLE_TOB_OA_OFFICE_DEMO (
+CREATE TABLE t_tob_oa_office_demo_approval (
   id varchar(64) primary key,
   status varchar(32),
   created_at datetime
@@ -18,6 +18,6 @@ CREATE TABLE PENDING_TABLE_TOB_OA_OFFICE_DEMO (
 
 -- DOWN
 
-DROP TABLE PENDING_TABLE_TOB_OA_OFFICE_DEMO;
-DROP TABLE PENDING_TABLE_TOB_OA_OFFICE_DEMO;
-DROP TABLE PENDING_TABLE_TOB;
+DROP TABLE t_tob_oa_office_demo_approval;
+DROP TABLE t_tob_oa_office_demo_org;
+DROP TABLE t_tob_oa_office_demo_employee;

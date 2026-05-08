@@ -37,6 +37,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const readline = __importStar(require("node:readline"));
+const node_crypto_1 = require("node:crypto");
 const node_child_process_1 = require("node:child_process");
 const PACKAGE = JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"));
 const TOOL_DEFINITIONS = [
@@ -53,12 +54,22 @@ const TOOL_DEFINITIONS = [
     {
         name: "refresh_baseline",
         description: "Refresh module-map, schema-context, and baseline governance artifacts.",
-        inputSchema: { type: "object", properties: {} },
+        inputSchema: {
+            type: "object",
+            properties: {
+                async: { type: "boolean" },
+            },
+        },
     },
     {
         name: "project_console_cycle",
         description: "Refresh project state and regenerate project console artifacts.",
-        inputSchema: { type: "object", properties: {} },
+        inputSchema: {
+            type: "object",
+            properties: {
+                async: { type: "boolean" },
+            },
+        },
     },
     {
         name: "project_next",
@@ -96,6 +107,7 @@ const TOOL_DEFINITIONS = [
             properties: {
                 stage: { type: "string", enum: ["design", "implementation", "all"] },
                 require_verify: { type: "boolean" },
+                async: { type: "boolean" },
             },
         },
     },
@@ -118,6 +130,7 @@ const TOOL_DEFINITIONS = [
             properties: {
                 feature_dir: { type: "string" },
                 strict: { type: "boolean" },
+                async: { type: "boolean" },
             },
             required: ["feature_dir"],
         },
@@ -131,6 +144,7 @@ const TOOL_DEFINITIONS = [
                 feature_dir: { type: "string" },
                 strict: { type: "boolean" },
                 require_attached_execution: { type: "boolean" },
+                async: { type: "boolean" },
             },
             required: ["feature_dir"],
         },
@@ -143,6 +157,7 @@ const TOOL_DEFINITIONS = [
             properties: {
                 feature_dir: { type: "string" },
                 strict: { type: "boolean" },
+                async: { type: "boolean" },
             },
             required: ["feature_dir"],
         },
@@ -158,7 +173,42 @@ const TOOL_DEFINITIONS = [
                 design_roots: { type: "array", items: { type: "string" } },
                 schema_roots: { type: "array", items: { type: "string" } },
                 components_file: { type: "string" },
+                async: { type: "boolean" },
             },
+        },
+    },
+    {
+        name: "start_pipeline_task",
+        description: "Start a detached asynchronous run_pipeline task and return a task id for polling.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                pipeline_args: { type: "array", items: { type: "string" } },
+                task_label: { type: "string" },
+            },
+            required: ["pipeline_args"],
+        },
+    },
+    {
+        name: "get_pipeline_task",
+        description: "Read the current state of an asynchronous pipeline task.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                task_id: { type: "string" },
+            },
+            required: ["task_id"],
+        },
+    },
+    {
+        name: "read_pipeline_task_result",
+        description: "Read the structured result of a completed asynchronous pipeline task.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                task_id: { type: "string" },
+            },
+            required: ["task_id"],
         },
     },
 ];
@@ -215,18 +265,61 @@ const ROOT = findRepoRoot(__dirname);
 const RUN_PIPELINE = path.join(ROOT, "scripts", "run_pipeline.py");
 const DEFAULT_ATTACHMENT_PATH = path.join(ROOT, ".spec", "attached-project.json");
 const PROJECT_ARTIFACTS_DIR = path.join(ROOT, ".spec", "project-artifacts");
+const TASKS_DIR = path.join(ROOT, ".spec", "tasks");
+const TASK_RUNNER = path.join(__dirname, "task-runner.js");
+let RESOLVED_PYTHON_COMMAND = null;
 function getPythonCommand() {
     return process.env.SDD_PYTHON || "python";
 }
+function resolvedPythonCommand() {
+    if (RESOLVED_PYTHON_COMMAND) {
+        return RESOLVED_PYTHON_COMMAND;
+    }
+    const preferred = getPythonCommand();
+    const probe = (0, node_child_process_1.spawnSync)(preferred, ["-c", "import sys; print(sys.executable)"], {
+        cwd: ROOT,
+        encoding: "utf8",
+    });
+    const resolved = (probe.stdout || "").trim().split(/\r?\n/, 1)[0];
+    if (resolved) {
+        RESOLVED_PYTHON_COMMAND = resolved;
+        return RESOLVED_PYTHON_COMMAND;
+    }
+    const whereProbe = (0, node_child_process_1.spawnSync)("where.exe", [preferred], {
+        cwd: ROOT,
+        encoding: "utf8",
+    });
+    const whereResolved = (whereProbe.stdout || "").trim().split(/\r?\n/, 1)[0];
+    RESOLVED_PYTHON_COMMAND = whereResolved || preferred;
+    return RESOLVED_PYTHON_COMMAND;
+}
+function parseStructuredPipelineOutput(rawStdout) {
+    const trimmed = rawStdout.trim();
+    if (!trimmed) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (typeof parsed.status === "string" && typeof parsed.message === "string") {
+            return parsed;
+        }
+    }
+    catch {
+        return null;
+    }
+    return null;
+}
 function runPipeline(args) {
-    const command = [getPythonCommand(), RUN_PIPELINE, ...args];
+    const command = [resolvedPythonCommand(), RUN_PIPELINE, "--json", ...args];
     const result = (0, node_child_process_1.spawnSync)(command[0], command.slice(1), {
         cwd: ROOT,
         encoding: "utf8",
     });
     const spawnError = result.error;
+    const structured = parseStructuredPipelineOutput(result.stdout || "");
+    const structuredStatus = typeof structured?.status === "string" ? structured.status : null;
     return {
-        ok: result.status === 0,
+        ok: structuredStatus ? structuredStatus !== "error" : result.status === 0,
         exit_code: result.status ?? -1,
         signal: result.signal ?? null,
         command,
@@ -235,6 +328,12 @@ function runPipeline(args) {
         error_code: spawnError?.code ?? null,
         error_message: spawnError?.message ?? null,
         execution_blocked: spawnError?.code === "EPERM",
+        structured_output: structured,
+        status: structuredStatus ?? (result.status === 0 ? "ok" : "error"),
+        message: typeof structured?.message === "string" ? structured.message : null,
+        warnings: Array.isArray(structured?.warnings) ? structured.warnings : [],
+        errors: Array.isArray(structured?.errors) ? structured.errors : [],
+        artifacts: structured?.artifacts ?? {},
     };
 }
 function readJsonFile(filePath) {
@@ -242,6 +341,9 @@ function readJsonFile(filePath) {
         return null;
     }
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+function writeJsonFile(filePath, payload) {
+    fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 function resolveFeatureDir(value) {
     if (typeof value !== "string" || !value.trim()) {
@@ -256,6 +358,103 @@ function addRepeatedFlag(args, flag, values) {
     for (const value of values) {
         args.push(flag, value);
     }
+}
+function wantsAsync(argumentsObject) {
+    return argumentsObject.async === true;
+}
+function ensureTasksDir() {
+    fs.mkdirSync(TASKS_DIR, { recursive: true });
+}
+function createTaskId() {
+    return `task-${Date.now()}-${(0, node_crypto_1.randomBytes)(4).toString("hex")}`;
+}
+function resolveTaskId(value) {
+    if (typeof value !== "string" || !/^task-[a-zA-Z0-9-]+$/.test(value)) {
+        throw new Error("task_id is required and must be a valid task identifier");
+    }
+    return value;
+}
+function taskPaths(taskId) {
+    const taskDir = path.join(TASKS_DIR, taskId);
+    return {
+        task_dir: taskDir,
+        task_file: path.join(taskDir, "task.json"),
+        result_file: path.join(taskDir, "result.json"),
+        stdout_file: path.join(taskDir, "stdout.log"),
+        stderr_file: path.join(taskDir, "stderr.log"),
+    };
+}
+function readTaskState(taskId) {
+    const paths = taskPaths(taskId);
+    return readJsonFile(String(paths.task_file));
+}
+function startPipelineTask(pipelineArgs, taskLabel) {
+    if (!Array.isArray(pipelineArgs) || pipelineArgs.length === 0) {
+        throw new Error("pipeline_args must contain at least one run_pipeline command");
+    }
+    ensureTasksDir();
+    const taskId = createTaskId();
+    const paths = taskPaths(taskId);
+    fs.mkdirSync(String(paths.task_dir), { recursive: true });
+    const createdAt = new Date().toISOString();
+    const taskPayload = {
+        task_id: taskId,
+        task_label: taskLabel || pipelineArgs.join(" "),
+        status: "queued",
+        created_at: createdAt,
+        updated_at: createdAt,
+        pipeline_args: pipelineArgs,
+        command: [resolvedPythonCommand(), RUN_PIPELINE, "--json", ...pipelineArgs],
+        task_dir: paths.task_dir,
+        task_file: paths.task_file,
+        result_file: paths.result_file,
+        stdout_file: paths.stdout_file,
+        stderr_file: paths.stderr_file,
+    };
+    writeJsonFile(String(paths.task_file), taskPayload);
+    const runnerArgs = [
+        TASK_RUNNER,
+        "--task-file",
+        String(paths.task_file),
+        "--result-file",
+        String(paths.result_file),
+        "--stdout-file",
+        String(paths.stdout_file),
+        "--stderr-file",
+        String(paths.stderr_file),
+        "--python",
+        resolvedPythonCommand(),
+        "--run-pipeline",
+        RUN_PIPELINE,
+        "--cwd",
+        ROOT,
+        "--",
+        ...pipelineArgs,
+    ];
+    const child = (0, node_child_process_1.spawn)(process.execPath, runnerArgs, {
+        cwd: ROOT,
+        detached: true,
+        stdio: "ignore",
+    });
+    child.unref();
+    taskPayload.runner_pid = child.pid ?? null;
+    taskPayload.updated_at = new Date().toISOString();
+    writeJsonFile(String(paths.task_file), taskPayload);
+    return {
+        ok: true,
+        status: "accepted",
+        message: `Started async pipeline task ${taskId}`,
+        task_id: taskId,
+        task: taskPayload,
+        poll_hint: {
+            tool: "get_pipeline_task",
+            arguments: { task_id: taskId },
+        },
+        result_hint: {
+            tool: "read_pipeline_task_result",
+            arguments: { task_id: taskId },
+        },
+    };
 }
 function withArtifactStatus(execution, artifact) {
     return {
@@ -296,6 +495,9 @@ function toolDispatch(name, argumentsObject) {
         };
     }
     if (name === "refresh_baseline") {
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(["refresh-baseline"], "refresh_baseline");
+        }
         const execution = runPipeline(["refresh-baseline"]);
         return {
             ...execution,
@@ -303,6 +505,9 @@ function toolDispatch(name, argumentsObject) {
         };
     }
     if (name === "project_console_cycle") {
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(["project-console-cycle"], "project_console_cycle");
+        }
         const execution = runPipeline(["project-console-cycle"]);
         const projectNextPath = latestArtifactFile("project-next.json");
         const projectConsolePath = latestArtifactFile("project-console.json");
@@ -347,6 +552,9 @@ function toolDispatch(name, argumentsObject) {
         if (argumentsObject.require_verify === true) {
             args.push("--require-verify");
         }
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(args, "validate_all_reports");
+        }
         return runPipeline(args);
     }
     if (name === "generate_task_slices") {
@@ -366,6 +574,9 @@ function toolDispatch(name, argumentsObject) {
         if (argumentsObject.strict === true) {
             args.push("--strict");
         }
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(args, "design_gates");
+        }
         return runPipeline(args);
     }
     if (name === "gate5") {
@@ -376,6 +587,9 @@ function toolDispatch(name, argumentsObject) {
         }
         if (argumentsObject.strict === true) {
             args.push("--strict");
+        }
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(args, "gate5");
         }
         const execution = runPipeline(args);
         const reportsDir = path.join(featureDir, "reports");
@@ -392,6 +606,9 @@ function toolDispatch(name, argumentsObject) {
         const args = ["release-gate", featureDir];
         if (argumentsObject.strict === true) {
             args.push("--strict");
+        }
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(args, "release_gate");
         }
         const execution = runPipeline(args);
         const reportsDir = path.join(featureDir, "reports");
@@ -416,11 +633,71 @@ function toolDispatch(name, argumentsObject) {
         if (typeof argumentsObject.components_file === "string") {
             args.push("--components-file", argumentsObject.components_file);
         }
+        if (wantsAsync(argumentsObject)) {
+            return startPipelineTask(args, "onboard_project");
+        }
         const execution = runPipeline(args);
         return {
             ...execution,
             attachment_path: DEFAULT_ATTACHMENT_PATH,
             attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+        };
+    }
+    if (name === "start_pipeline_task") {
+        const pipelineArgs = asStringArray(argumentsObject.pipeline_args);
+        const taskLabel = typeof argumentsObject.task_label === "string" ? argumentsObject.task_label : undefined;
+        return startPipelineTask(pipelineArgs, taskLabel);
+    }
+    if (name === "get_pipeline_task") {
+        const taskId = resolveTaskId(argumentsObject.task_id);
+        const task = readTaskState(taskId);
+        if (!task) {
+            return {
+                ok: false,
+                status: "missing",
+                message: `Task not found: ${taskId}`,
+                task_id: taskId,
+            };
+        }
+        const paths = taskPaths(taskId);
+        return {
+            ok: task.status !== "failed",
+            status: task.status,
+            message: `Task ${taskId} is ${task.status}`,
+            task_id: taskId,
+            task,
+            has_result: fs.existsSync(String(paths.result_file)),
+        };
+    }
+    if (name === "read_pipeline_task_result") {
+        const taskId = resolveTaskId(argumentsObject.task_id);
+        const task = readTaskState(taskId);
+        if (!task) {
+            return {
+                ok: false,
+                status: "missing",
+                message: `Task not found: ${taskId}`,
+                task_id: taskId,
+            };
+        }
+        const paths = taskPaths(taskId);
+        const resultPayload = readJsonFile(String(paths.result_file));
+        if (!resultPayload) {
+            return {
+                ok: false,
+                status: "pending",
+                message: `Task ${taskId} has not produced a result yet`,
+                task_id: taskId,
+                task,
+            };
+        }
+        return {
+            ok: task.status !== "failed",
+            status: task.status,
+            message: `Loaded result for task ${taskId}`,
+            task_id: taskId,
+            task,
+            result: resultPayload,
         };
     }
     throw new Error(`Unknown tool: ${name}`);

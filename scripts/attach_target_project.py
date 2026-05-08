@@ -2,7 +2,7 @@
 """
 attach_target_project.py
 
-保存、查看或清理当前附着目标项目配置。
+Save, inspect, activate, or clear attached-project configuration.
 """
 
 from __future__ import annotations
@@ -14,38 +14,71 @@ from pathlib import Path
 from attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     build_attachment_payload,
+    list_attachment_profiles,
     load_attachment_config,
     load_attachment_seed,
+    remove_attachment_profile,
     save_attachment_config,
+    set_active_attachment_profile,
 )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--project-root", default=None, help="目标项目根目录")
-    parser.add_argument("--name", default=None, help="附着项目显示名称")
-    parser.add_argument("--scan-root", action="append", default=None, help="显式扫描根目录，可重复传入")
-    parser.add_argument("--design-root", action="append", default=None, help="显式设计根目录，可重复传入")
-    parser.add_argument("--schema-root", action="append", default=None, help="显式 schema 根目录，可重复传入")
-    parser.add_argument("--components-file", default=None, help="JSON 文件，支持 components[] 或完整 attached-project payload")
-    parser.add_argument("--show", action="store_true", help="仅显示当前附着配置")
-    parser.add_argument("--clear", action="store_true", help="清空当前附着配置")
+    parser.add_argument("--project-root", default=None, help="Target project root")
+    parser.add_argument("--name", default=None, help="Attached project display name")
+    parser.add_argument("--scan-root", action="append", default=None, help="Explicit scan root, repeatable")
+    parser.add_argument("--design-root", action="append", default=None, help="Explicit design root, repeatable")
+    parser.add_argument("--schema-root", action="append", default=None, help="Explicit schema root, repeatable")
+    parser.add_argument("--components-file", default=None, help="JSON file containing components[] or a full payload")
+    parser.add_argument("--profile", default=None, help="Attachment profile name")
+    parser.add_argument("--project-id", default=None, help="Explicit project_id, otherwise derived from name + project_root")
+    parser.add_argument("--list-profiles", action="store_true", help="List all saved attachment profiles")
+    parser.add_argument("--activate-profile", default=None, help="Switch the active attachment profile")
+    parser.add_argument("--show", action="store_true", help="Show the current or selected attachment config")
+    parser.add_argument("--clear", action="store_true", help="Clear attachment config or a selected profile")
     args = parser.parse_args()
 
-    if args.show:
+    if args.list_profiles:
+        print(json.dumps(list_attachment_profiles(DEFAULT_ATTACHMENT_PATH), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.activate_profile:
+        try:
+            set_active_attachment_profile(args.activate_profile, DEFAULT_ATTACHMENT_PATH)
+        except ValueError as exc:
+            print(f"[ERROR] {exc}")
+            return 1
         payload = load_attachment_config(DEFAULT_ATTACHMENT_PATH)
+        print("[OK] active attachment profile switched")
+        if isinstance(payload, dict):
+            print(f"  - profile: {payload.get('profile')}")
+            print(f"  - project_id: {payload.get('project_id')}")
+            print(f"  - name: {payload.get('name')}")
+        return 0
+
+    if args.show:
+        payload = load_attachment_config(DEFAULT_ATTACHMENT_PATH, profile=args.profile)
         if payload is None:
-            print("[OK] 当前未配置附着目标项目")
+            print("[OK] no attached project is configured")
             return 0
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
     if args.clear:
-        if DEFAULT_ATTACHMENT_PATH.exists():
-            DEFAULT_ATTACHMENT_PATH.unlink()
-            print(f"[OK] 已清空附着配置: {DEFAULT_ATTACHMENT_PATH}")
+        try:
+            remove_attachment_profile(
+                DEFAULT_ATTACHMENT_PATH,
+                profile=args.profile,
+                clear_all=args.profile is None,
+            )
+        except ValueError as exc:
+            print(f"[ERROR] {exc}")
+            return 1
+        if args.profile:
+            print(f"[OK] attachment profile cleared: {args.profile}")
         else:
-            print("[OK] 当前未配置附着目标项目")
+            print(f"[OK] attachment config cleared: {DEFAULT_ATTACHMENT_PATH}")
         return 0
 
     seed_payload = load_attachment_seed(Path(args.components_file)) if args.components_file else {}
@@ -63,16 +96,25 @@ def main() -> int:
         print(f"[ERROR] {exc}")
         return 1
 
-    config_path = save_attachment_config(payload, DEFAULT_ATTACHMENT_PATH)
-    print("[OK] 已保存附着目标项目配置")
+    config_path = save_attachment_config(
+        payload,
+        DEFAULT_ATTACHMENT_PATH,
+        profile=args.profile,
+        project_id=args.project_id,
+    )
+    saved_payload = load_attachment_config(DEFAULT_ATTACHMENT_PATH, profile=args.profile) or payload
+
+    print("[OK] attached project config saved")
     print(f"  - file:        {config_path}")
-    print(f"  - name:        {payload['name']}")
-    print(f"  - project:     {payload.get('project_root', '<component-only>')}")
-    print(f"  - scan_roots:  {', '.join(payload['scan_roots'])}")
-    print(f"  - design_roots:{', '.join(payload['design_roots'])}")
-    print(f"  - schema_roots:{', '.join(payload['schema_roots'])}")
-    if payload.get("components"):
-        print(f"  - components:  {len(payload['components'])}")
+    print(f"  - profile:     {saved_payload.get('profile')}")
+    print(f"  - project_id:  {saved_payload.get('project_id')}")
+    print(f"  - name:        {saved_payload['name']}")
+    print(f"  - project:     {saved_payload.get('project_root', '<component-only>')}")
+    print(f"  - scan_roots:  {', '.join(saved_payload['scan_roots'])}")
+    print(f"  - design_roots:{', '.join(saved_payload['design_roots'])}")
+    print(f"  - schema_roots:{', '.join(saved_payload['schema_roots'])}")
+    if saved_payload.get("components"):
+        print(f"  - components:  {len(saved_payload['components'])}")
     return 0
 
 

@@ -1,27 +1,34 @@
-# Flow Status：tob-oa-office-demo
+# Flow Status: tob-oa-office-demo
 
-- 当前阶段：`feature-brief-ready`
-- 风险级别：`high`
-- 设计版本：`None`
-- 审批状态：`None`
+- Current Stage: `awaiting-approval`
+- Risk Tier: `high`
+- Design Version: `design-v9.md`
+- Approval Status: `PENDING`
 
-## 门禁结果
+## Gate Results
 
-- `gate2`: `None`
-- `gate3`: `None`
-- `gate4`: `None`
-- `gate5`: `None`
+- `gate2`: `PASS`
+- `gate3`: `PASS`
+- `gate4`: `PASS`
+- `gate5`: `PASS`
 - `release_gate`: `None`
 
-## 缺失产物
+## Missing Artifacts
 
-- `design-v{N}.md`
+- None
 
-## 阻塞项
+## Blockers
 
-- 无
+- gate5: REQ-001 仍包含 TODO 占位符
+- gate5: REQ-002 仍包含 TODO 占位符
+- gate5: REQ-003 仍包含 TODO 占位符
+- gate5: REQ-004 仍包含 TODO 占位符
+- gate5: REQ-005 仍包含 TODO 占位符
+- gate5: REQ-006 仍包含 TODO 占位符
+- gate5: REQ-007 仍包含 TODO 占位符
+- gate5: REQ-008 仍包含 TODO 占位符
 
-## 下一步建议
+## Next Action
 
-- 原因：尚未生成 design-v{N}.md
-- 命令：`python scripts/run_pipeline.py design-cycle D:\project\SDD\specs\tob-oa-office-demo --strict`
+- Reason: high-risk design is still waiting for approval
+- Command: `python scripts/run_pipeline.py build-approval-summary D:\project\SDD\specs\tob-oa-office-demo`

@@ -1,11 +1,11 @@
-# Flow Status：payment-review-control
+# Flow Status: payment-review-control
 
-- 当前阶段：`release-ready`
-- 风险级别：`high`
-- 设计版本：`design-v1.md`
-- 审批状态：`APPROVED`
+- Current Stage: `release-ready`
+- Risk Tier: `high`
+- Design Version: `design-v1.md`
+- Approval Status: `APPROVED`
 
-## 门禁结果
+## Gate Results
 
 - `gate2`: `PASS`
 - `gate3`: `PASS`
@@ -13,15 +13,15 @@
 - `gate5`: `PASS`
 - `release_gate`: `PASS`
 
-## 缺失产物
+## Missing Artifacts
 
-- 无
+- None
 
-## 阻塞项
+## Blockers
 
-- 无
+- None
 
-## 下一步建议
+## Next Action
 
-- 原因：当前 feature 已完成实现验证与上线前治理检查
-- 命令：`python scripts/run_pipeline.py release-gate D:\project\SDD\specs\pilot-payment-review --strict`
+- Reason: feature passed implementation verification and release governance
+- Command: `None`

@@ -12,6 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from attached_project import DEFAULT_ATTACHMENT_PATH
 from versioning import detect_latest_design_path, iter_feature_dirs, reports_dir_for_design
 
 
@@ -39,14 +40,31 @@ def should_validate_feature(feature_dir: Path, *, require_verify: bool) -> tuple
 
     if gate_report.exists() or verify_report.exists():
         if require_verify and not verify_report.exists():
-            return False, f"缺少 verify-report.json: {verify_report}"
+            return False, f"missing verify-report.json: {verify_report}"
         return True, ""
-    return False, "未找到 gate-report.json 或 verify-report.json，跳过未进入报告阶段的 feature"
+    return False, "missing gate-report.json / verify-report.json, skipped because reports are not started yet"
 
 
-def validate_feature(feature_dir: Path, stage: str) -> tuple[int, str]:
+def validate_feature(
+    feature_dir: Path,
+    stage: str,
+    *,
+    attachment_file: Path,
+    profile: str | None,
+) -> tuple[int, str]:
+    command = [
+        sys.executable,
+        str(ROOT / "scripts" / "validate_reports.py"),
+        str(feature_dir),
+        "--stage",
+        stage,
+    ]
+    if attachment_file:
+        command.extend(["--attachment-file", str(attachment_file)])
+    if profile:
+        command.extend(["--profile", profile])
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "validate_reports.py"), str(feature_dir), "--stage", stage],
+        command,
         cwd=str(ROOT),
         capture_output=True,
         text=True,
@@ -58,42 +76,54 @@ def validate_feature(feature_dir: Path, stage: str) -> tuple[int, str]:
     return result.returncode, output
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--stage",
         choices=["design", "implementation", "all"],
         default="all",
-        help="校验阶段",
+        help="Validation stage",
     )
     parser.add_argument(
         "--require-verify",
         action="store_true",
-        help="要求所有正式 feature 都必须已有 verify-report.json",
+        help="Require every formal feature to already contain verify-report.json",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--attachment-file",
+        default=str(DEFAULT_ATTACHMENT_PATH),
+        help="Attachment config path used to enumerate feature roots.",
+    )
+    parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
+    args = parser.parse_args(argv)
 
+    attachment_path = Path(args.attachment_file)
     errors: list[str] = []
     validated: list[str] = []
     skipped: list[str] = []
 
-    for feature_dir in iter_feature_dirs():
+    for feature_dir in iter_feature_dirs(attachment_path=attachment_path, profile=args.profile):
         should_validate, reason = should_validate_feature(feature_dir, require_verify=args.require_verify)
         if not should_validate:
-            if args.require_verify and "缺少 verify-report.json" in reason:
+            if args.require_verify and "missing verify-report.json" in reason:
                 errors.append(reason)
             else:
                 skipped.append(f"{feature_dir.name}: {reason}")
             continue
 
-        code, output = validate_feature(feature_dir, args.stage)
+        code, output = validate_feature(
+            feature_dir,
+            args.stage,
+            attachment_file=attachment_path,
+            profile=args.profile,
+        )
         if code != 0:
-            errors.append(f"{feature_dir.name} 报告校验失败:\n{output}")
+            errors.append(f"{feature_dir.name} report validation failed:\n{output}")
         else:
             validated.append(feature_dir.name)
 
     if errors:
-        console_print("[FAIL] 全量 reports 复核失败")
+        console_print("[FAIL] validate-all-reports failed")
         for error in errors:
             console_print(f"  - {error}")
         if skipped:
@@ -102,7 +132,7 @@ def main() -> int:
                 console_print(f"  - {item}")
         return 1
 
-    console_print("[OK] 全量 reports 复核通过")
+    console_print("[OK] validate-all-reports passed")
     console_print(f"  - stage: {args.stage}")
     console_print(f"  - validated: {', '.join(validated) if validated else '(none)'}")
     console_print(f"  - skipped: {len(skipped)}")

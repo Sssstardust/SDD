@@ -529,6 +529,13 @@ def extract_design_participants(design_text: str) -> list[str]:
     return sorted(names)
 
 
+def has_new_domain_mermaid_fallback(design_text: str) -> bool:
+    return bool(
+        "sequenceDiagram" in design_text
+        and re.search(r"Note over \w+: .*(新领域模式|缺少可用存量类)", design_text)
+    )
+
+
 def normalize_schema_type(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -844,6 +851,8 @@ def check_brownfield_baseline_truthfulness(
                 errors.append(f"设计参与类未在 module-map.json 中找到: {', '.join(missing_classes)}")
             else:
                 checks.append("Mermaid/classDiagram 参与类均存在于 module-map.json")
+    elif has_new_domain_mermaid_fallback(design_text):
+        checks.append("新领域模式下 Mermaid 参与类校验已按 fallback 说明豁免")
     else:
         warnings.append("未从设计文档中提取到 Mermaid participant 或 classDiagram 类名")
 

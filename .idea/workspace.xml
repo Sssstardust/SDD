@@ -7,15 +7,63 @@
     <list default="true" id="fc2dce6d-f818-4212-ae04-d65de8159da3" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/aspirecodestat-documentCache-1.0.2.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/aspirecodestat-documentCache-1.0.2.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/feature/design-v1.md" beforeDir="false" afterPath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/feature/design-v1.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/repo/skills/sdd-generation/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/repo/skills/sdd-generation/run.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/check_design_pack.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check_design_pack.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/feature/design-v1.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/repo/skills/sdd-generation/run.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/agent-integration.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/agent-integration.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/polyquery/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/polyquery/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/polyquery/src/config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/polyquery/src/config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/polyquery/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/polyquery/src/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/dist/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/dist/server.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/src/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/src/server.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/attach_target_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/attach_target_project.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/attached_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/attached_project.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/baseline_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/baseline_paths.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/build_flow_overview.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_flow_overview.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/build_flow_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_flow_status.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/build_project_console.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_project_console.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/build_project_next.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_project_next.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/check_design_truthfulness.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check_design_truthfulness.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/check_feature_brief.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check_feature_brief.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/flow_state.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/flow_state.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/gate1.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/gate1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/gate_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/gate_report.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/json_io.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/json_io.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/onboard_attached_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/onboard_attached_project.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/project_artifact_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/project_artifact_paths.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/refresh_module_map.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/refresh_module_map.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/refresh_project_state.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/refresh_project_state.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/refresh_schema_context.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/refresh_schema_context.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/run_pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/run_pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/upgrade_design_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/upgrade_design_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/validate_all_reports.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/validate_all_reports.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/validate_reports.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/validate_reports.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/versioning.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/versioning.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/skills/sdd-generation/assemble_context.py" beforeDir="false" afterPath="$PROJECT_DIR$/skills/sdd-generation/assemble_context.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/skills/sdd-generation/render_design_pack.py" beforeDir="false" afterPath="$PROJECT_DIR$/skills/sdd-generation/render_design_pack.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/skills/sdd-generation/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/skills/sdd-generation/run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.json" beforeDir="false" afterPath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/specs/task-board/flow-status.json" beforeDir="false" afterPath="$PROJECT_DIR$/specs/task-board/flow-status.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/specs/task-board/flow-status.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/task-board/flow-status.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/异步事件契约.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/异步事件契约.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口契约.openapi.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口契约.openapi.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口文档.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据库变更.sql" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据库变更.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据模型.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据模型.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.json" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/order-create/OrderCreateDesignVerificationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/payment-review-control/PaymentReviewControlDesignVerificationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/pricing-list-control/PricingListControlDesignVerificationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/task-board/TaskBoardDesignVerificationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/validation-full-20260417190616/ValidationFull20260417190616DesignVerificationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/opencode/AGENTS.md" beforeDir="false" afterPath="$PROJECT_DIR$/templates/opencode/AGENTS.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_assemble_context_schema_matching.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_check_design_pack_interface_doc.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_render_design_pack_api_contracts.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_render_design_pack_db_contracts.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_requirement_analyzer_extract.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_run_pipeline_generate_design.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,13 +101,13 @@
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/project/SDD/document&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/project/SDD&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.other&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;ts.external.directory.path&quot;: &quot;D:\\project\\SDD\\mcp-servers\\project-explorer\\node_modules\\typescript\\lib&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
@@ -67,6 +115,7 @@
 }</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\project\SDD" />
       <recent name="D:\project\SDD\document" />
       <recent name="D:\project\SDD\mcp-servers" />
     </key>
@@ -131,7 +180,8 @@
       <workItem from="1777425875634" duration="20692000" />
       <workItem from="1777537100465" duration="2884000" />
       <workItem from="1778033347036" duration="4093000" />
-      <workItem from="1778137808179" duration="7960000" />
+      <workItem from="1778137808179" duration="11897000" />
+      <workItem from="1778204119325" duration="2901000" />
     </task>
     <servers />
   </component>
