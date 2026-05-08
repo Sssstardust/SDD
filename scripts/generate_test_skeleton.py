@@ -14,6 +14,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from concurrency import atomic_write_text, feature_lock
 from gate_report import write_gate_section
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
@@ -476,19 +477,20 @@ def main() -> int:
     test_dir.mkdir(parents=True, exist_ok=True)
     test_file = test_dir / f"{to_pascal_case(feature_name)}DesignVerificationTest.java"
 
-    preserved = should_preserve_existing_test(test_file, mappings)
-    if not preserved:
-        test_file.write_text(build_java_test(feature_name, mappings), encoding="utf-8")
+    with feature_lock(feature_dir, phase="generate-test-skeleton"):
+        preserved = should_preserve_existing_test(test_file, mappings)
+        if not preserved:
+            atomic_write_text(test_file, build_java_test(feature_name, mappings), encoding="utf-8")
 
-    report = {
-        "feature_name": feature_name,
-        "design_version": design_path.name,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "test_file": str(test_file),
-        "test_file_preserved": preserved,
-        "mappings": mappings,
-    }
-    skeleton_report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        report = {
+            "feature_name": feature_name,
+            "design_version": design_path.name,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "test_file": str(test_file),
+            "test_file_preserved": preserved,
+            "mappings": mappings,
+        }
+        atomic_write_text(skeleton_report, json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     gate_report = write_gate_section(
         reports_dir,
         gate_name="gate4",

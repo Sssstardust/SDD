@@ -15,12 +15,15 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from baseline_extractors import (
+    build_design_resource_claims_for_pack,
+    extract_mermaid_participants,
     extract_created_tables,
     extract_operations_from_openapi,
     extract_paths_from_openapi,
     extract_table_field_specs_from_data_model,
     extract_table_fields_from_data_model,
     extract_tables_from_data_model,
+    summarize_resource_claims,
 )
 from attached_project import DEFAULT_ATTACHMENT_PATH, resolve_module_map_scan_settings, source_signature
 from baseline_paths import get_active_baseline_dir
@@ -510,23 +513,7 @@ def normalize_resource_path(path: Path) -> str:
 
 
 def extract_design_participants(design_text: str) -> list[str]:
-    names: set[str] = set()
-    for line in design_text.splitlines():
-        participant = re.match(r"^\s*participant\s+[A-Za-z_][A-Za-z0-9_]*\s+as\s+([A-Za-z_][A-Za-z0-9_]*)\s*$", line)
-        if participant:
-            names.add(participant.group(1))
-            continue
-
-        participant_without_alias = re.match(r"^\s*participant\s+([A-Za-z_][A-Za-z0-9_]*)\s*$", line)
-        if participant_without_alias:
-            names.add(participant_without_alias.group(1))
-            continue
-
-        class_decl = re.match(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\b", line)
-        if class_decl:
-            names.add(class_decl.group(1))
-
-    return sorted(names)
+    return extract_mermaid_participants(design_text)
 
 
 def has_new_domain_mermaid_fallback(design_text: str) -> bool:
@@ -534,6 +521,166 @@ def has_new_domain_mermaid_fallback(design_text: str) -> bool:
         "sequenceDiagram" in design_text
         and re.search(r"Note over \w+: .*(新领域模式|缺少可用存量类)", design_text)
     )
+
+
+def normalize_operation_name(method: object, path: object) -> str | None:
+    if not isinstance(method, str) or not isinstance(path, str):
+        return None
+    method_text = method.strip().upper()
+    path_text = path.strip()
+    if not method_text or not path_text:
+        return None
+    return f"{method_text} {path_text}"
+
+
+def collect_real_index_operations(item: dict[str, object]) -> tuple[set[str], set[str]]:
+    operations: set[str] = set()
+    paths: set[str] = set()
+
+    raw_claims = item.get("resource_claims")
+    if isinstance(raw_claims, list):
+        for claim in raw_claims:
+            if not isinstance(claim, dict):
+                continue
+            kind = str(claim.get("kind") or "")
+            name = str(claim.get("name") or "")
+            if kind == "operation" and name:
+                operations.add(name)
+                if " " in name:
+                    paths.add(name.split(" ", 1)[1])
+            elif kind == "path" and name:
+                paths.add(name)
+
+    raw_operations = item.get("operations")
+    if isinstance(raw_operations, list):
+        for operation in raw_operations:
+            if not isinstance(operation, dict):
+                continue
+            normalized = normalize_operation_name(operation.get("method"), operation.get("path"))
+            if normalized:
+                operations.add(normalized)
+                paths.add(normalized.split(" ", 1)[1])
+
+    for path_name in item.get("paths", []):
+        if isinstance(path_name, str) and path_name:
+            paths.add(path_name)
+
+    return operations, paths
+
+
+def find_real_index_operation_conflicts(
+    openapi_operations: list[dict[str, str]],
+    openapi_paths: list[str],
+    real_index: list[object],
+    *,
+    current_features: set[str],
+) -> tuple[bool, list[str]]:
+    design_operations = {
+        normalized
+        for normalized in (normalize_operation_name(item.get("method"), item.get("path")) for item in openapi_operations)
+        if normalized
+    }
+    design_paths = {item for item in openapi_paths if isinstance(item, str) and item}
+    already_implemented = False
+    conflicts: set[str] = set()
+
+    for item in real_index:
+        if not isinstance(item, dict):
+            continue
+        existing_operations, existing_paths = collect_real_index_operations(item)
+        matched_resources: set[str] = set()
+        if design_operations:
+            matched_resources |= design_operations & existing_operations
+            matched_resources |= {operation for operation in design_operations if operation.split(" ", 1)[1] in existing_paths}
+        else:
+            matched_resources |= design_paths & existing_paths
+        if not matched_resources:
+            continue
+        if item.get("feature") in current_features:
+            already_implemented = True
+            continue
+        conflicts.update(matched_resources)
+
+    return already_implemented, sorted(conflicts)
+
+
+def merge_schema_table_entry(existing: dict[str, object] | None, table: dict[str, object]) -> dict[str, object]:
+    if not isinstance(existing, dict):
+        merged = dict(table)
+        if isinstance(merged.get("resource_key"), str):
+            merged["resource_keys"] = [str(merged["resource_key"])]
+        return merged
+
+    merged = dict(existing)
+    for field in ("columns", "declared_columns", "sql_columns", "indexed_columns", "sources"):
+        merged[field] = sorted(set(merged.get(field, [])) | set(table.get(field, [])))
+    column_details = list(merged.get("column_details", []))
+    for detail in table.get("column_details", []):
+        if isinstance(detail, dict) and detail not in column_details:
+            column_details.append(detail)
+    merged["column_details"] = column_details
+    resource_keys = set(merged.get("resource_keys", []))
+    if isinstance(merged.get("resource_key"), str):
+        resource_keys.add(str(merged["resource_key"]))
+    if isinstance(table.get("resource_key"), str):
+        resource_keys.add(str(table["resource_key"]))
+    merged["resource_keys"] = sorted(resource_keys)
+    for key in ("component_id", "db_type", "connection_name", "schema_name", "resource_key"):
+        if not merged.get(key) and table.get(key):
+            merged[key] = table.get(key)
+    return merged
+
+
+def build_schema_table_aliases(table: dict[str, object]) -> list[str]:
+    aliases: list[str] = []
+    table_name = table.get("table_name")
+    resource_key = table.get("resource_key")
+    if isinstance(table_name, str) and table_name:
+        aliases.append(table_name)
+        aliases.append(table_name.lower())
+    if isinstance(resource_key, str) and resource_key:
+        aliases.append(resource_key)
+        tail = resource_key.split("::")[-1]
+        aliases.append(tail)
+        aliases.append(tail.lower())
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for alias in aliases:
+        if alias and alias not in seen:
+            seen.add(alias)
+            deduped.append(alias)
+    return deduped
+
+
+def extract_schema_table_entries(schema_context: object, affected_components: set[str]) -> dict[str, list[dict[str, object]]]:
+    if not isinstance(schema_context, dict):
+        return {}
+    aliases: dict[str, list[dict[str, object]]] = {}
+    canonical_entries: dict[str, dict[str, object]] = {}
+    for table in schema_context.get("tables", []):
+        if not isinstance(table, dict):
+            continue
+        if not isinstance(table.get("table_name"), str):
+            continue
+        if not matches_affected_components(table, affected_components):
+            continue
+        canonical_key = str(table.get("resource_key") or table.get("table_name") or "")
+        canonical_entries[canonical_key] = merge_schema_table_entry(canonical_entries.get(canonical_key), dict(table))
+    for entry in canonical_entries.values():
+        for alias in build_schema_table_aliases(entry):
+            aliases.setdefault(alias, []).append(entry)
+    return aliases
+
+
+def resolve_schema_table_entry(entries: dict[str, list[dict[str, object]]], table_name: str) -> dict[str, object] | None:
+    candidates = entries.get(table_name) or entries.get(table_name.lower()) or []
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
+def schema_table_candidates(entries: dict[str, list[dict[str, object]]], table_name: str) -> list[dict[str, object]]:
+    return entries.get(table_name) or entries.get(table_name.lower()) or []
 
 
 def normalize_schema_type(value: object) -> str | None:
@@ -864,74 +1011,59 @@ def check_brownfield_baseline_truthfulness(
     openapi_paths = extract_paths_from_openapi(design_pack_dir / "接口契约.openapi.yaml")
     real_index = read_json_file(real_index_path, [])
     if openapi_paths and isinstance(real_index, list):
-        already_implemented = any(
-            isinstance(item, dict)
-            and item.get("feature") in {feature_dir.name, feature_name}
-            and bool(set(openapi_paths) & {str(path) for path in item.get("paths", []) if isinstance(path, str)})
-            for item in real_index
+        already_implemented, conflicting_paths = find_real_index_operation_conflicts(
+            openapi_operations,
+            openapi_paths,
+            real_index,
+            current_features={feature_dir.name, feature_name},
         )
-        conflicting_paths: list[str] = []
         if already_implemented:
             checks.append("当前设计已存在实现态 baseline 记录，跳过同路径历史实现态冲突阻断")
         else:
-            for item in real_index:
-                if not isinstance(item, dict) or item.get("feature") in {feature_dir.name, feature_name}:
-                    continue
-                existing_paths = {str(path) for path in item.get("paths", []) if isinstance(path, str)}
-                conflicting_paths.extend(sorted(existing_paths & set(openapi_paths)))
             if conflicting_paths:
                 errors.append(f"接口路径已存在于实现态 baseline: {', '.join(sorted(set(conflicting_paths)))}")
             else:
                 checks.append("接口路径未与 sdd-index-real.json 中其他 feature 冲突")
 
     schema_context = read_json_file(schema_context_path, {})
-    schema_tables: dict[str, dict[str, object]] = {}
-    if isinstance(schema_context, dict):
-        for table in schema_context.get("tables", []):
-            if isinstance(table, dict) and isinstance(table.get("table_name"), str):
-                if not matches_affected_components(table, affected_component_set):
-                    continue
-                table_name = str(table["table_name"])
-                existing = schema_tables.get(table_name)
-                if not isinstance(existing, dict):
-                    schema_tables[table_name] = dict(table)
-                    continue
-                existing["columns"] = sorted(
-                    set(existing.get("columns", [])) | set(table.get("columns", []))
-                )
-                existing["declared_columns"] = sorted(
-                    set(existing.get("declared_columns", [])) | set(table.get("declared_columns", []))
-                )
-                existing["sql_columns"] = sorted(
-                    set(existing.get("sql_columns", [])) | set(table.get("sql_columns", []))
-                )
-                existing["indexed_columns"] = sorted(
-                    set(existing.get("indexed_columns", [])) | set(table.get("indexed_columns", []))
-                )
-                existing["sources"] = sorted(set(existing.get("sources", [])) | set(table.get("sources", [])))
-                existing["column_details"] = list(existing.get("column_details", [])) + [
-                    detail
-                    for detail in table.get("column_details", [])
-                    if isinstance(detail, dict) and detail not in existing.get("column_details", [])
-                ]
+    schema_table_entries = extract_schema_table_entries(schema_context, affected_component_set)
 
     data_model_tables = extract_tables_from_data_model(design_pack_dir / "数据模型.md")
     data_model_fields = extract_table_fields_from_data_model(design_pack_dir / "数据模型.md")
     created_tables = extract_created_tables(design_pack_dir / "数据库变更.sql")
     jpa_entities_by_table = extract_jpa_entities_from_module_map(module_map, affected_component_set)
     mybatis_mappings_by_table = extract_mybatis_table_mappings_from_module_map(module_map, affected_component_set)
+    ambiguous_schema_tables: dict[str, list[str]] = {}
     if data_model_tables:
         missing_tables: list[str] = []
         for table_name in data_model_tables:
             if table_name in created_tables:
                 continue
-            table_meta = schema_tables.get(table_name)
+            table_meta = resolve_schema_table_entry(schema_table_entries, table_name)
             if not table_meta:
-                missing_tables.append(table_name)
+                candidates = schema_table_candidates(schema_table_entries, table_name)
+                if len(candidates) > 1:
+                    ambiguous_schema_tables[table_name] = sorted(
+                        {
+                            str(item.get("resource_key") or item.get("table_name") or "")
+                            for item in candidates
+                            if isinstance(item, dict)
+                        }
+                    )
+                else:
+                    missing_tables.append(table_name)
                 continue
             sources = table_meta.get("sources", [])
             if isinstance(sources, list) and all(is_current_feature_source(source, feature_dir) for source in sources):
                 missing_tables.append(table_name)
+        if ambiguous_schema_tables:
+            errors.append(
+                "数据模型引用的表在 schema-context 中存在多个 resource_key 候选，无法稳定映射: "
+                + ", ".join(
+                    f"{table_name} -> [{', '.join(keys)}]"
+                    for table_name, keys in sorted(ambiguous_schema_tables.items())
+                )
+            )
         if missing_tables:
             errors.append(
                 "数据模型引用的表未在既有 schema-context 中找到，且未在数据库变更.sql 中 CREATE TABLE: "
@@ -952,7 +1084,9 @@ def check_brownfield_baseline_truthfulness(
         for table_name, fields in data_model_fields.items():
             if table_name in created_tables:
                 continue
-            table_meta = schema_tables.get(table_name)
+            if table_name in ambiguous_schema_tables:
+                continue
+            table_meta = resolve_schema_table_entry(schema_table_entries, table_name)
             if not table_meta:
                 continue
             existing_columns = {str(column).lower() for column in table_meta.get("columns", []) if isinstance(column, str)}
@@ -1054,6 +1188,12 @@ def write_gate2_report(feature_dir: Path, feature_name: str, report: dict[str, o
             "warnings": report.get("warnings", []),
             "errors": report.get("errors", []),
             "evidence": report.get("evidence", {}),
+            "design_resource_claim_summary": report.get("design_resource_claim_summary", {}),
+            "design_resource_claim_highlights": (
+                report.get("design_resource_claim_summary", {}).get("highlights", {})
+                if isinstance(report.get("design_resource_claim_summary"), dict)
+                else {}
+            ),
             "truthfulness_report": report,
         },
     )
@@ -1075,6 +1215,18 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
     design_path = detect_latest_design_path(feature_dir)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     design_pack_dir = resolve_design_pack_dir(feature_dir, reports_dir)
+    baseline_dir = get_active_baseline_dir(create=True, migrate_legacy=True)
+    schema_context_path = baseline_dir / "schema-context.json"
+    schema_context = read_json_file(schema_context_path, {}) if schema_context_path.exists() else {}
+    design_resource_claims = build_design_resource_claims_for_pack(
+        openapi_path=design_pack_dir / "鎺ュ彛濂戠害.openapi.yaml",
+        data_model_path=design_pack_dir / "鏁版嵁妯″瀷.md",
+        async_contract_path=design_pack_dir / "寮傛浜嬩欢濂戠害.yaml",
+        schema_context=schema_context,
+        affected_components=affected_components,
+        omit_generic_tables_for_exact=False,
+    )
+    design_resource_claim_summary = summarize_resource_claims(design_resource_claims)
     checks: list[str] = []
     warnings: list[str] = []
     errors: list[str] = []
@@ -1087,6 +1239,8 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
             report = {
                 "feature": feature_dir.name,
                 "project_mode": project_mode,
+                "design_resource_claims": design_resource_claims,
+                "design_resource_claim_summary": design_resource_claim_summary,
                 "status": "FAIL",
                 "checks": checks,
                 "warnings": warnings,
@@ -1116,6 +1270,8 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
         report = {
             "feature": feature_dir.name,
             "project_mode": project_mode,
+            "design_resource_claims": design_resource_claims,
+            "design_resource_claim_summary": design_resource_claim_summary,
             "status": "FAIL",
             "checks": checks,
             "warnings": warnings,
@@ -1140,6 +1296,8 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
         "risk_tier": risk_tier,
         "affected_components": affected_components,
         "strict": strict_mode,
+        "design_resource_claims": design_resource_claims,
+        "design_resource_claim_summary": design_resource_claim_summary,
         "total_requirements": len(req_ids),
         "covered_requirements": len(req_ids) - len(missing_reqs),
         "missing_requirements": missing_reqs,

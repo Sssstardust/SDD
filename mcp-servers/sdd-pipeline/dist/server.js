@@ -34,6 +34,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.wantsAsync = wantsAsync;
+exports.shouldRunAsyncByDefault = shouldRunAsyncByDefault;
+exports.toolDispatch = toolDispatch;
+exports.main = main;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const readline = __importStar(require("node:readline"));
@@ -359,8 +363,25 @@ function addRepeatedFlag(args, flag, values) {
         args.push(flag, value);
     }
 }
-function wantsAsync(argumentsObject) {
-    return argumentsObject.async === true;
+function wantsAsync(argumentsObject, defaultAsync = false) {
+    if (argumentsObject.async === true) {
+        return true;
+    }
+    if (argumentsObject.async === false) {
+        return false;
+    }
+    return defaultAsync;
+}
+function shouldRunAsyncByDefault(toolName) {
+    return new Set([
+        "refresh_baseline",
+        "project_console_cycle",
+        "validate_all_reports",
+        "design_gates",
+        "gate5",
+        "release_gate",
+        "onboard_project",
+    ]).has(toolName);
 }
 function ensureTasksDir() {
     fs.mkdirSync(TASKS_DIR, { recursive: true });
@@ -495,7 +516,7 @@ function toolDispatch(name, argumentsObject) {
         };
     }
     if (name === "refresh_baseline") {
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(["refresh-baseline"], "refresh_baseline");
         }
         const execution = runPipeline(["refresh-baseline"]);
@@ -505,7 +526,7 @@ function toolDispatch(name, argumentsObject) {
         };
     }
     if (name === "project_console_cycle") {
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(["project-console-cycle"], "project_console_cycle");
         }
         const execution = runPipeline(["project-console-cycle"]);
@@ -552,7 +573,7 @@ function toolDispatch(name, argumentsObject) {
         if (argumentsObject.require_verify === true) {
             args.push("--require-verify");
         }
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(args, "validate_all_reports");
         }
         return runPipeline(args);
@@ -574,7 +595,7 @@ function toolDispatch(name, argumentsObject) {
         if (argumentsObject.strict === true) {
             args.push("--strict");
         }
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(args, "design_gates");
         }
         return runPipeline(args);
@@ -588,7 +609,7 @@ function toolDispatch(name, argumentsObject) {
         if (argumentsObject.strict === true) {
             args.push("--strict");
         }
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(args, "gate5");
         }
         const execution = runPipeline(args);
@@ -607,7 +628,7 @@ function toolDispatch(name, argumentsObject) {
         if (argumentsObject.strict === true) {
             args.push("--strict");
         }
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(args, "release_gate");
         }
         const execution = runPipeline(args);
@@ -633,7 +654,7 @@ function toolDispatch(name, argumentsObject) {
         if (typeof argumentsObject.components_file === "string") {
             args.push("--components-file", argumentsObject.components_file);
         }
-        if (wantsAsync(argumentsObject)) {
+        if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
             return startPipelineTask(args, "onboard_project");
         }
         const execution = runPipeline(args);
@@ -796,4 +817,6 @@ function main() {
     }
     runMcpStdio();
 }
-main();
+if (require.main === module) {
+    main();
+}

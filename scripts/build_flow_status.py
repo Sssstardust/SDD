@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
+from concurrency import atomic_write_text, feature_lock
 from flow_state import compute_feature_state, write_project_state
 from json_io import write_json
 from versioning import resolve_feature_dir
@@ -89,13 +90,14 @@ def main() -> int:
         print(f"[ERROR] feature directory does not exist: {feature_dir}")
         return 1
 
-    state = compute_feature_state(feature_dir)
-    project_state_json_path = write_project_state(feature_dir, state)
-    flow_status_json_path = feature_dir / "flow-status.json"
-    flow_status_md_path = feature_dir / "flow-status.md"
+    with feature_lock(feature_dir, phase="build-flow-status"):
+        state = compute_feature_state(feature_dir)
+        project_state_json_path = write_project_state(feature_dir, state)
+        flow_status_json_path = feature_dir / "flow-status.json"
+        flow_status_md_path = feature_dir / "flow-status.md"
 
-    write_json(flow_status_json_path, state)
-    flow_status_md_path.write_text(render_markdown(state), encoding="utf-8")
+        write_json(flow_status_json_path, state)
+        atomic_write_text(flow_status_md_path, render_markdown(state), encoding="utf-8")
 
     print("[OK] flow status refreshed")
     print(f"  - project-state: {project_state_json_path}")

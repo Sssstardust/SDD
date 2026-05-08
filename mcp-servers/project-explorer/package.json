@@ -18,6 +18,7 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc -p tsconfig.json",
+    "test": "npm run build && node dist/scanner.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/server.js",
     "cli:scan": "node dist/server.js --tool scan_modules --arguments \"{\\\"keywords\\\":[\\\"payment\\\"],\\\"forceRefresh\\\":true}\"",

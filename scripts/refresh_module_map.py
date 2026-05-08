@@ -20,6 +20,7 @@ from attached_project import (
     source_signature,
 )
 from baseline_paths import get_active_baseline_dir
+from concurrency import atomic_write_text, path_lock
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -141,7 +142,8 @@ def main() -> int:
     payload.setdefault("ttl", "P1D")
     payload["source_signature"] = source_signature(scan_settings)
     payload["attachment"] = scan_settings
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    with path_lock(output_path, phase="refresh-module-map"):
+        atomic_write_text(output_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("[OK] module-map snapshot generated")
     print(f"  - file:  {output_path}")

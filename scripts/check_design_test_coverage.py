@@ -18,8 +18,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config, resolve_module_map_scan_settings, source_signature
+from baseline_extractors import build_design_resource_claims_for_pack, extract_mermaid_participants, summarize_resource_claims
 from baseline_paths import get_active_baseline_dir
-from design_evidence import evidence_level_for_schema_context, hash_file
+from concurrency import atomic_write_text, feature_lock
+from design_evidence import evidence_level_for_schema_context, hash_file, resolve_design_pack_dir
 from feature_brief import extract_affected_components, extract_risk_tier
 from gate_report import write_gate_section
 from refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature
@@ -418,8 +420,7 @@ def analyze_real_test_req_coverage(
 
 
 def extract_referenced_classes(design_text: str) -> list[str]:
-    classes = re.findall(r"participant\s+\w+\s+as\s+([A-Z][A-Za-z0-9_]*)", design_text)
-    return sorted(set(classes))
+    return extract_mermaid_participants(design_text)
 
 
 def extract_referenced_method_calls(design_text: str) -> list[dict[str, object]]:
@@ -661,16 +662,66 @@ def match_method_call(call: dict[str, object], entry: dict[str, object]) -> dict
     }
 
 
+def merge_module_entry(existing: dict[str, object], node: dict[str, object]) -> dict[str, object]:
+    merged = dict(existing)
+    for field in ("public_methods", "declared_public_methods", "inherited_public_methods", "fields", "annotations", "sources"):
+        merged[field] = sorted(set(merged.get(field, [])) | set(node.get(field, [])))
+    method_details = {
+        json.dumps(item, sort_keys=True, ensure_ascii=False): item
+        for item in merged.get("method_details", [])
+        if isinstance(item, dict)
+    }
+    for item in node.get("method_details", []):
+        if isinstance(item, dict):
+            method_details[json.dumps(item, sort_keys=True, ensure_ascii=False)] = item
+    if method_details:
+        merged["method_details"] = [method_details[key] for key in sorted(method_details)]
+    resource_keys = set(merged.get("resource_keys", []))
+    if isinstance(merged.get("resource_key"), str):
+        resource_keys.add(str(merged["resource_key"]))
+    if isinstance(node.get("resource_key"), str):
+        resource_keys.add(str(node["resource_key"]))
+    merged["resource_keys"] = sorted(resource_keys)
+    if not merged.get("fqn") and node.get("fqn"):
+        merged["fqn"] = node.get("fqn")
+    if not merged.get("source_kind") and node.get("source_kind"):
+        merged["source_kind"] = node.get("source_kind")
+    if not merged.get("component_id") and node.get("component_id"):
+        merged["component_id"] = node.get("component_id")
+    return merged
+
+
+def build_module_entry_aliases(node: dict[str, object]) -> list[str]:
+    aliases: list[str] = []
+    for key in ("resource_key", "fqn", "simple_name", "class_name", "display_name", "name"):
+        value = node.get(key)
+        if not isinstance(value, str) or not value:
+            continue
+        aliases.append(value)
+        aliases.append(value.split(".")[-1])
+        if "::" in value:
+            aliases.append(value.split("::")[-1])
+            aliases.append(value.split("::")[-1].split(".")[-1])
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for item in aliases:
+        if item and item not in seen:
+            seen.add(item)
+            deduped.append(item)
+    return deduped
+
+
 def extract_module_class_entries(
     module_map_path: Path,
     *,
     affected_components: list[str] | None = None,
-) -> dict[str, dict[str, object]]:
+) -> dict[str, list[dict[str, object]]]:
     if not module_map_path.exists():
         return {}
 
     data = json.loads(module_map_path.read_text(encoding="utf-8"))
-    entries: dict[str, dict[str, object]] = {}
+    entries: dict[str, list[dict[str, object]]] = {}
+    canonical_entries: dict[str, dict[str, object]] = {}
     affected_component_set = {item for item in (affected_components or []) if item}
 
     def collect(node: object) -> None:
@@ -681,35 +732,10 @@ def extract_module_class_entries(
                 if affected_component_set and isinstance(component_id, str) and component_id and component_id not in affected_component_set:
                     pass
                 else:
-                    simple_name = class_name.split(".")[-1]
-                    existing = entries.get(simple_name)
-                    if not isinstance(existing, dict):
-                        entries[simple_name] = dict(node)
-                    else:
-                        merged = dict(existing)
-                        for field in ("public_methods", "declared_public_methods", "inherited_public_methods", "fields", "annotations", "sources"):
-                            merged[field] = sorted(set(merged.get(field, [])) | set(node.get(field, [])))
-                        method_details = {
-                            json.dumps(item, sort_keys=True, ensure_ascii=False): item
-                            for item in merged.get("method_details", [])
-                            if isinstance(item, dict)
-                        }
-                        for item in node.get("method_details", []):
-                            if isinstance(item, dict):
-                                method_details[json.dumps(item, sort_keys=True, ensure_ascii=False)] = item
-                        if method_details:
-                            merged["method_details"] = [method_details[key] for key in sorted(method_details)]
-                        resource_keys = set(merged.get("resource_keys", []))
-                        if isinstance(merged.get("resource_key"), str):
-                            resource_keys.add(str(merged["resource_key"]))
-                        if isinstance(node.get("resource_key"), str):
-                            resource_keys.add(str(node["resource_key"]))
-                        merged["resource_keys"] = sorted(resource_keys)
-                        if not merged.get("fqn") and node.get("fqn"):
-                            merged["fqn"] = node.get("fqn")
-                        if not merged.get("source_kind") and node.get("source_kind"):
-                            merged["source_kind"] = node.get("source_kind")
-                        entries[simple_name] = merged
+                    canonical_key = str(node.get("resource_key") or node.get("fqn") or class_name)
+                    existing = canonical_entries.get(canonical_key)
+                    canonical = merge_module_entry(existing, dict(node)) if isinstance(existing, dict) else dict(node)
+                    canonical_entries[canonical_key] = canonical
             for value in node.values():
                 collect(value)
         elif isinstance(node, list):
@@ -717,7 +743,29 @@ def extract_module_class_entries(
                 collect(item)
 
     collect(data)
+    for canonical in canonical_entries.values():
+        for alias in build_module_entry_aliases(canonical):
+            entries.setdefault(alias, []).append(canonical)
     return entries
+
+
+def resolve_module_class_entry(entries: dict[str, list[dict[str, object]]], class_name: str) -> dict[str, object] | None:
+    candidates = entries.get(class_name) or entries.get(class_name.split(".")[-1]) or []
+    if not candidates:
+        return None
+    java_candidates = [item for item in candidates if str(item.get("source_kind") or "").startswith("java")]
+    if len(java_candidates) == 1:
+        return java_candidates[0]
+    exact_fqn = [item for item in candidates if str(item.get("fqn") or "") == class_name]
+    if len(exact_fqn) == 1:
+        return exact_fqn[0]
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
+def module_class_candidates(entries: dict[str, list[dict[str, object]]], class_name: str) -> list[dict[str, object]]:
+    return entries.get(class_name) or entries.get(class_name.split(".")[-1]) or []
 
 
 def read_module_map_quality(module_map_path: Path) -> dict[str, object]:
@@ -956,14 +1004,30 @@ def analyze_implementation_traceability(
     implemented_classes: list[str] = []
     design_only_classes: list[str] = []
     missing_classes: list[str] = []
+    ambiguous_classes: list[dict[str, object]] = []
     matched_methods: list[str] = []
     missing_methods: list[str] = []
     method_match_details: list[dict[str, object]] = []
 
     for class_name in referenced_classes:
-        entry = module_entries.get(class_name)
+        entry = resolve_module_class_entry(module_entries, class_name)
         if not entry:
-            missing_classes.append(class_name)
+            candidates = module_class_candidates(module_entries, class_name)
+            if len(candidates) > 1:
+                ambiguous_classes.append(
+                    {
+                        "class_name": class_name,
+                        "candidate_resource_keys": sorted(
+                            {
+                                str(item.get("resource_key") or item.get("fqn") or item.get("class_name") or "")
+                                for item in candidates
+                                if isinstance(item, dict)
+                            }
+                        ),
+                    }
+                )
+            else:
+                missing_classes.append(class_name)
             continue
         source_kind = str(entry.get("source_kind") or "")
         if source_kind.startswith("java"):
@@ -976,7 +1040,7 @@ def analyze_implementation_traceability(
     for call in referenced_methods:
         class_name = call["class_name"]
         method_name = call["method_name"]
-        entry = module_entries.get(class_name)
+        entry = resolve_module_class_entry(module_entries, class_name)
         if not entry or not str(entry.get("source_kind") or "").startswith("java"):
             continue
         display_name = f"{class_name}.{call.get('signature') or method_name}"
@@ -990,6 +1054,9 @@ def analyze_implementation_traceability(
                 "match_mode": match.get("match_mode"),
                 "matched_signature": match.get("matched_signature"),
                 "candidate_signatures": match.get("candidate_signatures", []),
+                "component_id": entry.get("component_id"),
+                "resource_key": entry.get("resource_key"),
+                "fqn": entry.get("fqn"),
             }
         )
         if match.get("matched"):
@@ -998,13 +1065,16 @@ def analyze_implementation_traceability(
             missing_methods.append(display_name)
 
     low_confidence = str(module_map_quality.get("confidence") or "").lower() == "low"
-    result = "PASS" if not design_only_classes and not missing_classes and not missing_methods and not low_confidence else "WARN"
+    result = "PASS" if not design_only_classes and not missing_classes and not ambiguous_classes and not missing_methods and not low_confidence else "WARN"
     method_modes = sorted({str(item.get("match_mode")) for item in method_match_details if item.get("matched") and item.get("match_mode")})
     if result == "PASS":
         if method_modes:
             message = "设计引用类与方法已映射到真实实现来源；方法命中层级=" + ", ".join(method_modes)
         else:
             message = "设计引用类与方法已映射到真实实现来源"
+    elif ambiguous_classes:
+        ambiguous_names = ", ".join(str(item.get("class_name") or "") for item in ambiguous_classes)
+        message = f"璁捐寮曠敤绫诲瓨鍦ㄥ涓?component/resource_key 鍊欓€夛紝鏃犳硶绋冲畾鏄犲皠: {ambiguous_names}"
     elif missing_methods and low_confidence:
         unsupported = module_map_quality.get("unsupported_features") or []
         suffix = ""
@@ -1029,6 +1099,7 @@ def analyze_implementation_traceability(
         "implemented_classes": implemented_classes,
         "design_only_classes": design_only_classes,
         "missing_classes": missing_classes,
+        "ambiguous_classes": ambiguous_classes,
         "expected_methods": referenced_methods,
         "matched_methods": sorted(set(matched_methods)),
         "missing_methods": sorted(set(missing_methods)),
@@ -1079,6 +1150,7 @@ def build_implementation_traceability_report_fields(traceability: dict[str, obje
         "implementation_method_match_details": method_match_details,
         "implementation_matched_methods": traceability.get("matched_methods", []),
         "implementation_missing_methods": traceability.get("missing_methods", []),
+        "implementation_ambiguous_classes": traceability.get("ambiguous_classes", []),
     }
 
 
@@ -1241,8 +1313,8 @@ def attempt_junit_platform_execution(
                 "stderr_tail": trim_output(compile_test.stderr),
             }
 
-        wrapper_file.write_text(build_junit_wrapper(test_file.stem, mappings), encoding="utf-8")
-        launcher_file.write_text(build_junit_launcher(), encoding="utf-8")
+        atomic_write_text(wrapper_file, build_junit_wrapper(test_file.stem, mappings), encoding="utf-8")
+        atomic_write_text(launcher_file, build_junit_launcher(), encoding="utf-8")
         compile_support_cmd = [javac, "-cp", classpath, "-d", str(build_dir), str(wrapper_file), str(launcher_file)]
         compile_support = subprocess.run(compile_support_cmd, check=False, capture_output=True, text=True)
         if compile_support.returncode != 0:
@@ -1479,6 +1551,7 @@ def main_for_args(argv: list[str] | None = None) -> int:
         result = "FAIL"
 
     baseline_dir = get_active_baseline_dir(create=True, migrate_legacy=True)
+    design_pack_dir = resolve_design_pack_dir(feature_dir, reports_dir)
     module_map_path = baseline_dir / "module-map.json"
     schema_context_path = baseline_dir / "schema-context.json"
     expected_req_ids = [
@@ -1544,6 +1617,23 @@ def main_for_args(argv: list[str] | None = None) -> int:
             **schema_signature,
         },
     }
+    schema_context = {}
+    if schema_context_path.exists():
+        try:
+            loaded_schema_context = json.loads(schema_context_path.read_text(encoding="utf-8"))
+            if isinstance(loaded_schema_context, dict):
+                schema_context = loaded_schema_context
+        except (OSError, json.JSONDecodeError):
+            schema_context = {}
+    design_resource_claims = build_design_resource_claims_for_pack(
+        openapi_path=design_pack_dir / "接口契约.openapi.yaml",
+        data_model_path=design_pack_dir / "数据模型.md",
+        async_contract_path=design_pack_dir / "异步事件契约.yaml",
+        schema_context=schema_context,
+        affected_components=affected_components,
+        omit_generic_tables_for_exact=False,
+    )
+    design_resource_claim_summary = summarize_resource_claims(design_resource_claims)
     implementation_report_fields = build_implementation_traceability_report_fields(implementation_traceability)
 
     verify_report = {
@@ -1560,6 +1650,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
         "attached_execution_requirement_reason": attached_execution_requirement_reason,
         "uncovered_p0": uncovered_p0,
         "uncovered_p1": uncovered_p1,
+        "design_resource_claims": design_resource_claims,
+        "design_resource_claim_summary": design_resource_claim_summary,
         "implementation_result": implementation_traceability["result"],
         **implementation_report_fields,
         "implementation_traceability": implementation_traceability,
@@ -1572,7 +1664,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
         "evidence": evidence,
         "details": details,
     }
-    verify_path.write_text(json.dumps(verify_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    with feature_lock(feature_dir, phase="gate5-verify-report"):
+        atomic_write_text(verify_path, json.dumps(verify_report, ensure_ascii=False, indent=2), encoding="utf-8")
     gate_report = write_gate_section(
         reports_dir,
         gate_name="gate5",
@@ -1589,6 +1682,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
             "attached_execution_requirement_reason": attached_execution_requirement_reason,
             "uncovered_p0": uncovered_p0,
             "uncovered_p1": uncovered_p1,
+            "design_resource_claim_summary": design_resource_claim_summary,
+            "design_resource_claim_highlights": design_resource_claim_summary.get("highlights", {}),
             "implementation_result": implementation_traceability["result"],
             **implementation_report_fields,
             "implementation_traceability": implementation_traceability,

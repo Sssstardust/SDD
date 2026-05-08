@@ -8,9 +8,10 @@ gate_report.py
 from __future__ import annotations
 
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from concurrency import atomic_write_text, feature_lock
 
 
 def build_violations(gate_name: str, payload: dict) -> list[dict[str, object]]:
@@ -47,32 +48,24 @@ def write_gate_section(
     reports_dir = reports_dir.resolve()
     reports_dir.mkdir(parents=True, exist_ok=True)
     report_path = (reports_dir / "gate-report.json").resolve()
+    feature_dir = reports_dir.parent.parent
 
-    if report_path.exists():
-        report = json.loads(report_path.read_text(encoding="utf-8"))
-    else:
-        report = {
-            "feature_name": feature_name,
-            "design_version": design_version,
-            "updated_at": None,
-        }
+    with feature_lock(feature_dir, phase=f"gate-report:{gate_name}"):
+        if report_path.exists():
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        else:
+            report = {
+                "feature_name": feature_name,
+                "design_version": design_version,
+                "updated_at": None,
+            }
 
-    report["feature_name"] = feature_name
-    report["design_version"] = design_version
-    report["updated_at"] = datetime.now(timezone.utc).isoformat()
-    normalized_payload = dict(payload)
-    normalized_payload["violations"] = build_violations(gate_name, normalized_payload)
-    report[gate_name] = normalized_payload
+        report["feature_name"] = feature_name
+        report["design_version"] = design_version
+        report["updated_at"] = datetime.now(timezone.utc).isoformat()
+        normalized_payload = dict(payload)
+        normalized_payload["violations"] = build_violations(gate_name, normalized_payload)
+        report[gate_name] = normalized_payload
 
-    content = json.dumps(report, ensure_ascii=False, indent=2)
-    last_error: OSError | None = None
-    for _ in range(3):
-        try:
-            report_path.write_text(content, encoding="utf-8")
-            return report_path
-        except OSError as exc:
-            last_error = exc
-            time.sleep(0.05)
-    if last_error is not None:
-        raise last_error
-    return report_path
+        atomic_write_text(report_path, json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        return report_path

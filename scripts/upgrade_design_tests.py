@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
+from concurrency import atomic_write_text
 from versioning import iter_feature_dirs
 
 
@@ -53,6 +54,7 @@ def upgrade_java_test(path: Path) -> bool:
     if not class_match:
         return False
     class_name = class_match.group(1)
+    method_names = METHOD_PATTERN.findall(updated)
 
     if not re.search(rf"(?m)^public\s+class\s+{re.escape(class_name)}\s*\{{", updated):
         updated = re.sub(
@@ -64,7 +66,6 @@ def upgrade_java_test(path: Path) -> bool:
 
     updated = re.sub(r"(?m)^(\s*)void\s+(test_[a-z0-9_]+)\s*\(\)\s*\{", r"\1public void \2() {", updated)
 
-    method_names = METHOD_PATTERN.findall(updated)
     if method_names and "public static void main(String[] args)" not in updated:
         main_lines = [
             "",
@@ -84,7 +85,7 @@ def upgrade_java_test(path: Path) -> bool:
             updated = updated[:-1] + "\n" + "\n".join(main_lines) + "}\n"
 
     if updated != text:
-        path.write_text(updated, encoding="utf-8")
+        atomic_write_text(path, updated, encoding="utf-8")
         return True
     return False
 

@@ -11,6 +11,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from concurrency import path_lock
+
 
 ROOT = Path(__file__).resolve().parent.parent
 OPS_DIR = ROOT / ".spec" / "ops"
@@ -24,8 +26,9 @@ def append_project_op(op_type: str, payload: dict) -> Path:
         "op_type": op_type,
         "payload": payload,
     }
-    with OPS_LOG.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    with path_lock(OPS_LOG, phase=f"append-project-op:{op_type}"):
+        with OPS_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
     return OPS_LOG
 
 

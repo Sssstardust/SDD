@@ -14,6 +14,7 @@ import json
 import re
 from pathlib import Path
 
+from concurrency import atomic_write_text, path_lock
 from project_artifact_paths import get_active_project_artifacts_dir
 from versioning import get_primary_design_root
 
@@ -155,8 +156,9 @@ def main() -> int:
 
     json_path = output_dir / f"{OUTPUT_BASENAME}.json"
     md_path = output_dir / f"{OUTPUT_BASENAME}.md"
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    md_path.write_text(render_markdown(issues), encoding="utf-8")
+    with path_lock(output_dir, phase="build-workspace-hygiene"):
+        atomic_write_text(json_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        atomic_write_text(md_path, render_markdown(issues), encoding="utf-8")
 
     print("[OK] tooling-hygiene 已生成")
     print(f"  - json: {json_path}")

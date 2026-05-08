@@ -16,6 +16,7 @@ from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH, build_attachment_payload, component_id_for_path, load_attachment_config
 from baseline_paths import get_active_baseline_dir
+from concurrency import atomic_write_text, path_lock
 from ops_log import append_project_op
 from polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
 from polyquery_adapter import (
@@ -53,6 +54,11 @@ FIELD_TABLE_ROW_PATTERN = re.compile(
     r"^\|\s*([a-z_][a-z0-9_]*)\s*\|\s*([a-zA-Z]+(?:\([^)]+\))?)\s*\|",
     re.IGNORECASE,
 )
+
+
+def write_schema_payload(schema_context_path: Path, payload: dict[str, object], *, phase: str) -> None:
+    with path_lock(schema_context_path, phase=phase):
+        atomic_write_text(schema_context_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def is_validation_path(path: Path) -> bool:
@@ -390,7 +396,7 @@ def main() -> int:
 
             if payload.get("__error__"):
                 attach_evidence_metadata(payload, source=payload.get("source") or "polyquery")
-                schema_context_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+                write_schema_payload(schema_context_path, payload, phase="refresh-schema-context:polyquery-error-payload")
                 write_schema_audit(
                     schema_context_path=schema_context_path,
                     payload=payload,
@@ -405,7 +411,7 @@ def main() -> int:
                 return 1
 
             attach_evidence_metadata(payload)
-            schema_context_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            write_schema_payload(schema_context_path, payload, phase="refresh-schema-context:polyquery")
             write_schema_audit(
                 schema_context_path=schema_context_path,
                 payload=payload,
@@ -427,7 +433,7 @@ def main() -> int:
                     "source": "polyquery",
                 }
                 attach_evidence_metadata(error_payload, source="polyquery")
-                schema_context_path.write_text(json.dumps(error_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+                write_schema_payload(schema_context_path, error_payload, phase="refresh-schema-context:polyquery-fail")
                 write_schema_audit(
                     schema_context_path=schema_context_path,
                     payload=error_payload,
@@ -488,7 +494,7 @@ def main() -> int:
         "tables": merge_tables(table_items),
     }
     attach_evidence_metadata(payload)
-    schema_context_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_schema_payload(schema_context_path, payload, phase="refresh-schema-context:local")
     write_schema_audit(
         schema_context_path=schema_context_path,
         payload=payload,

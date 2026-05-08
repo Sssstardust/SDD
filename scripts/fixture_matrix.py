@@ -10,6 +10,8 @@ import shutil
 import uuid
 from pathlib import Path, PurePosixPath
 
+from concurrency import atomic_write_text
+
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_ROOT = ROOT / "examples" / "fixtures"
@@ -18,7 +20,10 @@ MANIFEST_NAME = "fixture-meta.json"
 
 
 def fixture_relative_prefix(source_dir: Path) -> str:
-    return source_dir.relative_to(ROOT).as_posix()
+    try:
+        return source_dir.relative_to(ROOT).as_posix()
+    except ValueError:
+        return source_dir.resolve().as_posix()
 
 
 def rewrite_fixture_string(value: str, source_dir: Path, target_dir: Path) -> str:
@@ -51,7 +56,11 @@ def rewrite_fixture_reports(source_dir: Path, target_dir: Path) -> None:
     for report_path in reports_dir.rglob("*.json"):
         payload = json.loads(report_path.read_text(encoding="utf-8"))
         rewritten = rewrite_fixture_payload(payload, source_dir, target_dir)
-        report_path.write_text(json.dumps(rewritten, ensure_ascii=False, indent=2), encoding="utf-8")
+        atomic_write_text(
+            report_path,
+            json.dumps(rewritten, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
 
 def prepare_feature_fixture(source_dir: Path, workspace_root: Path) -> Path:

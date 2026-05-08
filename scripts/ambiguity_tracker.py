@@ -10,6 +10,8 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from concurrency import atomic_write_text, feature_lock
+
 
 AMBIGUITY_PATTERN = re.compile(r"\[AMBIGUOUS:\s*(.+?)\]")
 
@@ -49,54 +51,55 @@ def load_tracker(feature_dir: Path) -> dict[str, object] | None:
 
 def save_tracker(feature_dir: Path, payload: dict[str, object]) -> Path:
     path = ambiguity_tracker_path(feature_dir)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
 
 def sync_ambiguity_tracker(feature_dir: Path) -> dict[str, object]:
-    feature_brief = feature_dir / "feature-brief.md"
-    text = feature_brief.read_text(encoding="utf-8")
-    discovered = extract_ambiguities(text)
-    existing = load_tracker(feature_dir) or {}
-    existing_items = existing.get("items")
-    reusable_by_text: dict[str, list[dict[str, object]]] = {}
-    if isinstance(existing_items, list):
-        for item in existing_items:
-            if isinstance(item, dict):
-                reusable_by_text.setdefault(str(item.get("text") or ""), []).append(item)
+    with feature_lock(feature_dir, phase="sync-ambiguity-tracker"):
+        feature_brief = feature_dir / "feature-brief.md"
+        text = feature_brief.read_text(encoding="utf-8")
+        discovered = extract_ambiguities(text)
+        existing = load_tracker(feature_dir) or {}
+        existing_items = existing.get("items")
+        reusable_by_text: dict[str, list[dict[str, object]]] = {}
+        if isinstance(existing_items, list):
+            for item in existing_items:
+                if isinstance(item, dict):
+                    reusable_by_text.setdefault(str(item.get("text") or ""), []).append(item)
 
-    items: list[dict[str, object]] = []
-    for index, discovered_item in enumerate(discovered, start=1):
-        text_key = str(discovered_item["text"])
-        reusable = reusable_by_text.get(text_key, [])
-        previous = reusable.pop(0) if reusable else {}
-        status = str(previous.get("status") or "open")
-        if status not in {"open", "resolved", "waived"}:
-            status = "open"
-        items.append(
-            {
-                "id": f"AMB-{index:03d}",
-                "text": discovered_item["text"],
-                "raw_marker": discovered_item["raw_marker"],
-                "source_file": str(feature_brief),
-                "line_number": discovered_item["line_number"],
-                "status": status,
-                "resolution": str(previous.get("resolution") or ""),
-                "updated_at": previous.get("updated_at"),
-            }
-        )
+        items: list[dict[str, object]] = []
+        for index, discovered_item in enumerate(discovered, start=1):
+            text_key = str(discovered_item["text"])
+            reusable = reusable_by_text.get(text_key, [])
+            previous = reusable.pop(0) if reusable else {}
+            status = str(previous.get("status") or "open")
+            if status not in {"open", "resolved", "waived"}:
+                status = "open"
+            items.append(
+                {
+                    "id": f"AMB-{index:03d}",
+                    "text": discovered_item["text"],
+                    "raw_marker": discovered_item["raw_marker"],
+                    "source_file": str(feature_brief),
+                    "line_number": discovered_item["line_number"],
+                    "status": status,
+                    "resolution": str(previous.get("resolution") or ""),
+                    "updated_at": previous.get("updated_at"),
+                }
+            )
 
-    tracker = {
-        "feature_name": feature_dir.name,
-        "source_file": str(feature_brief),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "open_count": sum(1 for item in items if item["status"] == "open"),
-        "resolved_count": sum(1 for item in items if item["status"] == "resolved"),
-        "waived_count": sum(1 for item in items if item["status"] == "waived"),
-        "items": items,
-    }
-    save_tracker(feature_dir, tracker)
-    return tracker
+        tracker = {
+            "feature_name": feature_dir.name,
+            "source_file": str(feature_brief),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "open_count": sum(1 for item in items if item["status"] == "open"),
+            "resolved_count": sum(1 for item in items if item["status"] == "resolved"),
+            "waived_count": sum(1 for item in items if item["status"] == "waived"),
+            "items": items,
+        }
+        save_tracker(feature_dir, tracker)
+        return tracker
 
 
 def unresolved_ambiguities(feature_dir: Path) -> list[dict[str, object]]:

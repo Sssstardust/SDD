@@ -2,7 +2,7 @@
 """
 init_design.py
 
-为 specs/<feature>/ 生成下一版 design-v{N}.md（若不存在）。
+Create the next `design-v{N}.md` under `specs/<feature>/` when it does not exist.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+from concurrency import atomic_write_text, feature_lock
 from versioning import design_version_number, detect_next_design_path, reports_dir_for_design, resolve_feature_dir
 
 
@@ -25,10 +26,10 @@ def extract_yaml_blocks(text: str) -> list[str]:
 
 
 def extract_scalar(yaml_text: str, key: str) -> str | None:
-    m = re.search(rf"(?m)^\s*{re.escape(key)}\s*:\s*(.+?)\s*$", yaml_text)
-    if not m:
+    match = re.search(rf"(?m)^\s*{re.escape(key)}\s*:\s*(.+?)\s*$", yaml_text)
+    if not match:
         return None
-    return m.group(1).strip().strip('"').strip("'")
+    return match.group(1).strip().strip('"').strip("'")
 
 
 def render_template(feature_brief: Path, design_path: Path) -> str:
@@ -48,28 +49,29 @@ def render_template(feature_brief: Path, design_path: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    parser.add_argument("feature_dir", help="specs/<feature> directory path")
     args = parser.parse_args()
 
     feature_dir = resolve_feature_dir(args.feature_dir)
     if not feature_dir.exists():
-        print(f"[ERROR] feature 目录不存在: {feature_dir}")
+        print(f"[ERROR] feature directory does not exist: {feature_dir}")
         return 1
 
     feature_brief = feature_dir / "feature-brief.md"
     if not feature_brief.exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
+        print(f"[ERROR] missing feature-brief.md: {feature_brief}")
         return 1
 
-    design_path = detect_next_design_path(feature_dir)
-    if not design_path.exists():
-        design_path.write_text(render_template(feature_brief, design_path), encoding="utf-8")
-        reports_dir = reports_dir_for_design(feature_dir, design_path)
-        reports_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[OK] 已生成设计文档: {design_path}")
-        print(f"  - reports: {reports_dir}")
-    else:
-        print(f"[OK] 设计文档已存在，跳过生成: {design_path}")
+    with feature_lock(feature_dir, phase="init-design"):
+        design_path = detect_next_design_path(feature_dir)
+        if not design_path.exists():
+            atomic_write_text(design_path, render_template(feature_brief, design_path), encoding="utf-8")
+            reports_dir = reports_dir_for_design(feature_dir, design_path)
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            print(f"[OK] generated design document: {design_path}")
+            print(f"  - reports: {reports_dir}")
+        else:
+            print(f"[OK] design document already exists, skipped: {design_path}")
     return 0
 
 

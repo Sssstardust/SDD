@@ -11,6 +11,8 @@ import hashlib
 import json
 from pathlib import Path
 
+from concurrency import atomic_write_text, path_lock
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ATTACHMENT_PATH = ROOT / ".spec" / "attached-project.json"
 DEFAULT_ATTACHMENTS_DIR = DEFAULT_ATTACHMENT_PATH.parent / "attachments"
@@ -59,6 +61,17 @@ def attachment_profiles_dir_for(attachment_path: Path = DEFAULT_ATTACHMENT_PATH)
 
 def attachment_registry_path_for(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
     return attachments_dir_for(attachment_path) / "registry.json"
+
+
+def write_attachment_json(path: Path, payload: dict[str, object]) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def attachment_store_lock_path(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
+    effective = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
+    return attachments_dir_for(effective)
 
 
 def sanitize_profile_name(value: str) -> str:
@@ -309,11 +322,18 @@ def load_attachment_registry(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) ->
     return payload if isinstance(payload, dict) else None
 
 
-def save_attachment_registry(payload: dict[str, object], attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
-    path = attachment_registry_path_for(attachment_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
+def save_attachment_registry(
+    payload: dict[str, object],
+    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
+    *,
+    acquire_lock: bool = True,
+) -> Path:
+    effective_attachment_path = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
+    path = attachment_registry_path_for(effective_attachment_path)
+    if not acquire_lock:
+        return write_attachment_json(path, payload)
+    with path_lock(attachment_store_lock_path(effective_attachment_path), phase="save-attachment-registry"):
+        return write_attachment_json(path, payload)
 
 
 def list_attachment_profiles(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> list[dict[str, object]]:
@@ -368,31 +388,38 @@ def resolve_attachment_profile_path(
 
 
 def set_active_attachment_profile(profile: str, attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> dict[str, object]:
-    registry = load_attachment_registry(attachment_path)
-    if not isinstance(registry, dict):
-        implicit = _implicit_legacy_profile(attachment_path)
-        normalized_profile = sanitize_profile_name(profile)
-        if implicit is None or implicit.get("profile") != normalized_profile:
-            raise ValueError("attachment profile registry does not exist")
-        payload = implicit.get("payload")
-        if not isinstance(payload, dict):
-            raise ValueError("attachment profile registry does not exist")
-        save_attachment_config(payload, attachment_path, profile=normalized_profile, project_id=str(payload.get("project_id") or ""))
-        registry = load_attachment_registry(attachment_path)
+    effective_attachment_path = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
+    with path_lock(attachment_store_lock_path(effective_attachment_path), phase="set-active-attachment-profile"):
+        registry = load_attachment_registry(effective_attachment_path)
         if not isinstance(registry, dict):
-            raise ValueError("failed to initialize attachment profile registry")
-    normalized_profile = sanitize_profile_name(profile)
-    profiles = registry.get("profiles")
-    if not isinstance(profiles, dict) or normalized_profile not in profiles:
-        raise ValueError(f"attachment profile not found: {normalized_profile}")
-    registry["active_profile"] = normalized_profile
-    save_attachment_registry(registry, attachment_path)
-    payload = load_attachment_config(attachment_path, profile=normalized_profile)
-    if isinstance(payload, dict):
-        effective_attachment_path = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
-        effective_attachment_path.parent.mkdir(parents=True, exist_ok=True)
-        effective_attachment_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return registry
+            implicit = _implicit_legacy_profile(effective_attachment_path)
+            normalized_profile = sanitize_profile_name(profile)
+            if implicit is None or implicit.get("profile") != normalized_profile:
+                raise ValueError("attachment profile registry does not exist")
+            payload = implicit.get("payload")
+            if not isinstance(payload, dict):
+                raise ValueError("attachment profile registry does not exist")
+            save_attachment_config(
+                payload,
+                effective_attachment_path,
+                profile=normalized_profile,
+                project_id=str(payload.get("project_id") or ""),
+                acquire_lock=False,
+            )
+            registry = load_attachment_registry(effective_attachment_path)
+            if not isinstance(registry, dict):
+                raise ValueError("failed to initialize attachment profile registry")
+        normalized_profile = sanitize_profile_name(profile)
+        profiles = registry.get("profiles")
+        if not isinstance(profiles, dict) or normalized_profile not in profiles:
+            raise ValueError(f"attachment profile not found: {normalized_profile}")
+        registry["active_profile"] = normalized_profile
+        save_attachment_registry(registry, effective_attachment_path, acquire_lock=False)
+        payload = load_attachment_config(effective_attachment_path, profile=normalized_profile)
+        if isinstance(payload, dict):
+            effective_attachment_path.parent.mkdir(parents=True, exist_ok=True)
+            write_attachment_json(effective_attachment_path, payload)
+        return registry
 
 
 def save_attachment_config(
@@ -402,40 +429,51 @@ def save_attachment_config(
     profile: str | None = None,
     project_id: str | None = None,
     set_active: bool = True,
+    acquire_lock: bool = True,
 ) -> Path:
     effective_attachment_path = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
-    effective_attachment_path.parent.mkdir(parents=True, exist_ok=True)
+    if not acquire_lock:
+        effective_attachment_path.parent.mkdir(parents=True, exist_ok=True)
 
-    normalized_payload = normalize_attachment_payload(payload)
-    normalized_payload["project_id"] = project_id or build_attachment_project_id(normalized_payload)
-    normalized_payload["profile"] = build_attachment_profile_name(normalized_payload, profile)
+        normalized_payload = normalize_attachment_payload(payload)
+        normalized_payload["project_id"] = project_id or build_attachment_project_id(normalized_payload)
+        normalized_payload["profile"] = build_attachment_profile_name(normalized_payload, profile)
 
-    profiles_dir = attachment_profiles_dir_for(effective_attachment_path)
-    profiles_dir.mkdir(parents=True, exist_ok=True)
-    profile_path = profiles_dir / f"{normalized_payload['project_id']}.json"
-    profile_path.write_text(json.dumps(normalized_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        profiles_dir = attachment_profiles_dir_for(effective_attachment_path)
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+        profile_path = profiles_dir / f"{normalized_payload['project_id']}.json"
+        write_attachment_json(profile_path, normalized_payload)
 
-    registry = load_attachment_registry(effective_attachment_path) or {"version": 1, "active_profile": None, "profiles": {}}
-    profiles = registry.get("profiles")
-    if not isinstance(profiles, dict):
-        profiles = {}
-        registry["profiles"] = profiles
+        registry = load_attachment_registry(effective_attachment_path) or {"version": 1, "active_profile": None, "profiles": {}}
+        profiles = registry.get("profiles")
+        if not isinstance(profiles, dict):
+            profiles = {}
+            registry["profiles"] = profiles
 
-    profile_name = str(normalized_payload["profile"])
-    profiles[profile_name] = {
-        "project_id": normalized_payload["project_id"],
-        "name": normalized_payload.get("name"),
-        "project_root": normalized_payload.get("project_root"),
-        "attachment_file": str(profile_path),
-    }
-    if set_active or not registry.get("active_profile"):
-        registry["active_profile"] = profile_name
-        effective_attachment_path.write_text(json.dumps(normalized_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    elif not effective_attachment_path.exists():
-        effective_attachment_path.write_text(json.dumps(normalized_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        profile_name = str(normalized_payload["profile"])
+        profiles[profile_name] = {
+            "project_id": normalized_payload["project_id"],
+            "name": normalized_payload.get("name"),
+            "project_root": normalized_payload.get("project_root"),
+            "attachment_file": str(profile_path),
+        }
+        if set_active or not registry.get("active_profile"):
+            registry["active_profile"] = profile_name
+            write_attachment_json(effective_attachment_path, normalized_payload)
+        elif not effective_attachment_path.exists():
+            write_attachment_json(effective_attachment_path, normalized_payload)
 
-    save_attachment_registry(registry, effective_attachment_path)
-    return effective_attachment_path
+        save_attachment_registry(registry, effective_attachment_path, acquire_lock=False)
+        return effective_attachment_path
+    with path_lock(attachment_store_lock_path(effective_attachment_path), phase="save-attachment-config"):
+        return save_attachment_config(
+            payload,
+            effective_attachment_path,
+            profile=profile,
+            project_id=project_id,
+            set_active=set_active,
+            acquire_lock=False,
+        )
 
 
 def remove_attachment_profile(
@@ -445,63 +483,68 @@ def remove_attachment_profile(
     clear_all: bool = False,
 ) -> None:
     effective_attachment_path = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
-    if clear_all:
-        if effective_attachment_path.exists():
-            effective_attachment_path.unlink()
-        registry_path = attachment_registry_path_for(effective_attachment_path)
-        if registry_path.exists():
-            registry_path.unlink()
-        profiles_dir = attachment_profiles_dir_for(effective_attachment_path)
-        if profiles_dir.exists():
-            for child in profiles_dir.glob("*.json"):
-                child.unlink()
-            try:
-                profiles_dir.rmdir()
-            except OSError:
-                pass
-        attachments_dir = attachments_dir_for(effective_attachment_path)
-        if attachments_dir.exists():
-            try:
-                attachments_dir.rmdir()
-            except OSError:
-                pass
-        return
+    with path_lock(attachment_store_lock_path(effective_attachment_path), phase="remove-attachment-profile"):
+        if clear_all:
+            if effective_attachment_path.exists():
+                effective_attachment_path.unlink()
+            registry_path = attachment_registry_path_for(effective_attachment_path)
+            if registry_path.exists():
+                registry_path.unlink()
+            profiles_dir = attachment_profiles_dir_for(effective_attachment_path)
+            if profiles_dir.exists():
+                for child in profiles_dir.glob("*.json"):
+                    child.unlink()
+                try:
+                    profiles_dir.rmdir()
+                except OSError:
+                    pass
+            attachments_dir = attachments_dir_for(effective_attachment_path)
+            if attachments_dir.exists():
+                try:
+                    attachments_dir.rmdir()
+                except OSError:
+                    pass
+            return
 
-    registry = load_attachment_registry(effective_attachment_path)
-    if not isinstance(registry, dict):
-        if effective_attachment_path.exists():
-            effective_attachment_path.unlink()
-        return
+        registry = load_attachment_registry(effective_attachment_path)
+        if not isinstance(registry, dict):
+            if effective_attachment_path.exists():
+                effective_attachment_path.unlink()
+            return
 
-    profiles = registry.get("profiles")
-    if not isinstance(profiles, dict) or not profiles:
-        if effective_attachment_path.exists():
-            effective_attachment_path.unlink()
-        return
+        profiles = registry.get("profiles")
+        if not isinstance(profiles, dict) or not profiles:
+            if effective_attachment_path.exists():
+                effective_attachment_path.unlink()
+            return
 
-    target_profile = sanitize_profile_name(profile) if profile else registry.get("active_profile")
-    if not isinstance(target_profile, str) or target_profile not in profiles:
-        raise ValueError(f"attachment profile not found: {target_profile}")
+        target_profile = sanitize_profile_name(profile) if profile else registry.get("active_profile")
+        if not isinstance(target_profile, str) or target_profile not in profiles:
+            raise ValueError(f"attachment profile not found: {target_profile}")
 
-    raw_meta = profiles.pop(target_profile)
-    if isinstance(raw_meta, dict):
-        attachment_file = raw_meta.get("attachment_file")
-        if isinstance(attachment_file, str) and attachment_file:
-            path = Path(attachment_file)
-            if path.exists():
-                path.unlink()
+        raw_meta = profiles.pop(target_profile)
+        if isinstance(raw_meta, dict):
+            attachment_file = raw_meta.get("attachment_file")
+            if isinstance(attachment_file, str) and attachment_file:
+                path = Path(attachment_file)
+                if path.exists():
+                    path.unlink()
 
-    if not profiles:
-        remove_attachment_profile(effective_attachment_path, clear_all=True)
-        return
+        if not profiles:
+            if effective_attachment_path.exists():
+                effective_attachment_path.unlink()
+            registry_path = attachment_registry_path_for(effective_attachment_path)
+            if registry_path.exists():
+                registry_path.unlink()
+            return
 
-    if registry.get("active_profile") == target_profile:
-        registry["active_profile"] = sorted(profiles.keys())[0]
-        replacement = load_attachment_config(effective_attachment_path, profile=str(registry["active_profile"]))
-        if isinstance(replacement, dict):
-            effective_attachment_path.write_text(json.dumps(replacement, ensure_ascii=False, indent=2), encoding="utf-8")
+        if registry.get("active_profile") == target_profile:
+            registry["active_profile"] = sorted(profiles.keys())[0]
+            replacement = load_attachment_config(effective_attachment_path, profile=str(registry["active_profile"]))
+            if isinstance(replacement, dict):
+                write_attachment_json(effective_attachment_path, replacement)
 
-    save_attachment_registry(registry, effective_attachment_path)
+        save_attachment_registry(registry, effective_attachment_path, acquire_lock=False)
 
 
 def load_attachment_config(

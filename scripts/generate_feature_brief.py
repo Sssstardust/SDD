@@ -13,6 +13,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+from concurrency import atomic_write_text, feature_lock
 from versioning import resolve_feature_dir
 
 
@@ -448,7 +449,8 @@ def main() -> int:
         requirements=requirements,
         source_path=source_path,
     )
-    output_path.write_text(rendered, encoding="utf-8")
+    with feature_lock(feature_dir, phase="generate-feature-brief"):
+        atomic_write_text(output_path, rendered, encoding="utf-8")
 
     print("[OK] Feature Brief 自动生成完成")
     print(f"  - source:  {source_path}")

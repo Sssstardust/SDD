@@ -64,13 +64,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
+from concurrency import atomic_write_text, feature_lock
 from flow_state import inspect_feature_state
 from json_io import read_json
 from ops_log import append_project_op
@@ -184,24 +184,25 @@ def init_feature(feature_name: str) -> int:
     tasks_dir = feature_dir / "tasks"
     reports_dir = feature_dir / "reports"
 
-    for directory in [feature_dir, design_pack_dir, tasks_dir, reports_dir]:
-        directory.mkdir(parents=True, exist_ok=True)
+    with feature_lock(feature_dir, phase="init-feature"):
+        for directory in [feature_dir, design_pack_dir, tasks_dir, reports_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
 
-    feature_brief = feature_dir / "feature-brief.md"
-    if not feature_brief.exists():
-        template = DOC_TEMPLATES / "Feature-Brief-模板.md"
-        if template.exists():
-            shutil.copyfile(template, feature_brief)
-        else:
-            feature_brief.write_text("# Feature Brief\n", encoding="utf-8")
+        feature_brief = feature_dir / "feature-brief.md"
+        if not feature_brief.exists():
+            template = DOC_TEMPLATES / "Feature-Brief-模板.md"
+            if template.exists():
+                atomic_write_text(feature_brief, template.read_text(encoding="utf-8"), encoding="utf-8")
+            else:
+                atomic_write_text(feature_brief, "# Feature Brief\n", encoding="utf-8")
 
-    task_slice = tasks_dir / "slice-001-biz.md"
-    if not task_slice.exists():
-        template = DOC_TEMPLATES / "Task-Slice-模板.md"
-        if template.exists():
-            shutil.copyfile(template, task_slice)
-        else:
-            task_slice.write_text("# Task Slice\n", encoding="utf-8")
+        task_slice = tasks_dir / "slice-001-biz.md"
+        if not task_slice.exists():
+            template = DOC_TEMPLATES / "Task-Slice-模板.md"
+            if template.exists():
+                atomic_write_text(task_slice, template.read_text(encoding="utf-8"), encoding="utf-8")
+            else:
+                atomic_write_text(task_slice, "# Task Slice\n", encoding="utf-8")
 
     console_print(f"[OK] 已初始化试点目录: {feature_dir}")
     console_print(f"  - {feature_brief}")

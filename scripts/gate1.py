@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from ambiguity_tracker import sync_ambiguity_tracker
+from concurrency import atomic_write_text
 from design_evidence import freeze_design_pack, hash_file, hash_tree
 from gate_report import build_violations, write_gate_section
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
@@ -153,7 +154,8 @@ def gate1(feature_dir: Path) -> dict[str, object]:
         "violations": payload.get("violations", []),
         "gate_report": str(gate_report_path),
     }
-    sidecar_report_path.write_text(
+    atomic_write_text(
+        sidecar_report_path,
         json.dumps(sidecar_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )

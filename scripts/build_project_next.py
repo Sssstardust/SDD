@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
+from concurrency import atomic_write_text, path_lock
 from flow_state import inspect_feature_state
 from json_io import write_json
 from ops_log import read_latest_op
@@ -172,8 +173,9 @@ def main() -> int:
 
     json_path = output_dir / "project-next.json"
     md_path = output_dir / "project-next.md"
-    write_json(json_path, payload)
-    md_path.write_text(render_markdown(states, candidate, project_context), encoding="utf-8")
+    with path_lock(output_dir, phase="build-project-next"):
+        write_json(json_path, payload)
+        atomic_write_text(md_path, render_markdown(states, candidate, project_context), encoding="utf-8")
 
     print("[OK] project-next generated")
     print(f"  - json: {json_path}")

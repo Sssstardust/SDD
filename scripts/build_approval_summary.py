@@ -11,6 +11,7 @@ import argparse
 import re
 from pathlib import Path
 
+from concurrency import atomic_write_text, feature_lock
 from json_io import read_json
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
@@ -229,20 +230,22 @@ def main() -> int:
     approval = read_json(approval_path) if approval_path.exists() else None
 
     summary_path = reports_dir / "approval-summary.md"
-    summary_path.write_text(
-        render_summary(
-            feature_name=feature_name,
-            risk_tier=risk_tier,
-            one_liner=one_liner,
-            design_version=design_path.name,
-            requirements=requirements,
-            interfaces=interfaces,
-            tables=tables,
-            gate_report=gate_report,
-            approval=approval,
-        ),
-        encoding="utf-8",
-    )
+    with feature_lock(feature_dir, phase="build-approval-summary"):
+        atomic_write_text(
+            summary_path,
+            render_summary(
+                feature_name=feature_name,
+                risk_tier=risk_tier,
+                one_liner=one_liner,
+                design_version=design_path.name,
+                requirements=requirements,
+                interfaces=interfaces,
+                tables=tables,
+                gate_report=gate_report,
+                approval=approval,
+            ),
+            encoding="utf-8",
+        )
 
     print("[OK] 审批摘要已生成")
     print(f"  - summary: {summary_path}")

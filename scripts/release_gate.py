@@ -18,7 +18,12 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from baseline_extractors import build_design_resource_claims_for_pack, summarize_resource_claims
+from baseline_paths import get_active_baseline_dir
 from check_design_pack import has_rollback_statement, split_sql_migration_blocks
+from concurrency import atomic_write_text, feature_lock
+from design_evidence import resolve_design_pack_dir
+from feature_brief import extract_affected_components
 from gate_report import write_gate_section
 from sdd_yaml import get_list, get_scalar, load_first_yaml_mapping
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
@@ -146,12 +151,34 @@ def main() -> int:
         return 1
 
     feature_name, tags, risk_tier = parse_feature_meta(feature_brief)
+    brief_content = feature_brief.read_text(encoding="utf-8")
+    affected_components = extract_affected_components(brief_content)
     design_path = detect_latest_design_path(feature_dir)
     if not design_path.exists():
         print(f"[ERROR] 缺少设计文档: {design_path}")
         return 1
 
     reports_dir = reports_dir_for_design(feature_dir, design_path)
+    design_pack_dir = resolve_design_pack_dir(feature_dir, reports_dir)
+    baseline_dir = get_active_baseline_dir(create=True, migrate_legacy=True)
+    schema_context_path = baseline_dir / "schema-context.json"
+    schema_context: dict[str, object] = {}
+    if schema_context_path.exists():
+        try:
+            loaded_schema_context = json.loads(schema_context_path.read_text(encoding="utf-8"))
+            if isinstance(loaded_schema_context, dict):
+                schema_context = loaded_schema_context
+        except (OSError, json.JSONDecodeError):
+            schema_context = {}
+    design_resource_claims = build_design_resource_claims_for_pack(
+        openapi_path=design_pack_dir / "接口契约.openapi.yaml",
+        data_model_path=design_pack_dir / "数据模型.md",
+        async_contract_path=design_pack_dir / "异步事件契约.yaml",
+        schema_context=schema_context,
+        affected_components=affected_components,
+        omit_generic_tables_for_exact=False,
+    )
+    design_resource_claim_summary = summarize_resource_claims(design_resource_claims)
     verify_payload, verify_path = load_verify_payload(reports_dir)
     verify_result = str(verify_payload.get("result")) if isinstance(verify_payload, dict) and isinstance(verify_payload.get("result"), str) else None
 
@@ -249,12 +276,15 @@ def main() -> int:
         "warnings": warnings,
         "errors": errors,
         "evidence": evidence,
+        "design_resource_claim_summary": design_resource_claim_summary,
+        "design_resource_claim_highlights": design_resource_claim_summary.get("highlights", {}),
         "structured_release_plan": structured_plan,
     }
 
     report_path = reports_dir / "release-gate-report.json"
     reports_dir.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    with feature_lock(feature_dir, phase="release-gate"):
+        atomic_write_text(report_path, json.dumps(report_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_gate_section(
         reports_dir,
         gate_name="release_gate",
@@ -265,6 +295,8 @@ def main() -> int:
             "checks": checks,
             "warnings": warnings,
             "errors": errors,
+            "design_resource_claim_summary": design_resource_claim_summary,
+            "design_resource_claim_highlights": design_resource_claim_summary.get("highlights", {}),
             "report_file": str(report_path),
         },
     )

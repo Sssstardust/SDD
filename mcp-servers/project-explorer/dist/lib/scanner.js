@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseJavaFile = parseJavaFile;
 exports.buildSnapshot = buildSnapshot;
 exports.scanModules = scanModules;
 exports.verifyClassExists = verifyClassExists;
@@ -336,7 +337,7 @@ function parseMethodDeclaration(line, classType) {
         params: match[3],
     };
 }
-function buildMethodDetail(methodName, params, returnType, annotationText) {
+function buildMethodDetail(methodName, params, returnType, annotationText, options = {}) {
     const annotations = Array.from(annotationText.matchAll(/@([A-Za-z_][A-Za-z0-9_.]*)/g)).map((match) => match[1].split(".").pop() || match[1]);
     return {
         name: methodName,
@@ -344,6 +345,9 @@ function buildMethodDetail(methodName, params, returnType, annotationText) {
         parameter_types: extractParameterTypes(params),
         return_type: returnType ? normalizeJavaType(returnType) : null,
         annotations: Array.from(new Set(annotations)).sort(),
+        inferred: Boolean(options.inferred),
+        inference_source: options.inferenceSource ?? null,
+        confidence: options.confidence ?? null,
     };
 }
 function parseFieldAnnotationName(annotationText, annotationName) {
@@ -359,14 +363,89 @@ function parseFieldAnnotationName(annotationText, annotationName) {
     return valueMatch ? valueMatch[1] : null;
 }
 function parseFieldDeclaration(line) {
-    const match = /^\s*(?:public|protected|private)\s+(?:static\s+)?(?:final\s+)?(?:volatile\s+)?(?:transient\s+)?([\w.$<>\[\], ?@]+)\s+([a-zA-Z_][A-Za-z0-9_]*)\s*(?:=|;)/.exec(line.replace(/\r$/, ""));
+    const match = /^\s*(?:public|protected|private)\s+((?:static\s+)?(?:final\s+)?(?:volatile\s+)?(?:transient\s+)?)?([\w.$<>\[\], ?@]+)\s+([a-zA-Z_][A-Za-z0-9_]*)\s*(?:=|;)/.exec(line.replace(/\r$/, ""));
     if (!match) {
         return null;
     }
+    const modifiers = match[1] || "";
     return {
-        fieldType: normalizeJavaType(match[1]),
-        fieldName: match[2],
+        fieldType: normalizeJavaType(match[2]),
+        fieldName: match[3],
+        isFinal: /\bfinal\b/.test(modifiers),
+        isStatic: /\bstatic\b/.test(modifiers),
     };
+}
+function isPrimitiveBooleanType(type) {
+    return normalizeJavaType(type || "") === "boolean";
+}
+function capitalizeJavaIdentifier(value) {
+    if (!value) {
+        return value;
+    }
+    return `${value[0].toUpperCase()}${value.slice(1)}`;
+}
+function lombokPropertyName(fieldName, fieldType) {
+    if (isPrimitiveBooleanType(fieldType) && /^is[A-Z]/.test(fieldName)) {
+        return fieldName.slice(2);
+    }
+    return fieldName;
+}
+function inferLombokGetter(fieldName, fieldType) {
+    if (isPrimitiveBooleanType(fieldType) && /^is[A-Z]/.test(fieldName)) {
+        return { methodName: fieldName, returnType: fieldType };
+    }
+    const propertyName = lombokPropertyName(fieldName, fieldType);
+    const prefix = isPrimitiveBooleanType(fieldType) ? "is" : "get";
+    return {
+        methodName: `${prefix}${capitalizeJavaIdentifier(propertyName)}`,
+        returnType: fieldType,
+    };
+}
+function inferLombokSetter(fieldName, fieldType) {
+    const propertyName = lombokPropertyName(fieldName, fieldType);
+    const paramType = fieldType || "Object";
+    return {
+        methodName: `set${capitalizeJavaIdentifier(propertyName)}`,
+        params: `${paramType} ${fieldName}`,
+    };
+}
+function inferLombokMethods(classAnnotations, fieldMetadata, existingMethodDetails) {
+    const existingSignatures = new Set(existingMethodDetails.map((item) => item.signature));
+    const inferred = new Map();
+    const classAnnotationSet = new Set(classAnnotations);
+    const classHasGetter = classAnnotationSet.has("Getter") || classAnnotationSet.has("Data");
+    const classHasSetter = classAnnotationSet.has("Setter") || classAnnotationSet.has("Data");
+    for (const field of fieldMetadata) {
+        if (field.is_static) {
+            continue;
+        }
+        const fieldAnnotationSet = new Set(field.annotations);
+        const shouldInferGetter = classHasGetter || fieldAnnotationSet.has("Getter");
+        const shouldInferSetter = (classHasSetter || fieldAnnotationSet.has("Setter")) && !field.is_final;
+        if (shouldInferGetter) {
+            const getter = inferLombokGetter(field.field_name, field.field_type);
+            const detail = buildMethodDetail(getter.methodName, "", getter.returnType, "", {
+                inferred: true,
+                inferenceSource: "lombok-getter",
+                confidence: "low",
+            });
+            if (!existingSignatures.has(detail.signature)) {
+                inferred.set(detail.signature, detail);
+            }
+        }
+        if (shouldInferSetter) {
+            const setter = inferLombokSetter(field.field_name, field.field_type);
+            const detail = buildMethodDetail(setter.methodName, setter.params, "void", "", {
+                inferred: true,
+                inferenceSource: "lombok-setter",
+                confidence: "low",
+            });
+            if (!existingSignatures.has(detail.signature)) {
+                inferred.set(detail.signature, detail);
+            }
+        }
+    }
+    return Array.from(inferred.values()).sort((a, b) => a.signature.localeCompare(b.signature));
 }
 function buildJpaMetadata(classAnnotationText, fieldMetadata) {
     if (!/@Entity\b/.test(classAnnotationText) && !/@MappedSuperclass\b/.test(classAnnotationText)) {
@@ -392,7 +471,7 @@ function buildJpaMetadata(classAnnotationText, fieldMetadata) {
         })),
     };
 }
-function collectClassMembers(body, className, classType, classBasePath) {
+function collectClassMembers(body, className, classType, classBasePath, classAnnotations) {
     const declaredMethods = new Set();
     const methodDetails = new Map();
     const fields = new Set();
@@ -426,6 +505,8 @@ function collectClassMembers(body, className, classType, classBasePath) {
                     field_type: parsedField?.fieldType || null,
                     annotations: Array.from(new Set(annotations)).sort(),
                     raw_annotation_text: annotationText,
+                    is_final: Boolean(parsedField?.isFinal),
+                    is_static: Boolean(parsedField?.isStatic),
                 });
                 pendingAnnotations.length = 0;
             }
@@ -470,6 +551,11 @@ function collectClassMembers(body, className, classType, classBasePath) {
             }
         }
         depth += countBraceDelta(line);
+    }
+    const inferredMethodDetails = classType === "class" ? inferLombokMethods(classAnnotations, Array.from(fieldMetadata.values()), Array.from(methodDetails.values())) : [];
+    for (const detail of inferredMethodDetails) {
+        declaredMethods.add(detail.signature);
+        methodDetails.set(detail.signature, detail);
     }
     return {
         declaredMethods: Array.from(declaredMethods).sort(),
@@ -553,7 +639,7 @@ function collectLeadingAnnotationText(lines, lineIndex, declarationLine) {
 }
 function detectUnsupportedFeatures(text) {
     const features = new Set();
-    if (/@(?:Data|Getter|Setter|Builder|Value|RequiredArgsConstructor|AllArgsConstructor|NoArgsConstructor)\b/.test(text)) {
+    if (/@(?:Builder|SuperBuilder|Value|RequiredArgsConstructor|AllArgsConstructor|NoArgsConstructor|With|Accessors|Delegate)\b/.test(text)) {
         features.add("lombok-generated-methods");
     }
     if (/\bClass\.forName\s*\(|\.getDeclaredMethod\s*\(|\.getMethod\s*\(/.test(text)) {
@@ -600,9 +686,10 @@ function parseJavaFile(filePath, sourceKind, modulePrefixMap) {
         const body = text.slice(braceIndex + 1, bodyEnd);
         const inheritance = extractInheritance(header);
         const classAnnotationText = collectLeadingAnnotationText(lines, lineIndex, line);
+        const classAnnotations = collectLeadingAnnotations(lines, lineIndex, line);
         const classBasePath = extractClassBasePath(classAnnotationText);
         const fqn = packageName ? `${packageName}.${className}` : null;
-        const members = collectClassMembers(body, className, classType, classBasePath);
+        const members = collectClassMembers(body, className, classType, classBasePath, classAnnotations);
         classes.push({
             class_name: className,
             simple_name: className,
@@ -618,7 +705,7 @@ function parseJavaFile(filePath, sourceKind, modulePrefixMap) {
             inherited_public_methods: [],
             fields: members.fields,
             field_details: members.fieldDetails,
-            annotations: collectLeadingAnnotations(lines, lineIndex, line),
+            annotations: classAnnotations,
             extends: inheritance.extendsList,
             implements: inheritance.implementsList,
             endpoints: members.endpoints,
@@ -1112,10 +1199,11 @@ function buildSnapshot(config, options = {}) {
             warnings: scanWarnings,
             limitations: [
                 "no-symbol-resolution",
-                "no-lombok-generated-method-expansion",
+                "partial-lombok-generated-method-expansion",
                 "partial-mybatis-xml-binding-resolution",
                 "no-framework-proxy-resolution",
             ],
+            method_inference: ["lombok-getter", "lombok-setter", "lombok-data"],
         },
         source_stats: sourceStats,
         duplicate_strategy: duplicateStrategy,

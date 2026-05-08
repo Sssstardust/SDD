@@ -4,66 +4,53 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc2dce6d-f818-4212-ae04-d65de8159da3" name="Changes" comment="">
+    <list default="true" id="fc2dce6d-f818-4212-ae04-d65de8159da3" name="Changes" comment="claude问题修复">
+      <change beforePath="$PROJECT_DIR$/.cache/project-explorer-snapshot.json" beforeDir="false" afterPath="$PROJECT_DIR$/.cache/project-explorer-snapshot.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/aspirecodestat-documentCache-1.0.2.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/aspirecodestat-documentCache-1.0.2.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/feature/design-v1.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.tmp_test_workspace/generate_design_force_case/repo/skills/sdd-generation/run.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SDD项目分析报告.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/docs/agent-integration.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/agent-integration.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp-servers/polyquery/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/polyquery/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp-servers/polyquery/src/config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/polyquery/src/config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp-servers/polyquery/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/polyquery/src/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/project-explorer/dist/lib/scanner.js" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/project-explorer/dist/lib/scanner.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/project-explorer/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/project-explorer/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/project-explorer/src/lib/scanner.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/project-explorer/src/lib/scanner.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/dist/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/dist/server.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/package.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/src/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/mcp-servers/sdd-pipeline/src/server.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/attach_target_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/attach_target_project.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/ambiguity_tracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/ambiguity_tracker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/approve_design.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/approve_design.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/attached_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/attached_project.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/baseline_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/baseline_paths.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/baseline_extractors.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/baseline_extractors.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/baseline_governance.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/baseline_governance.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/bootstrap_feature.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/bootstrap_feature.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/bootstrap_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/bootstrap_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/build_approval_summary.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_approval_summary.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/build_flow_overview.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_flow_overview.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/build_flow_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_flow_status.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/build_project_console.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_project_console.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/build_project_next.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_project_next.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/build_workspace_hygiene.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/build_workspace_hygiene.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/check_design_test_coverage.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check_design_test_coverage.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/check_design_truthfulness.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check_design_truthfulness.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/check_feature_brief.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check_feature_brief.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/flow_state.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/flow_state.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/design_index_lifecycle.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/design_index_lifecycle.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/doctor.ps1" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/doctor.ps1" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/fixture_matrix.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/fixture_matrix.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/gate1.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/gate1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/gate_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/gate_report.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/generate_feature_brief.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/generate_feature_brief.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/generate_task_slices.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/generate_task_slices.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/generate_test_skeleton.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/generate_test_skeleton.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/init_approval.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/init_approval.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/init_design.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/init_design.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/init_design_pack.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/init_design_pack.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/json_io.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/json_io.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/onboard_attached_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/onboard_attached_project.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/project_artifact_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/project_artifact_paths.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/ops_log.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/ops_log.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/refresh_module_map.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/refresh_module_map.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/refresh_project_state.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/refresh_project_state.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/refresh_schema_context.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/refresh_schema_context.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/release_gate.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/release_gate.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/run_pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/run_pipeline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/sync_baseline.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sync_baseline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/update_index_design.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/update_index_design.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/upgrade_design_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/upgrade_design_tests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/validate_all_reports.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/validate_all_reports.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/validate_reports.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/validate_reports.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/versioning.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/versioning.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/skills/sdd-generation/assemble_context.py" beforeDir="false" afterPath="$PROJECT_DIR$/skills/sdd-generation/assemble_context.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/skills/sdd-generation/render_design_pack.py" beforeDir="false" afterPath="$PROJECT_DIR$/skills/sdd-generation/render_design_pack.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/skills/sdd-generation/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/skills/sdd-generation/run.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.json" beforeDir="false" afterPath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/pilot-payment-review/flow-status.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/task-board/flow-status.json" beforeDir="false" afterPath="$PROJECT_DIR$/specs/task-board/flow-status.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/task-board/flow-status.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/task-board/flow-status.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/异步事件契约.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/异步事件契约.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口契约.openapi.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口契约.openapi.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/接口文档.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据库变更.sql" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据库变更.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据模型.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/design-pack/数据模型.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.json" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.md" beforeDir="false" afterPath="$PROJECT_DIR$/specs/tob-oa-office-demo/flow-status.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/order-create/OrderCreateDesignVerificationTest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/payment-review-control/PaymentReviewControlDesignVerificationTest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/pricing-list-control/PricingListControlDesignVerificationTest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/task-board/TaskBoardDesignVerificationTest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/generated/design/validation-full-20260417190616/ValidationFull20260417190616DesignVerificationTest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/opencode/AGENTS.md" beforeDir="false" afterPath="$PROJECT_DIR$/templates/opencode/AGENTS.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_assemble_context_schema_matching.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_check_design_pack_interface_doc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_render_design_pack_api_contracts.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_render_design_pack_db_contracts.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_requirement_analyzer_extract.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_run_pipeline_generate_design.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -95,6 +82,7 @@
     &quot;Python.python scripts/run_pipeline.py bootstrap D:\\project\\SDD\\specs\\task-board.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
     &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
@@ -182,11 +170,36 @@
       <workItem from="1778033347036" duration="4093000" />
       <workItem from="1778137808179" duration="11897000" />
       <workItem from="1778204119325" duration="2901000" />
+      <workItem from="1778210580533" duration="5496000" />
     </task>
+    <task id="LOCAL-00001" summary="claude问题修复">
+      <option name="closed" value="true" />
+      <created>1778211075239</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1778211075239</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="claude问题修复" />
+    <option name="LAST_COMMIT_MESSAGE" value="claude问题修复" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/attached_project_mode_md$python_scripts_run_pipeline_py_bootstrap_D__project_SDD_specs_task_board.coverage" NAME="python scripts/run_pipeline.py bootstrap D:\project\SDD\specs\task-board Coverage Results" MODIFIED="1777369518806" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/specs/task-board" />

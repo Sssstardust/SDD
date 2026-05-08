@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from baseline_paths import get_active_baseline_dir
+from concurrency import atomic_write_text, path_lock
 from flow_state import inspect_feature_state
 from versioning import get_primary_design_root, iter_feature_dirs as iter_attached_feature_dirs
 
@@ -230,7 +231,7 @@ def build_tech_debt_markdown(specs_dir: Path) -> tuple[str, int]:
     return "\n".join(lines), len(items)
 
 
-def refresh_governance_baseline(
+def _refresh_governance_baseline_unlocked(
     specs_dir: Path | None = None,
     baseline_dir: Path | None = None,
 ) -> dict[str, object]:
@@ -243,8 +244,8 @@ def refresh_governance_baseline(
 
     constitution_path = effective_baseline_dir / CONSTITUTION_FILE
     tech_debt_path = effective_baseline_dir / TECH_DEBT_FILE
-    constitution_path.write_text(constitution_text, encoding="utf-8")
-    tech_debt_path.write_text(tech_debt_text, encoding="utf-8")
+    atomic_write_text(constitution_path, constitution_text, encoding="utf-8")
+    atomic_write_text(tech_debt_path, tech_debt_text, encoding="utf-8")
 
     return {
         "constitution_path": str(constitution_path),
@@ -252,3 +253,16 @@ def refresh_governance_baseline(
         "source_count": source_count,
         "debt_count": debt_count,
     }
+
+
+def refresh_governance_baseline(
+    specs_dir: Path | None = None,
+    baseline_dir: Path | None = None,
+    *,
+    acquire_lock: bool = True,
+) -> dict[str, object]:
+    effective_baseline_dir = baseline_dir or get_active_baseline_dir(create=True, migrate_legacy=True)
+    if not acquire_lock:
+        return _refresh_governance_baseline_unlocked(specs_dir, effective_baseline_dir)
+    with path_lock(effective_baseline_dir, phase="refresh-baseline-governance"):
+        return _refresh_governance_baseline_unlocked(specs_dir, effective_baseline_dir)

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-bootstrap_feature.py
-
-为 greenfield feature 生成正式的 bootstrap 产物。
+Generate bootstrap artifacts for a greenfield feature.
 """
 
 from __future__ import annotations
@@ -18,6 +16,7 @@ from bootstrap_utils import (
     render_bootstrap_file,
     write_scaffold_report,
 )
+from concurrency import atomic_write_text, feature_lock
 from versioning import resolve_feature_dir
 
 
@@ -44,8 +43,8 @@ def read_feature_name(feature_dir: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
-    parser.add_argument("--force", action="store_true", help="允许覆盖已存在的 bootstrap 产物")
+    parser.add_argument("feature_dir", help="Path to specs/<feature>")
+    parser.add_argument("--force", action="store_true", help="Overwrite existing bootstrap artifacts")
     args = parser.parse_args()
 
     feature_dir = resolve_feature_dir(args.feature_dir)
@@ -54,28 +53,29 @@ def main() -> int:
 
     missing_templates = [name for name in BOOTSTRAP_TEMPLATE_MAP if not (BOOTSTRAP_TEMPLATE_DIR / name).exists()]
     if missing_templates:
-        print(f"[ERROR] 缺少 bootstrap 模板: {', '.join(missing_templates)}")
+        print(f"[ERROR] missing bootstrap templates: {', '.join(missing_templates)}")
         return 1
 
     generated_files: list[str] = []
     preserved_files: list[str] = []
+    with feature_lock(feature_dir, phase="bootstrap-feature"):
+        for template_name, output_name in BOOTSTRAP_TEMPLATE_MAP.items():
+            template_path = BOOTSTRAP_TEMPLATE_DIR / template_name
+            output_path = feature_dir / output_name
+            if output_path.exists() and not args.force:
+                preserved_files.append(output_name)
+                continue
 
-    for template_name, output_name in BOOTSTRAP_TEMPLATE_MAP.items():
-        template_path = BOOTSTRAP_TEMPLATE_DIR / template_name
-        output_path = feature_dir / output_name
-        if output_path.exists() and not args.force:
-            preserved_files.append(output_name)
-            continue
+            rendered = render_bootstrap_file(output_name, template_path.read_text(encoding="utf-8"), feature_name)
+            atomic_write_text(output_path, rendered, encoding="utf-8")
+            generated_files.append(output_name)
 
-        rendered = render_bootstrap_file(output_name, template_path.read_text(encoding="utf-8"), feature_name)
-        output_path.write_text(rendered, encoding="utf-8")
-        generated_files.append(output_name)
+        report_path = write_scaffold_report(feature_dir, feature_name, generated_files, preserved_files)
 
-    report_path = write_scaffold_report(feature_dir, feature_name, generated_files, preserved_files)
     if BOOTSTRAP_REQUIRED_FILES and report_path.name not in generated_files:
         generated_files.append(report_path.name)
 
-    print("[OK] Greenfield bootstrap 初始化完成")
+    print("[OK] greenfield bootstrap completed")
     print(f"  - feature: {feature_name}")
     print(f"  - dir:     {feature_dir}")
     print(f"  - created: {', '.join(generated_files) if generated_files else 'none'}")

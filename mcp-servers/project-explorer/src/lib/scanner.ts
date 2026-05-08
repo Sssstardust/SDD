@@ -48,6 +48,9 @@ export type ProjectExplorerMethod = {
   parameter_types: string[];
   return_type: string | null;
   annotations: string[];
+  inferred?: boolean;
+  inference_source?: string | null;
+  confidence?: string | null;
 };
 
 export type ProjectExplorerField = {
@@ -414,6 +417,7 @@ function buildMethodDetail(
   params: string,
   returnType: string | null,
   annotationText: string,
+  options: { inferred?: boolean; inferenceSource?: string | null; confidence?: string | null } = {},
 ): ProjectExplorerMethod {
   const annotations = Array.from(annotationText.matchAll(/@([A-Za-z_][A-Za-z0-9_.]*)/g)).map((match) => match[1].split(".").pop() || match[1]);
   return {
@@ -422,6 +426,9 @@ function buildMethodDetail(
     parameter_types: extractParameterTypes(params),
     return_type: returnType ? normalizeJavaType(returnType) : null,
     annotations: Array.from(new Set(annotations)).sort(),
+    inferred: Boolean(options.inferred),
+    inference_source: options.inferenceSource ?? null,
+    confidence: options.confidence ?? null,
   };
 }
 
@@ -441,18 +448,126 @@ function parseFieldAnnotationName(annotationText: string, annotationName: string
 
 function parseFieldDeclaration(
   line: string,
-): { fieldName: string; fieldType: string | null } | null {
+): { fieldName: string; fieldType: string | null; isFinal: boolean; isStatic: boolean } | null {
   const match =
-    /^\s*(?:public|protected|private)\s+(?:static\s+)?(?:final\s+)?(?:volatile\s+)?(?:transient\s+)?([\w.$<>\[\], ?@]+)\s+([a-zA-Z_][A-Za-z0-9_]*)\s*(?:=|;)/.exec(
+    /^\s*(?:public|protected|private)\s+((?:static\s+)?(?:final\s+)?(?:volatile\s+)?(?:transient\s+)?)?([\w.$<>\[\], ?@]+)\s+([a-zA-Z_][A-Za-z0-9_]*)\s*(?:=|;)/.exec(
       line.replace(/\r$/, ""),
     );
   if (!match) {
     return null;
   }
+  const modifiers = match[1] || "";
   return {
-    fieldType: normalizeJavaType(match[1]),
-    fieldName: match[2],
+    fieldType: normalizeJavaType(match[2]),
+    fieldName: match[3],
+    isFinal: /\bfinal\b/.test(modifiers),
+    isStatic: /\bstatic\b/.test(modifiers),
   };
+}
+
+function isPrimitiveBooleanType(type: string | null): boolean {
+  return normalizeJavaType(type || "") === "boolean";
+}
+
+function capitalizeJavaIdentifier(value: string): string {
+  if (!value) {
+    return value;
+  }
+  return `${value[0].toUpperCase()}${value.slice(1)}`;
+}
+
+function lombokPropertyName(fieldName: string, fieldType: string | null): string {
+  if (isPrimitiveBooleanType(fieldType) && /^is[A-Z]/.test(fieldName)) {
+    return fieldName.slice(2);
+  }
+  return fieldName;
+}
+
+function inferLombokGetter(fieldName: string, fieldType: string | null): { methodName: string; returnType: string | null } {
+  if (isPrimitiveBooleanType(fieldType) && /^is[A-Z]/.test(fieldName)) {
+    return { methodName: fieldName, returnType: fieldType };
+  }
+  const propertyName = lombokPropertyName(fieldName, fieldType);
+  const prefix = isPrimitiveBooleanType(fieldType) ? "is" : "get";
+  return {
+    methodName: `${prefix}${capitalizeJavaIdentifier(propertyName)}`,
+    returnType: fieldType,
+  };
+}
+
+function inferLombokSetter(fieldName: string, fieldType: string | null): { methodName: string; params: string } {
+  const propertyName = lombokPropertyName(fieldName, fieldType);
+  const paramType = fieldType || "Object";
+  return {
+    methodName: `set${capitalizeJavaIdentifier(propertyName)}`,
+    params: `${paramType} ${fieldName}`,
+  };
+}
+
+function inferLombokMethods(
+  classAnnotations: string[],
+  fieldMetadata: Array<{
+    field_name: string;
+    field_type: string | null;
+    annotations: string[];
+    raw_annotation_text: string;
+    is_final: boolean;
+    is_static: boolean;
+  }>,
+  existingMethodDetails: ProjectExplorerMethod[],
+): ProjectExplorerMethod[] {
+  const existingSignatures = new Set(existingMethodDetails.map((item) => item.signature));
+  const inferred = new Map<string, ProjectExplorerMethod>();
+  const classAnnotationSet = new Set(classAnnotations);
+  const classHasGetter = classAnnotationSet.has("Getter") || classAnnotationSet.has("Data");
+  const classHasSetter = classAnnotationSet.has("Setter") || classAnnotationSet.has("Data");
+
+  for (const field of fieldMetadata) {
+    if (field.is_static) {
+      continue;
+    }
+    const fieldAnnotationSet = new Set(field.annotations);
+    const shouldInferGetter = classHasGetter || fieldAnnotationSet.has("Getter");
+    const shouldInferSetter = (classHasSetter || fieldAnnotationSet.has("Setter")) && !field.is_final;
+
+    if (shouldInferGetter) {
+      const getter = inferLombokGetter(field.field_name, field.field_type);
+      const detail = buildMethodDetail(
+        getter.methodName,
+        "",
+        getter.returnType,
+        "",
+        {
+          inferred: true,
+          inferenceSource: "lombok-getter",
+          confidence: "low",
+        },
+      );
+      if (!existingSignatures.has(detail.signature)) {
+        inferred.set(detail.signature, detail);
+      }
+    }
+
+    if (shouldInferSetter) {
+      const setter = inferLombokSetter(field.field_name, field.field_type);
+      const detail = buildMethodDetail(
+        setter.methodName,
+        setter.params,
+        "void",
+        "",
+        {
+          inferred: true,
+          inferenceSource: "lombok-setter",
+          confidence: "low",
+        },
+      );
+      if (!existingSignatures.has(detail.signature)) {
+        inferred.set(detail.signature, detail);
+      }
+    }
+  }
+
+  return Array.from(inferred.values()).sort((a, b) => a.signature.localeCompare(b.signature));
 }
 
 function buildJpaMetadata(
@@ -488,19 +603,30 @@ function collectClassMembers(
   className: string,
   classType: string,
   classBasePath: string,
+  classAnnotations: string[],
 ): {
   declaredMethods: string[];
   methodDetails: ProjectExplorerMethod[];
   fields: string[];
   fieldDetails: ProjectExplorerField[];
-  fieldMetadata: Array<{ field_name: string; field_type: string | null; annotations: string[]; raw_annotation_text: string }>;
+  fieldMetadata: Array<{
+    field_name: string;
+    field_type: string | null;
+    annotations: string[];
+    raw_annotation_text: string;
+    is_final: boolean;
+    is_static: boolean;
+  }>;
   endpoints: ProjectExplorerEndpoint[];
 } {
   const declaredMethods = new Set<string>();
   const methodDetails = new Map<string, ProjectExplorerMethod>();
   const fields = new Set<string>();
   const fieldDetails = new Map<string, ProjectExplorerField>();
-  const fieldMetadata = new Map<string, { field_name: string; field_type: string | null; annotations: string[]; raw_annotation_text: string }>();
+  const fieldMetadata = new Map<
+    string,
+    { field_name: string; field_type: string | null; annotations: string[]; raw_annotation_text: string; is_final: boolean; is_static: boolean }
+  >();
   const endpoints = new Map<string, ProjectExplorerEndpoint>();
   const pendingAnnotations: string[] = [];
   let depth = 0;
@@ -532,6 +658,8 @@ function collectClassMembers(
           field_type: parsedField?.fieldType || null,
           annotations: Array.from(new Set(annotations)).sort(),
           raw_annotation_text: annotationText,
+          is_final: Boolean(parsedField?.isFinal),
+          is_static: Boolean(parsedField?.isStatic),
         });
         pendingAnnotations.length = 0;
       }
@@ -580,6 +708,12 @@ function collectClassMembers(
     }
 
     depth += countBraceDelta(line);
+  }
+
+  const inferredMethodDetails = classType === "class" ? inferLombokMethods(classAnnotations, Array.from(fieldMetadata.values()), Array.from(methodDetails.values())) : [];
+  for (const detail of inferredMethodDetails) {
+    declaredMethods.add(detail.signature);
+    methodDetails.set(detail.signature, detail);
   }
 
   return {
@@ -671,7 +805,7 @@ function collectLeadingAnnotationText(lines: string[], lineIndex: number, declar
 
 function detectUnsupportedFeatures(text: string): string[] {
   const features = new Set<string>();
-  if (/@(?:Data|Getter|Setter|Builder|Value|RequiredArgsConstructor|AllArgsConstructor|NoArgsConstructor)\b/.test(text)) {
+  if (/@(?:Builder|SuperBuilder|Value|RequiredArgsConstructor|AllArgsConstructor|NoArgsConstructor|With|Accessors|Delegate)\b/.test(text)) {
     features.add("lombok-generated-methods");
   }
   if (/\bClass\.forName\s*\(|\.getDeclaredMethod\s*\(|\.getMethod\s*\(/.test(text)) {
@@ -708,7 +842,7 @@ type MyBatisBinding = {
   }>;
 };
 
-function parseJavaFile(filePath: string, sourceKind: string, modulePrefixMap: Record<string, string>): JavaParseResult {
+export function parseJavaFile(filePath: string, sourceKind: string, modulePrefixMap: Record<string, string>): JavaParseResult {
   const text = fs.readFileSync(filePath, "utf8");
   const packageMatch = PACKAGE_PATTERN.exec(text);
   const packageName = packageMatch ? packageMatch[1] : null;
@@ -746,9 +880,10 @@ function parseJavaFile(filePath: string, sourceKind: string, modulePrefixMap: Re
     const body = text.slice(braceIndex + 1, bodyEnd);
     const inheritance = extractInheritance(header);
     const classAnnotationText = collectLeadingAnnotationText(lines, lineIndex, line);
+    const classAnnotations = collectLeadingAnnotations(lines, lineIndex, line);
     const classBasePath = extractClassBasePath(classAnnotationText);
     const fqn = packageName ? `${packageName}.${className}` : null;
-    const members = collectClassMembers(body, className, classType, classBasePath);
+    const members = collectClassMembers(body, className, classType, classBasePath, classAnnotations);
     classes.push({
       class_name: className,
       simple_name: className,
@@ -764,7 +899,7 @@ function parseJavaFile(filePath: string, sourceKind: string, modulePrefixMap: Re
       inherited_public_methods: [],
       fields: members.fields,
       field_details: members.fieldDetails,
-      annotations: collectLeadingAnnotations(lines, lineIndex, line),
+      annotations: classAnnotations,
       extends: inheritance.extendsList,
       implements: inheritance.implementsList,
       endpoints: members.endpoints,
@@ -1299,10 +1434,11 @@ export function buildSnapshot(config: ProjectExplorerConfig, options: { forceRef
       warnings: scanWarnings,
       limitations: [
         "no-symbol-resolution",
-        "no-lombok-generated-method-expansion",
+        "partial-lombok-generated-method-expansion",
         "partial-mybatis-xml-binding-resolution",
         "no-framework-proxy-resolution",
       ],
+      method_inference: ["lombok-getter", "lombok-setter", "lombok-data"],
     },
     source_stats: sourceStats,
     duplicate_strategy: duplicateStrategy,

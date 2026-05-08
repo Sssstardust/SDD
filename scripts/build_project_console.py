@@ -14,6 +14,7 @@ from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
 from build_project_next import choose_candidate
+from concurrency import atomic_write_text, path_lock
 from flow_state import inspect_feature_state
 from json_io import read_json, write_json
 from ops_log import read_latest_op, read_recent_ops
@@ -407,25 +408,28 @@ def main() -> int:
     json_path = output_dir / "project-console.json"
     md_path = output_dir / "project-console.md"
     html_path = output_dir / "project-console.html"
-    write_json(json_path, payload)
-    md_path.write_text(
-        render_markdown(
-            states,
-            candidate,
-            hygiene_payload if isinstance(hygiene_payload, dict) else None,
-            project_context,
-        ),
-        encoding="utf-8",
-    )
-    html_path.write_text(
-        render_html(
-            states,
-            candidate,
-            hygiene_payload if isinstance(hygiene_payload, dict) else None,
-            project_context,
-        ),
-        encoding="utf-8",
-    )
+    with path_lock(output_dir, phase="build-project-console"):
+        write_json(json_path, payload)
+        atomic_write_text(
+            md_path,
+            render_markdown(
+                states,
+                candidate,
+                hygiene_payload if isinstance(hygiene_payload, dict) else None,
+                project_context,
+            ),
+            encoding="utf-8",
+        )
+        atomic_write_text(
+            html_path,
+            render_html(
+                states,
+                candidate,
+                hygiene_payload if isinstance(hygiene_payload, dict) else None,
+                project_context,
+            ),
+            encoding="utf-8",
+        )
 
     print("[OK] project-console generated")
     print(f"  - json: {json_path}")

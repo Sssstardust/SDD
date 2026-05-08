@@ -347,8 +347,26 @@ function addRepeatedFlag(args: string[], flag: string, values: string[]): void {
   }
 }
 
-function wantsAsync(argumentsObject: JsonRecord): boolean {
-  return argumentsObject.async === true;
+export function wantsAsync(argumentsObject: JsonRecord, defaultAsync = false): boolean {
+  if (argumentsObject.async === true) {
+    return true;
+  }
+  if (argumentsObject.async === false) {
+    return false;
+  }
+  return defaultAsync;
+}
+
+export function shouldRunAsyncByDefault(toolName: string): boolean {
+  return new Set([
+    "refresh_baseline",
+    "project_console_cycle",
+    "validate_all_reports",
+    "design_gates",
+    "gate5",
+    "release_gate",
+    "onboard_project",
+  ]).has(toolName);
 }
 
 function ensureTasksDir(): void {
@@ -475,7 +493,7 @@ function latestArtifactFile(fileName: string): string | null {
   return candidates[0]?.path || null;
 }
 
-function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
+export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
   if (name === "list_pipeline_commands") {
     return {
       count: TOOL_DEFINITIONS.length,
@@ -494,7 +512,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
   }
 
   if (name === "refresh_baseline") {
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(["refresh-baseline"], "refresh_baseline");
     }
     const execution = runPipeline(["refresh-baseline"]);
@@ -505,7 +523,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
   }
 
   if (name === "project_console_cycle") {
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(["project-console-cycle"], "project_console_cycle");
     }
     const execution = runPipeline(["project-console-cycle"]);
@@ -556,7 +574,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
     if (argumentsObject.require_verify === true) {
       args.push("--require-verify");
     }
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(args, "validate_all_reports");
     }
     return runPipeline(args);
@@ -580,7 +598,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
     if (argumentsObject.strict === true) {
       args.push("--strict");
     }
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(args, "design_gates");
     }
     return runPipeline(args);
@@ -595,7 +613,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
     if (argumentsObject.strict === true) {
       args.push("--strict");
     }
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(args, "gate5");
     }
     const execution = runPipeline(args);
@@ -615,7 +633,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
     if (argumentsObject.strict === true) {
       args.push("--strict");
     }
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(args, "release_gate");
     }
     const execution = runPipeline(args);
@@ -642,7 +660,7 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
     if (typeof argumentsObject.components_file === "string") {
       args.push("--components-file", argumentsObject.components_file);
     }
-    if (wantsAsync(argumentsObject)) {
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
       return startPipelineTask(args, "onboard_project");
     }
     const execution = runPipeline(args);
@@ -811,7 +829,7 @@ function runMcpStdio(): void {
   });
 }
 
-function main(): void {
+export function main(): void {
   const args = parseArgs(process.argv.slice(2));
   if (args.tool) {
     runCli(String(args.tool), typeof args.arguments === "string" ? args.arguments : "{}");
@@ -820,4 +838,6 @@ function main(): void {
   runMcpStdio();
 }
 
-main();
+if (require.main === module) {
+  main();
+}

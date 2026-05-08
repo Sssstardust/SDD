@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-init_approval.py
-
-为高风险设计初始化审批草稿文件 reports/v{N}/approval.json。
+Initialize approval.json for high-risk designs.
 """
 
 from __future__ import annotations
@@ -10,8 +8,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from pathlib import Path
 
+from concurrency import atomic_write_text, feature_lock
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
@@ -29,13 +27,13 @@ def extract_scalar(yaml_text: str, key: str) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    parser.add_argument("feature_dir", help="Path to specs/<feature>")
     args = parser.parse_args()
 
     feature_dir = resolve_feature_dir(args.feature_dir)
     feature_brief = feature_dir / "feature-brief.md"
     if not feature_brief.exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
+        print(f"[ERROR] missing feature-brief.md: {feature_brief}")
         return 1
 
     yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8")))
@@ -44,33 +42,38 @@ def main() -> int:
 
     design_path = detect_latest_design_path(feature_dir)
     if not design_path.exists():
-        print(f"[ERROR] 缺少设计文档: {design_path}")
+        print(f"[ERROR] missing design document: {design_path}")
         return 1
 
     if risk_tier != "high":
-        print("[OK] risk_tier!=high，无需审批草稿")
+        print("[OK] risk_tier is not high, approval scaffold is not required")
         return 0
 
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     reports_dir.mkdir(parents=True, exist_ok=True)
     approval_path = reports_dir / "approval.json"
 
-    if approval_path.exists():
-        print(f"[OK] 审批草稿已存在，跳过生成: {approval_path}")
-        return 0
+    with feature_lock(feature_dir, phase="init-approval"):
+        if approval_path.exists():
+            print(f"[OK] approval scaffold already exists, skipped: {approval_path}")
+            return 0
 
-    payload = {
-        "design_version": design_path.name,
-        "feature": feature_name,
-        "risk_tier": risk_tier,
-        "status": "PENDING",
-        "approved_by": "",
-        "approved_at": "",
-        "comments": "待人工审批后将 status 更新为 APPROVED。"
-    }
-    approval_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        payload = {
+            "design_version": design_path.name,
+            "feature": feature_name,
+            "risk_tier": risk_tier,
+            "status": "PENDING",
+            "approved_by": "",
+            "approved_at": "",
+            "comments": "Update status to APPROVED after manual approval.",
+        }
+        atomic_write_text(
+            approval_path,
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
-    print("[OK] 审批草稿已生成")
+    print("[OK] approval scaffold generated")
     print(f"  - design:   {design_path.name}")
     print(f"  - approval: {approval_path}")
     return 0

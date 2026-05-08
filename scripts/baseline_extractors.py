@@ -237,3 +237,189 @@ def extract_events_from_async_contract(path: Path) -> list[str]:
             if value and not value.startswith("{"):
                 events.add(value)
     return sorted(events)
+
+
+def build_operation_resource_name(method: str, path: str) -> str:
+    return f"{method.strip().upper()} {path.strip()}"
+
+
+def matches_component_id(item: object, affected_components: set[str]) -> bool:
+    if not affected_components:
+        return True
+    if not isinstance(item, dict):
+        return False
+    component_id = item.get("component_id")
+    if not isinstance(component_id, str) or not component_id:
+        return True
+    return component_id in affected_components
+
+
+def build_exact_schema_table_claims(
+    schema_context: object,
+    table_names: list[str],
+    *,
+    affected_components: list[str] | None = None,
+) -> list[dict[str, str]]:
+    if not isinstance(schema_context, dict):
+        return []
+    requested = {str(item).strip().lower() for item in table_names if str(item).strip()}
+    if not requested:
+        return []
+    affected_component_set = {item for item in (affected_components or []) if item}
+    candidates_by_table: dict[str, list[dict[str, str]]] = {}
+    for table in schema_context.get("tables", []):
+        if not isinstance(table, dict):
+            continue
+        if not matches_component_id(table, affected_component_set):
+            continue
+        table_name = str(table.get("table_name") or "").strip().lower()
+        resource_key = str(table.get("resource_key") or "").strip()
+        if not table_name or not resource_key or table_name not in requested:
+            continue
+        candidates_by_table.setdefault(table_name, []).append(
+            {
+                "kind": "schema-table",
+                "name": resource_key,
+                "resource_key": resource_key,
+                "table_name": table_name,
+            }
+        )
+    resolved: dict[str, dict[str, str]] = {}
+    for table_name, candidates in candidates_by_table.items():
+        unique_candidates = {item["resource_key"]: item for item in candidates}
+        if len(unique_candidates) == 1:
+            resolved[table_name] = next(iter(unique_candidates.values()))
+    return [resolved[key] for key in sorted(resolved)]
+
+
+def extract_mermaid_participants(design_text: str) -> list[str]:
+    names: set[str] = set()
+    for line in design_text.splitlines():
+        participant = re.match(r"^\s*participant\s+[A-Za-z_][A-Za-z0-9_]*\s+as\s+([A-Za-z_][A-Za-z0-9_]*)\s*$", line)
+        if participant:
+            names.add(participant.group(1))
+            continue
+
+        participant_without_alias = re.match(r"^\s*participant\s+([A-Za-z_][A-Za-z0-9_]*)\s*$", line)
+        if participant_without_alias:
+            names.add(participant_without_alias.group(1))
+            continue
+
+        class_decl = re.match(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\b", line)
+        if class_decl:
+            names.add(class_decl.group(1))
+
+    return sorted(names)
+
+
+def build_design_resource_claims(
+    *,
+    paths: list[str],
+    tables: list[str],
+    events: list[str],
+    operations: list[dict[str, str]] | None = None,
+    schema_table_claims: list[dict[str, str]] | None = None,
+    omit_generic_tables_for_exact: bool = False,
+) -> list[dict[str, str]]:
+    claims: dict[str, dict[str, str]] = {}
+    covered_paths: set[str] = set()
+    exact_table_names = {
+        str(item.get("table_name") or "").strip().lower()
+        for item in (schema_table_claims or [])
+        if isinstance(item, dict)
+    }
+
+    def add_claim(kind: str, name: str) -> None:
+        if not name:
+            return
+        resource_key = f"{kind}::{name}"
+        claims[resource_key] = {
+            "kind": kind,
+            "name": name,
+            "resource_key": resource_key,
+        }
+
+    for operation in operations or []:
+        method = str(operation.get("method") or "").strip().upper()
+        path = str(operation.get("path") or "").strip()
+        if not method or not path:
+            continue
+        covered_paths.add(path)
+        add_claim("operation", build_operation_resource_name(method, path))
+
+    for path_name in paths:
+        if path_name in covered_paths:
+            continue
+        add_claim("path", path_name)
+    for table_name in tables:
+        if omit_generic_tables_for_exact and table_name.strip().lower() in exact_table_names:
+            continue
+        add_claim("table", table_name)
+    for event_name in events:
+        add_claim("event", event_name)
+    for claim in schema_table_claims or []:
+        resource_key = str(claim.get("resource_key") or "")
+        if not resource_key:
+            continue
+        claims[resource_key] = {key: str(value) for key, value in claim.items() if value is not None}
+    return [claims[key] for key in sorted(claims)]
+
+
+def build_design_resource_claims_for_pack(
+    *,
+    openapi_path: Path,
+    data_model_path: Path,
+    async_contract_path: Path | None = None,
+    schema_context: object | None = None,
+    affected_components: list[str] | None = None,
+    omit_generic_tables_for_exact: bool = False,
+) -> list[dict[str, str]]:
+    paths = extract_paths_from_openapi(openapi_path)
+    operations = extract_operations_from_openapi(openapi_path)
+    tables = extract_tables_from_data_model(data_model_path)
+    events = extract_events_from_async_contract(async_contract_path) if isinstance(async_contract_path, Path) else []
+    schema_table_claims = build_exact_schema_table_claims(
+        schema_context,
+        tables,
+        affected_components=affected_components,
+    )
+    return build_design_resource_claims(
+        paths=paths,
+        tables=tables,
+        events=events,
+        operations=operations,
+        schema_table_claims=schema_table_claims,
+        omit_generic_tables_for_exact=omit_generic_tables_for_exact,
+    )
+
+
+def summarize_resource_claims(resource_claims: list[dict[str, str]]) -> dict[str, object]:
+    names_by_kind: dict[str, list[str]] = {}
+    resource_keys_by_kind: dict[str, list[str]] = {}
+    for claim in resource_claims:
+        if not isinstance(claim, dict):
+            continue
+        kind = str(claim.get("kind") or "unknown")
+        name = str(claim.get("name") or "")
+        resource_key = str(claim.get("resource_key") or "")
+        if name:
+            names_by_kind.setdefault(kind, []).append(name)
+        if resource_key:
+            resource_keys_by_kind.setdefault(kind, []).append(resource_key)
+
+    normalized_names = {kind: sorted(set(values)) for kind, values in names_by_kind.items()}
+    normalized_keys = {kind: sorted(set(values)) for kind, values in resource_keys_by_kind.items()}
+    counts_by_kind = {kind: len(values) for kind, values in normalized_names.items()}
+    highlights = {
+        kind: normalized_names[kind]
+        for kind in ("operation", "schema-table", "table", "event", "path")
+        if kind in normalized_names
+    }
+    return {
+        "total": len([claim for claim in resource_claims if isinstance(claim, dict)]),
+        "kinds": sorted(normalized_names),
+        "counts_by_kind": counts_by_kind,
+        "names_by_kind": normalized_names,
+        "resource_keys_by_kind": normalized_keys,
+        "highlights": highlights,
+    }

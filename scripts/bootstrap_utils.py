@@ -12,6 +12,8 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from concurrency import atomic_write_text
+
 
 ROOT = Path(__file__).resolve().parent.parent
 BOOTSTRAP_TEMPLATE_DIR = ROOT / ".spec" / "templates" / "bootstrap"
@@ -179,7 +181,8 @@ def scaffold_report_path(feature_dir: Path) -> Path:
 
 def write_scaffold_report(feature_dir: Path, feature_name: str, generated_files: list[str], preserved_files: list[str]) -> Path:
     report_path = scaffold_report_path(feature_dir)
-    report_path.write_text(
+    atomic_write_text(
+        report_path,
         json.dumps(
             build_scaffold_report(feature_name, generated_files, preserved_files),
             ensure_ascii=False,

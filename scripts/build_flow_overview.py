@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
+from concurrency import atomic_write_text, path_lock
 from flow_state import inspect_feature_state
 from json_io import write_json
 from project_artifact_paths import describe_active_project_artifacts, get_active_project_artifacts_dir
@@ -116,8 +117,9 @@ def main() -> int:
     json_path = output_dir / "flow-overview.json"
     md_path = output_dir / "flow-overview.md"
 
-    write_json(json_path, payload)
-    md_path.write_text(render_markdown(states, project_context), encoding="utf-8")
+    with path_lock(output_dir, phase="build-flow-overview"):
+        write_json(json_path, payload)
+        atomic_write_text(md_path, render_markdown(states, project_context), encoding="utf-8")
 
     print("[OK] flow-overview generated")
     print(f"  - json: {json_path}")

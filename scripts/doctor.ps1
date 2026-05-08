@@ -276,6 +276,26 @@ if ($gateSmoke.ExitCode -eq 0) {
 }
 
 Write-Host ""
+Write-Host "== Test Baseline =="
+$pytestCollect = Invoke-Capture -Command "python" -Arguments @("-m", "pytest", "--collect-only", "-q")
+if ($pytestCollect.ExitCode -ne 0) {
+  Write-Check "FAIL" "pytest collection failed: $($pytestCollect.Output)"
+} else {
+  $collectText = $pytestCollect.Output
+  $match = [regex]::Match($collectText, "(\d+)\s+tests?\s+collected")
+  if (-not $match.Success) {
+    Write-Check "WARN" "pytest collection finished, but the collected test count could not be parsed."
+  } else {
+    $count = [int]$match.Groups[1].Value
+    if ($count -lt 7) {
+      Write-Check "FAIL" "pytest collected only $count test(s); expected at least 7 for the default governance regression baseline."
+    } else {
+      Write-Check "OK" "pytest default collection baseline is healthy: $count test(s) collected."
+    }
+  }
+}
+
+Write-Host ""
 Write-Host "== Security =="
 $securityWarnings = Find-SecurityWarnings -Root $repoRoot
 if ($securityWarnings.Count -eq 0) {
