@@ -34,7 +34,7 @@ python scripts/run_pipeline.py bootstrap-attached-project `
 
 ```powershell
 python scripts/run_pipeline.py attach-project ...
-python scripts/run_pipeline.py refresh-baseline
+python scripts/run_pipeline.py refresh-baseline --strict
 python scripts/run_pipeline.py project-console-cycle
 ```
 
@@ -98,6 +98,16 @@ python scripts/run_pipeline.py sync-baseline your-feature --design-version v1
 python scripts/run_pipeline.py project-console-cycle
 ```
 
+推荐 strict-first 主链路：
+
+```powershell
+python scripts/run_pipeline.py refresh-baseline --strict --feature-dir specs\your-feature
+python scripts/run_pipeline.py design-gates specs\your-feature --strict
+python scripts/run_pipeline.py implementation-gates specs\your-feature --strict
+python scripts/run_pipeline.py release-gate specs\your-feature --strict
+python scripts/run_pipeline.py validate-all-reports --stage all
+```
+
 校验仓库内置样例矩阵：
 
 ```powershell
@@ -137,6 +147,33 @@ python scripts/validate_fixture_matrix.py
 1. 第 1 阶段只对高风险需求完整执行 SDD，普通需求先用 `light` 或 `standard`。
 2. 第 2 阶段把常规需求纳入轻量 SDD，并要求每个例外补录最小设计、测试证据和 baseline 记录。
 3. 第 3 阶段把 `design-gates`、`implementation-gates`、`release-gate` 接入 CI。
+
+## Release 例外
+
+如需临时放行、紧急修复或带条件上线，可在对应 `reports/vN/` 下补录：
+
+- `exception.json`
+
+模板可参考：
+
+- [../document/template/Release-Exception-模板.json](../document/template/Release-Exception-模板.json)
+
+当前 Release Gate 会校验以下字段：
+
+- `reason`
+- `approver`
+- `expires_at`
+- `remediation_plan`
+- `followup_gate`
+- `waived_checks`
+
+`waived_checks` 当前支持的最小豁免项包括：
+
+- `attached_execution`
+- `release_plan`
+- `gray_strategy`
+- `monitoring_alert`
+- `rollback`
 
 ## 当前边界
 

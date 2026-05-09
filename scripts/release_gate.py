@@ -35,6 +35,67 @@ MONITOR_KEYWORDS = ("监控", "monitor", "指标")
 ALERT_KEYWORDS = ("告警", "alert")
 GRAY_KEYWORDS = ("灰度", "canary", "白名单")
 RELEASE_PLAN_NAME = "release-plan.md"
+RELEASE_EXCEPTION_NAME = "exception.json"
+
+
+def load_release_exception(reports_dir: Path) -> tuple[dict[str, object] | None, Path]:
+    exception_path = reports_dir / RELEASE_EXCEPTION_NAME
+    if not exception_path.exists():
+        return None, exception_path
+    try:
+        payload = json.loads(exception_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None, exception_path
+    return payload if isinstance(payload, dict) else None, exception_path
+
+
+def validate_release_exception(
+    payload: dict[str, object] | None,
+    *,
+    now: datetime,
+) -> tuple[list[str], list[str], dict[str, object]]:
+    checks: list[str] = []
+    errors: list[str] = []
+    metadata: dict[str, object] = {"enabled": False}
+    if not isinstance(payload, dict):
+        return checks, errors, metadata
+
+    metadata["enabled"] = True
+    required_fields = ["reason", "approver", "expires_at", "remediation_plan", "followup_gate", "waived_checks"]
+    for field in required_fields:
+        value = payload.get(field)
+        if field not in payload or value is None or value == "" or value == []:
+            errors.append(f"exception.json 缺少 {field}")
+
+    status = str(payload.get("status") or "ACTIVE").upper()
+    metadata["status"] = status
+    if status != "ACTIVE":
+        errors.append(f"exception.json status 必须为 ACTIVE，当前为 {status}")
+
+    expires_at_raw = payload.get("expires_at")
+    expires_at = None
+    if isinstance(expires_at_raw, str):
+        try:
+            expires_at = datetime.fromisoformat(expires_at_raw.replace("Z", "+00:00"))
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            else:
+                expires_at = expires_at.astimezone(timezone.utc)
+        except ValueError:
+            errors.append("exception.json.expires_at 不是合法 ISO 时间")
+    if expires_at and expires_at <= now:
+        errors.append(f"exception.json 已过期: {expires_at.isoformat()}")
+
+    waived_checks = payload.get("waived_checks")
+    if isinstance(waived_checks, list):
+        normalized = sorted(str(item) for item in waived_checks if str(item).strip())
+        metadata["waived_checks"] = normalized
+        if normalized:
+            checks.append("release exception 已声明豁免项: " + ", ".join(normalized))
+    else:
+        errors.append("exception.json.waived_checks 必须是数组")
+
+    return checks, errors, metadata
 
 
 def parse_feature_meta(feature_brief: Path) -> tuple[str, list[str], str]:
@@ -196,6 +257,7 @@ def main() -> int:
     )
     design_resource_claim_summary = summarize_resource_claims(design_resource_claims)
     verify_payload, verify_path = load_verify_payload(reports_dir)
+    release_exception, release_exception_path = load_release_exception(reports_dir)
     verify_result = str(verify_payload.get("result")) if isinstance(verify_payload, dict) and isinstance(verify_payload.get("result"), str) else None
     verify_implementation_highlights = extract_verify_implementation_highlights(verify_payload)
 
@@ -203,6 +265,12 @@ def main() -> int:
     warnings: list[str] = []
     errors: list[str] = []
     evidence: dict[str, list[str]] = {}
+    exception_checks, exception_errors, exception_metadata = validate_release_exception(
+        release_exception,
+        now=datetime.now(timezone.utc),
+    )
+    checks.extend(exception_checks)
+    errors.extend(exception_errors)
 
     if verify_result != "PASS":
         if verify_result is None:
@@ -282,6 +350,34 @@ def main() -> int:
     else:
         errors.append("未找到灰度策略证据")
 
+    waived_checks = set(exception_metadata.get("waived_checks", [])) if isinstance(exception_metadata.get("waived_checks"), list) else set()
+    if waived_checks:
+        remaining_errors: list[str] = []
+        waived_error_messages: list[str] = []
+        for error in errors:
+            if "strict 模式要求 Gate 5 attached_execution 为 PASS" in error and "attached_execution" in waived_checks:
+                waived_error_messages.append(error)
+                continue
+            if "高风险 feature 要求 Gate 5 attached_execution 为 PASS" in error and "attached_execution" in waived_checks:
+                waived_error_messages.append(error)
+                continue
+            if "缺少可通过校验的结构化 release-plan.md YAML" in error and "release_plan" in waived_checks:
+                waived_error_messages.append(error)
+                continue
+            if "未找到灰度策略证据" in error and "gray_strategy" in waived_checks:
+                waived_error_messages.append(error)
+                continue
+            if "未找到完整的监控与告警证据" in error and "monitoring_alert" in waived_checks:
+                waived_error_messages.append(error)
+                continue
+            if "未找到回滚方案证据" in error and "rollback" in waived_checks:
+                waived_error_messages.append(error)
+                continue
+            remaining_errors.append(error)
+        if waived_error_messages:
+            warnings.extend("release exception 豁免: " + message for message in waived_error_messages)
+        errors = remaining_errors
+
     result = "PASS" if not errors else "FAIL"
     report_payload = {
         "feature_name": feature_name,
@@ -299,6 +395,9 @@ def main() -> int:
         "implementation_framework_evidence": verify_implementation_highlights.get("implementation_framework_evidence"),
         "implementation_match_highlights": verify_implementation_highlights.get("implementation_match_highlights"),
         "structured_release_plan": structured_plan,
+        "release_exception": release_exception if isinstance(release_exception, dict) else None,
+        "release_exception_path": str(release_exception_path),
+        "release_exception_metadata": exception_metadata,
     }
 
     report_path = reports_dir / "release-gate-report.json"

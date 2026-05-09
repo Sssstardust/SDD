@@ -80,6 +80,12 @@ python scripts/run_pipeline.py attach-project `
 python scripts/run_pipeline.py show-attachment
 ```
 
+查看当前多项目 workspace 摘要：
+
+```powershell
+python scripts/run_pipeline.py attach-project --show-workspace
+```
+
 清空绑定：
 
 ```powershell
@@ -89,6 +95,7 @@ python scripts/run_pipeline.py attach-project --clear
 附着配置文件默认写入：
 
 - [../.spec/attached-project.json](../.spec/attached-project.json)
+- `workspace.json` 风格摘要会写入 `../.spec/workspace.json`
 
 ---
 
@@ -257,10 +264,10 @@ python scripts/run_pipeline.py gate5 D:\project\SDD\specs\pilot-order-create
 python scripts/run_pipeline.py attach-project `
   --project-root D:\your-target-project `
   --design-root D:\your-design-root
-python scripts/run_pipeline.py refresh-module-map
-python scripts/run_pipeline.py refresh-schema-context
-python scripts/run_pipeline.py gate2 your-feature
-python scripts/run_pipeline.py gate5 your-feature
+python scripts/run_pipeline.py refresh-baseline --strict --feature-dir specs\your-feature
+python scripts/run_pipeline.py design-gates your-feature --strict
+python scripts/run_pipeline.py implementation-gates your-feature --strict
+python scripts/run_pipeline.py release-gate your-feature --strict
 ```
 
 如果已经配置 polyquery MCP，推荐把 `schema-context` 刷新替换为实时数据库事实：
@@ -268,6 +275,14 @@ python scripts/run_pipeline.py gate5 your-feature
 ```powershell
 python scripts/run_pipeline.py refresh-schema-context --from-polyquery --polyquery-config config\polyquery.json --polyquery-fallback fail
 ```
+
+### Release 例外文件
+
+如需紧急放行，可在对应 `reports/vN/` 下补录 `exception.json`，并由 `release-gate` 直接读取。
+
+模板参考：
+
+- [../document/template/Release-Exception-模板.json](../document/template/Release-Exception-模板.json)
 
 ---
 

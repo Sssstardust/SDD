@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ATTACHMENT_PATH = ROOT / ".spec" / "attached-project.json"
 DEFAULT_ATTACHMENTS_DIR = DEFAULT_ATTACHMENT_PATH.parent / "attachments"
 DEFAULT_ATTACHMENT_REGISTRY_PATH = DEFAULT_ATTACHMENTS_DIR / "registry.json"
+DEFAULT_WORKSPACE_PATH = DEFAULT_ATTACHMENT_PATH.parent / "workspace.json"
 COMPONENT_ROOT_FIELDS = {"scan_roots", "design_roots", "schema_roots"}
 COMPONENT_RESERVED_FIELDS = {"component_id", "name", "project_root", *COMPONENT_ROOT_FIELDS}
 ATTACHMENT_ROOT_FIELDS = {"scan_roots", "design_roots", "schema_roots"}
@@ -63,10 +64,32 @@ def attachment_registry_path_for(attachment_path: Path = DEFAULT_ATTACHMENT_PATH
     return attachments_dir_for(attachment_path) / "registry.json"
 
 
+def workspace_path_for(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
+    effective = attachment_path if attachment_path.is_absolute() else (ROOT / attachment_path).resolve()
+    return effective.parent / "workspace.json"
+
+
 def write_attachment_json(path: Path, payload: dict[str, object]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
+
+
+def build_workspace_payload(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> dict[str, object]:
+    profiles = list_attachment_profiles(attachment_path)
+    active = next((item for item in profiles if item.get("active") is True), None)
+    return {
+        "version": 1,
+        "active_profile": active.get("profile") if isinstance(active, dict) else None,
+        "active_project_id": active.get("project_id") if isinstance(active, dict) else None,
+        "profiles": profiles,
+    }
+
+
+def refresh_workspace_file(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
+    path = workspace_path_for(attachment_path)
+    payload = build_workspace_payload(attachment_path)
+    return write_attachment_json(path, payload)
 
 
 def attachment_store_lock_path(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
@@ -419,6 +442,7 @@ def set_active_attachment_profile(profile: str, attachment_path: Path = DEFAULT_
         if isinstance(payload, dict):
             effective_attachment_path.parent.mkdir(parents=True, exist_ok=True)
             write_attachment_json(effective_attachment_path, payload)
+        refresh_workspace_file(effective_attachment_path)
         return registry
 
 
@@ -464,6 +488,7 @@ def save_attachment_config(
             write_attachment_json(effective_attachment_path, normalized_payload)
 
         save_attachment_registry(registry, effective_attachment_path, acquire_lock=False)
+        refresh_workspace_file(effective_attachment_path)
         return effective_attachment_path
     with path_lock(attachment_store_lock_path(effective_attachment_path), phase="save-attachment-config"):
         return save_attachment_config(
@@ -490,6 +515,9 @@ def remove_attachment_profile(
             registry_path = attachment_registry_path_for(effective_attachment_path)
             if registry_path.exists():
                 registry_path.unlink()
+            workspace_path = workspace_path_for(effective_attachment_path)
+            if workspace_path.exists():
+                workspace_path.unlink()
             profiles_dir = attachment_profiles_dir_for(effective_attachment_path)
             if profiles_dir.exists():
                 for child in profiles_dir.glob("*.json"):
@@ -536,6 +564,9 @@ def remove_attachment_profile(
             registry_path = attachment_registry_path_for(effective_attachment_path)
             if registry_path.exists():
                 registry_path.unlink()
+            workspace_path = workspace_path_for(effective_attachment_path)
+            if workspace_path.exists():
+                workspace_path.unlink()
             return
 
         if registry.get("active_profile") == target_profile:
@@ -545,6 +576,7 @@ def remove_attachment_profile(
                 write_attachment_json(effective_attachment_path, replacement)
 
         save_attachment_registry(registry, effective_attachment_path, acquire_lock=False)
+        refresh_workspace_file(effective_attachment_path)
 
 
 def load_attachment_config(

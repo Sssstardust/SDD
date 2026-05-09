@@ -8,16 +8,13 @@ Pick the next best feature to advance at the project level.
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 from pathlib import Path
 
 from attached_project import DEFAULT_ATTACHMENT_PATH
 from concurrency import atomic_write_text, path_lock
-from flow_state import inspect_feature_state
-from json_io import write_json
+from project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
 from ops_log import read_latest_op
-from project_artifact_paths import describe_active_project_artifacts, get_active_project_artifacts_dir
-from versioning import iter_feature_dirs
+from state_view import strict_flag, workspace_summary_lines
 
 
 STAGE_PRIORITY = {
@@ -132,8 +129,11 @@ def render_markdown(
     states: list[dict[str, object]],
     candidate: dict[str, object] | None,
     project_context: dict[str, object],
+    workspace: dict[str, object] | None = None,
 ) -> str:
     latest_execution = read_latest_op(["continue-project-flow", "project-cycle"])
+    from collections import Counter
+
     source_counter = Counter(str(state.get("state_source", "unknown")) for state in states)
     lines = [
         "# Project Next Action",
@@ -143,6 +143,10 @@ def render_markdown(
         f"- Project ID: `{project_context.get('project_id')}`",
         f"- Project Name: `{project_context.get('project_name')}`",
         f"- Artifacts Dir: `{project_context.get('artifacts_dir')}`",
+        "",
+        "## Workspace",
+        "",
+        *workspace_summary_lines(workspace),
         "",
         "## Recent Execution",
         "",
@@ -182,6 +186,7 @@ def render_markdown(
                 f"- Current stage: `{candidate.get('current_stage')}`",
                 f"- Source: `{candidate.get('state_source')}`",
                 f"- Risk tier: `{candidate.get('risk_tier')}`",
+                f"- Strict: `{strict_flag(candidate)}`",
                 f"- Implementation result: `{candidate.get('implementation_result')}`",
                 f"- Reason: {candidate.get('reason')}",
                 f"- Next command: `{candidate.get('next_command')}`",
@@ -193,8 +198,8 @@ def render_markdown(
         [
             "## Candidates",
             "",
-            "| Feature | Stage | Source | Risk | impl | Framework Evidence | Missing | Blockers | Next |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Strict | impl | Framework Evidence | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for state in states:
@@ -202,6 +207,7 @@ def render_markdown(
         stage = str(state.get("current_stage", "N/A"))
         source = str(state.get("state_source", "N/A"))
         risk = str(state.get("risk_tier", "N/A"))
+        strict_mode = strict_flag(state)
         implementation_result = str(state.get("implementation_result", "N/A"))
         attention = implementation_attention_summary(state)
         evidence = ", ".join(str(item) for item in attention.get("labels", [])) or "N/A"
@@ -209,7 +215,7 @@ def render_markdown(
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
         lines.append(
-            f"| {feature_name} | {stage} | {source} | {risk} | {implementation_result} | {evidence} | {missing} | {blockers} | `{next_command}` |"
+            f"| {feature_name} | {stage} | {source} | {risk} | {strict_mode} | {implementation_result} | {evidence} | {missing} | {blockers} | `{next_command}` |"
         )
     lines.append("")
     return "\n".join(lines)
@@ -231,32 +237,19 @@ def main() -> int:
     args = parser.parse_args()
 
     attachment_path = Path(args.attachment_file)
-    output_dir = (
-        Path(args.output_dir)
-        if args.output_dir
-        else get_active_project_artifacts_dir(attachment_path=attachment_path, profile=args.profile, create=True)
-    )
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    states = [inspect_feature_state(feature_dir) for feature_dir in iter_feature_dirs(attachment_path=attachment_path, profile=args.profile)]
+    output_dir = resolve_output_dir(output_dir=args.output_dir, attachment_path=attachment_path, profile=args.profile)
+    payload = build_project_level_payload(attachment_path=attachment_path, profile=args.profile)
+    states = payload["features"]
     candidate = choose_candidate(states)
-    project_context = describe_active_project_artifacts(attachment_path=attachment_path, profile=args.profile, create=True)
-
-    payload = {
-        "project": project_context,
-        "feature_count": len(states),
-        "state_source_policy": "prefer_persisted",
-        "state_source_counts": dict(Counter(str(state.get("state_source", "unknown")) for state in states)),
-        "candidate": candidate,
-        "latest_execution": read_latest_op(["continue-project-flow", "project-cycle"]),
-        "features": states,
-    }
+    project_context = payload["project"]
+    workspace = payload["workspace"]
+    payload["candidate"] = candidate
 
     json_path = output_dir / "project-next.json"
     md_path = output_dir / "project-next.md"
     with path_lock(output_dir, phase="build-project-next"):
-        write_json(json_path, payload)
-        atomic_write_text(md_path, render_markdown(states, candidate, project_context), encoding="utf-8")
+        write_project_json(output_dir, "project-next.json", payload)
+        atomic_write_text(md_path, render_markdown(states, candidate, project_context, workspace), encoding="utf-8")
 
     print("[OK] project-next generated")
     print(f"  - json: {json_path}")

@@ -61,7 +61,7 @@ python scripts/run_pipeline.py show-attachment
 刷新 baseline：
 
 ```powershell
-python scripts/run_pipeline.py refresh-baseline
+python scripts/run_pipeline.py refresh-baseline --strict
 ```
 
 使用 polyquery MCP 刷新数据库事实：
@@ -98,12 +98,22 @@ python scripts/run_pipeline.py sync-baseline your-feature --design-version v1
 设计阶段完整门禁：
 
 ```powershell
-python scripts/run_pipeline.py design-gates your-feature
+python scripts/run_pipeline.py design-gates your-feature --strict
 ```
 
 复核所有已有报告：
 
 ```powershell
+python scripts/run_pipeline.py validate-all-reports --stage all
+```
+
+推荐主链路：
+
+```powershell
+python scripts/run_pipeline.py refresh-baseline --strict --feature-dir specs\your-feature
+python scripts/run_pipeline.py design-gates specs\your-feature --strict
+python scripts/run_pipeline.py implementation-gates specs\your-feature --strict
+python scripts/run_pipeline.py release-gate specs\your-feature --strict
 python scripts/run_pipeline.py validate-all-reports --stage all
 ```
 

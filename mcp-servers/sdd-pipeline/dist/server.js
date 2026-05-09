@@ -566,15 +566,27 @@ function toolDispatch(name, argumentsObject) {
             project_console_path: projectConsolePath,
             project_console: projectConsole,
             project_console_features: Array.isArray(projectConsole?.features) ? projectConsole.features : [],
+            workspace: projectConsole?.workspace && typeof projectConsole.workspace === "object" ? projectConsole.workspace : {},
+            strict_recommended_count: typeof projectConsole?.strict_recommended_count === "number" ? projectConsole.strict_recommended_count : 0,
+            strict_next_step_count: typeof projectConsole?.strict_next_step_count === "number" ? projectConsole.strict_next_step_count : 0,
+            strict_summary: projectConsole?.strict_summary && typeof projectConsole.strict_summary === "object"
+                ? projectConsole.strict_summary
+                : {},
         };
     }
     if (name === "project_next") {
         const execution = runPipeline(["project-next"]);
         const projectNextPath = latestArtifactFile("project-next.json");
+        const projectNext = projectNextPath ? readJsonFile(projectNextPath) : null;
         return {
-            ...withArtifactStatus(execution, projectNextPath ? readJsonFile(projectNextPath) : null),
+            ...withArtifactStatus(execution, projectNext),
             project_next_path: projectNextPath,
-            project_next: projectNextPath ? readJsonFile(projectNextPath) : null,
+            project_next: projectNext,
+            strict_recommended: projectNext?.candidate?.strict_recommended === true,
+            strict_next_step: projectNext?.candidate?.strict_next_step === true,
+            strict_summary: projectNext?.candidate?.strict_summary && typeof projectNext.candidate.strict_summary === "object"
+                ? projectNext.candidate.strict_summary
+                : {},
         };
     }
     if (name === "flow_status") {
@@ -586,6 +598,11 @@ function toolDispatch(name, argumentsObject) {
             ...withArtifactStatus(execution, flowStatus),
             flow_status_path: flowStatusPath,
             flow_status: flowStatus,
+            strict_recommended: flowStatus?.strict_recommended === true,
+            strict_next_step: flowStatus?.strict_next_step === true,
+            strict_summary: flowStatus?.strict_summary && typeof flowStatus.strict_summary === "object"
+                ? flowStatus.strict_summary
+                : {},
             implementation_result: typeof flowStatus?.implementation_result === "string" ? flowStatus.implementation_result : null,
             implementation_framework_evidence: flowStatus?.implementation_framework_evidence && typeof flowStatus.implementation_framework_evidence === "object"
                 ? flowStatus.implementation_framework_evidence

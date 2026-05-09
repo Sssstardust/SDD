@@ -14,6 +14,7 @@ from pathlib import Path
 from attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     build_attachment_payload,
+    build_workspace_payload,
     list_attachment_profiles,
     load_attachment_config,
     load_attachment_seed,
@@ -36,6 +37,7 @@ def main() -> int:
     parser.add_argument("--list-profiles", action="store_true", help="List all saved attachment profiles")
     parser.add_argument("--activate-profile", default=None, help="Switch the active attachment profile")
     parser.add_argument("--show", action="store_true", help="Show the current or selected attachment config")
+    parser.add_argument("--show-workspace", action="store_true", help="Show workspace.json style attachment summary")
     parser.add_argument("--clear", action="store_true", help="Clear attachment config or a selected profile")
     args = parser.parse_args()
 
@@ -63,6 +65,10 @@ def main() -> int:
             print("[OK] no attached project is configured")
             return 0
         print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.show_workspace:
+        print(json.dumps(build_workspace_payload(DEFAULT_ATTACHMENT_PATH), ensure_ascii=False, indent=2))
         return 0
 
     if args.clear:

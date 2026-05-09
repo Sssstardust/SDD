@@ -7,9 +7,20 @@ Compute and persist feature flow state snapshots.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
+from flow_state_helpers import (
+    base_state,
+    build_class_resolution_brief,
+    build_design_resource_claim_brief,
+    build_schema_table_resolution_brief,
+    build_strict_summary,
+    command_requires_strict,
+    extract_scalar,
+    extract_yaml_blocks,
+    format_next_command,
+    normalize_feature_state_payload,
+)
 from json_io import read_json, write_json
 from versioning import detect_latest_design_path, reports_dir_for_design
 
@@ -27,6 +38,9 @@ STATE_KEYS = (
     "feature_name",
     "current_stage",
     "risk_tier",
+    "strict_recommended",
+    "strict_next_step",
+    "strict_summary",
     "design_version",
     "reports_dir",
     "approval_status",
@@ -36,6 +50,7 @@ STATE_KEYS = (
     "gate5_result",
     "implementation_result",
     "release_gate_result",
+    "release_exception_metadata",
     "next_command",
     "reason",
     "missing_artifacts",
@@ -55,145 +70,8 @@ STATE_SOURCE_COMPUTED_FALLBACK = "computed-fallback"
 STATE_SOURCE_COMPUTED_LIVE = "computed-live"
 
 
-def _base_state(feature_dir: Path) -> dict[str, object]:
-    return {
-        "feature_dir": str(feature_dir),
-        "feature_name": feature_dir.name,
-        "current_stage": None,
-        "risk_tier": None,
-        "design_version": None,
-        "reports_dir": None,
-        "approval_status": None,
-        "gate2_result": None,
-        "gate3_result": None,
-        "gate4_result": None,
-        "gate5_result": None,
-        "implementation_result": None,
-        "release_gate_result": None,
-        "next_command": None,
-        "reason": None,
-        "missing_artifacts": [],
-        "blockers": [],
-        "implementation_framework_evidence": {},
-        "implementation_match_highlights": [],
-        "implementation_missing_method_details": [],
-        "implementation_ambiguous_classes": [],
-        "design_class_resolution_brief": {},
-        "schema_table_resolution_brief": {},
-        "design_resource_claim_summary": {},
-        "design_resource_claim_brief": {},
-    }
-
-
 def normalize_feature_state(feature_dir: Path, raw_state: object) -> dict[str, object]:
-    state = _base_state(feature_dir)
-    if not isinstance(raw_state, dict):
-        return state
-
-    for key in STATE_KEYS:
-        if key in raw_state:
-            state[key] = raw_state[key]
-
-    state["feature_dir"] = str(feature_dir)
-    if not state.get("feature_name"):
-        state["feature_name"] = feature_dir.name
-    if not isinstance(state.get("missing_artifacts"), list):
-        state["missing_artifacts"] = []
-    if not isinstance(state.get("blockers"), list):
-        state["blockers"] = []
-    if not isinstance(state.get("implementation_framework_evidence"), dict):
-        state["implementation_framework_evidence"] = {}
-    if not isinstance(state.get("implementation_match_highlights"), list):
-        state["implementation_match_highlights"] = []
-    if not isinstance(state.get("implementation_missing_method_details"), list):
-        state["implementation_missing_method_details"] = []
-    if not isinstance(state.get("implementation_ambiguous_classes"), list):
-        state["implementation_ambiguous_classes"] = []
-    if not isinstance(state.get("design_class_resolution_brief"), dict):
-        state["design_class_resolution_brief"] = {}
-    if not isinstance(state.get("schema_table_resolution_brief"), dict):
-        state["schema_table_resolution_brief"] = {}
-    if not isinstance(state.get("design_resource_claim_summary"), dict):
-        state["design_resource_claim_summary"] = {}
-    if not isinstance(state.get("design_resource_claim_brief"), dict):
-        state["design_resource_claim_brief"] = {}
-    return state
-
-
-def build_design_resource_claim_brief(summary: object) -> dict[str, object]:
-    if not isinstance(summary, dict):
-        return {}
-    counts = summary.get("counts_by_kind")
-    components = summary.get("component_ids_by_kind")
-    resource_keys = summary.get("resource_keys_by_kind")
-    if not isinstance(counts, dict):
-        counts = {}
-    if not isinstance(components, dict):
-        components = {}
-    if not isinstance(resource_keys, dict):
-        resource_keys = {}
-    operation_components = components.get("operation", []) if isinstance(components.get("operation"), list) else []
-    schema_components = components.get("schema-table", []) if isinstance(components.get("schema-table"), list) else []
-    operation_keys = resource_keys.get("operation", []) if isinstance(resource_keys.get("operation"), list) else []
-    schema_keys = resource_keys.get("schema-table", []) if isinstance(resource_keys.get("schema-table"), list) else []
-    return {
-        "counts_by_kind": counts,
-        "operation_components": operation_components,
-        "schema_table_components": schema_components,
-        "operation_resource_keys": operation_keys[:3],
-        "schema_table_resource_keys": schema_keys[:3],
-    }
-
-
-def build_class_resolution_brief(summary: object) -> dict[str, object]:
-    if not isinstance(summary, dict):
-        return {}
-    ambiguous = summary.get("ambiguous_classes")
-    first = ambiguous[0] if isinstance(ambiguous, list) and ambiguous else {}
-    if not isinstance(first, dict):
-        first = {}
-    return {
-        "resolved_count": len(summary.get("resolved_classes", [])) if isinstance(summary.get("resolved_classes"), list) else 0,
-        "missing_count": len(summary.get("missing_classes", [])) if isinstance(summary.get("missing_classes"), list) else 0,
-        "ambiguous_count": len(ambiguous) if isinstance(ambiguous, list) else 0,
-        "first_ambiguous_class": first.get("class_name"),
-        "first_ambiguous_class_components": first.get("candidate_components", []),
-        "first_ambiguous_class_resource_keys": first.get("candidate_resource_keys", []),
-    }
-
-
-def build_schema_table_resolution_brief(summary: object) -> dict[str, object]:
-    if not isinstance(summary, dict):
-        return {}
-    ambiguous = summary.get("ambiguous_tables")
-    first = ambiguous[0] if isinstance(ambiguous, list) and ambiguous else {}
-    if not isinstance(first, dict):
-        first = {}
-    return {
-        "resolved_count": len(summary.get("resolved_tables", [])) if isinstance(summary.get("resolved_tables"), list) else 0,
-        "missing_count": len(summary.get("missing_tables", [])) if isinstance(summary.get("missing_tables"), list) else 0,
-        "ambiguous_count": len(ambiguous) if isinstance(ambiguous, list) else 0,
-        "first_ambiguous_table": first.get("table_name"),
-        "first_ambiguous_table_components": first.get("candidate_components", []),
-        "first_ambiguous_table_resource_keys": first.get("candidate_resource_keys", []),
-    }
-
-
-def extract_yaml_blocks(text: str) -> list[str]:
-    matches = re.findall(r"```yaml\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
-    return matches if matches else [text]
-
-
-def extract_scalar(yaml_text: str, key: str) -> str | None:
-    match = re.search(rf"(?m)^\s*{re.escape(key)}\s*:\s*(.+?)\s*$", yaml_text)
-    if not match:
-        return None
-    return match.group(1).strip().strip('"').strip("'")
-
-
-def format_next_command(command: str, feature_dir: Path, *, strict: bool = False) -> str:
-    suffix = " --strict" if strict else ""
-    return f"python scripts/run_pipeline.py {command} {feature_dir}{suffix}"
+    return normalize_feature_state_payload(feature_dir, raw_state, STATE_KEYS)
 
 
 def project_state_path(feature_dir: Path) -> Path:
@@ -236,7 +114,7 @@ def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = Tr
 
 
 def compute_feature_state(feature_dir: Path) -> dict[str, object]:
-    state = _base_state(feature_dir)
+    state = base_state(feature_dir)
 
     feature_brief = feature_dir / "feature-brief.md"
     if not feature_brief.exists():
@@ -252,6 +130,7 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
     state["risk_tier"] = extract_scalar(yaml_text, "risk_tier") or "low"
     project_mode = extract_scalar(yaml_text, "project_mode") or "brownfield"
     strict_recommended = state["risk_tier"] == "high"
+    state["strict_recommended"] = strict_recommended
 
     design_path = detect_latest_design_path(feature_dir)
     if project_mode == "greenfield":
@@ -267,7 +146,9 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
         state["missing_artifacts"] = ["design-v{N}.md"]
         state["current_stage"] = "feature-brief-ready"
         state["next_command"] = format_next_command("design-cycle", feature_dir, strict=strict_recommended)
+        state["strict_next_step"] = command_requires_strict(state["next_command"])
         state["reason"] = "design-v{N}.md has not been generated yet"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     state["design_version"] = design_path.name
@@ -288,6 +169,10 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
                     errors = gate.get("errors", [])
                     if isinstance(errors, list):
                         state["blockers"].extend(f"{gate_name}: {error}" for error in errors)
+                    if gate_name == "release_gate":
+                        exception_metadata = gate.get("release_exception_metadata")
+                        if isinstance(exception_metadata, dict):
+                            state["release_exception_metadata"] = exception_metadata
             for gate_name in ("release_gate", "gate5", "gate2"):
                 gate = gate_report.get(gate_name)
                 if not isinstance(gate, dict):
@@ -362,13 +247,17 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
     if state["gate2_result"] is None or state["gate3_result"] is None:
         state["current_stage"] = "design-in-progress"
         state["next_command"] = format_next_command("design-cycle", feature_dir, strict=strict_recommended)
+        state["strict_next_step"] = command_requires_strict(state["next_command"])
         state["reason"] = "design-stage gates are not fully complete"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     if risk_high and state["approval_status"] != "APPROVED":
         state["current_stage"] = "awaiting-approval"
         state["next_command"] = f"python scripts/run_pipeline.py build-approval-summary {feature_dir}"
+        state["strict_next_step"] = command_requires_strict(state["next_command"])
         state["reason"] = "high-risk design is still waiting for approval"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     if state["gate4_result"] == "FAIL" or state["gate5_result"] == "FAIL":
@@ -378,7 +267,9 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
             feature_dir,
             strict=strict_recommended,
         )
+        state["strict_next_step"] = command_requires_strict(state["next_command"])
         state["reason"] = "implementation-stage gates contain failures"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     if verify_result is None:
@@ -388,24 +279,32 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
             feature_dir,
             strict=strict_recommended,
         )
+        state["strict_next_step"] = command_requires_strict(state["next_command"])
         state["reason"] = "design stage is complete, but implementation verification has not started"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     if verify_result == "PASS" and state["release_gate_result"] != "PASS":
         state["current_stage"] = "verified-ready-for-release"
         state["next_command"] = format_next_command("release-gate", feature_dir, strict=strict_recommended)
+        state["strict_next_step"] = command_requires_strict(state["next_command"])
         state["reason"] = "implementation verification passed, but release governance is not finished"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     if verify_result == "PASS":
         state["current_stage"] = "release-ready"
         state["next_command"] = None
+        state["strict_next_step"] = False
         state["reason"] = "feature passed implementation verification and release governance"
+        state["strict_summary"] = build_strict_summary(state)
         return state
 
     state["current_stage"] = "implementation-needs-attention"
     state["next_command"] = format_next_command("approved-implementation-cycle", feature_dir, strict=strict_recommended)
+    state["strict_next_step"] = command_requires_strict(state["next_command"])
     state["reason"] = "implementation stage still has unresolved items"
+    state["strict_summary"] = build_strict_summary(state)
     return state
 
 

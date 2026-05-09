@@ -46,4 +46,8 @@ strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)(null), 
     implementation_framework_evidence: {},
     implementation_match_highlights: [],
 });
+strict_1.default.equal("strict_recommended" in {
+    strict_recommended: true,
+    strict_next_step: true,
+}, true);
 process.stdout.write("sdd-pipeline server tests passed\n");
