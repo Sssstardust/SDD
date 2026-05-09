@@ -584,13 +584,11 @@ def build_method_detail_index(entry: dict[str, object]) -> list[dict[str, object
             signature = item.get("signature")
             name = item.get("name") or method_name_from_signature(signature)
             parameter_types = item.get("parameter_types") if isinstance(item.get("parameter_types"), list) else []
-            indexed.append(
-                {
-                    "name": str(name or ""),
-                    "signature": str(signature or ""),
-                    "parameter_types": [normalize_type_name(param) for param in parameter_types if isinstance(param, str)],
-                }
-            )
+            indexed_item = dict(item)
+            indexed_item["name"] = str(name or "")
+            indexed_item["signature"] = str(signature or "")
+            indexed_item["parameter_types"] = [normalize_type_name(param) for param in parameter_types if isinstance(param, str)]
+            indexed.append(indexed_item)
     if indexed:
         return indexed
     for signature in entry.get("public_methods", []):
@@ -618,6 +616,7 @@ def match_method_call(call: dict[str, object], entry: dict[str, object]) -> dict
             "expected_signature": str(call.get("signature") or method_name),
             "matched_signature": None,
             "candidate_signatures": [],
+            "matched_method_detail": None,
         }
     if expected_parameter_types:
         for candidate in candidates:
@@ -628,6 +627,7 @@ def match_method_call(call: dict[str, object], entry: dict[str, object]) -> dict
                     "expected_signature": str(call.get("signature") or method_name),
                     "matched_signature": candidate.get("signature"),
                     "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
+                    "matched_method_detail": candidate,
                 }
         return {
             "matched": False,
@@ -635,31 +635,106 @@ def match_method_call(call: dict[str, object], entry: dict[str, object]) -> dict
             "expected_signature": str(call.get("signature") or method_name),
             "matched_signature": None,
             "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
+            "matched_method_detail": None,
         }
     if expected_parameter_count:
+        matched_candidates = [candidate for candidate in candidates if len(candidate.get("parameter_types", [])) == expected_parameter_count]
+        if len(matched_candidates) == 1:
+            candidate = matched_candidates[0]
+            return {
+                "matched": True,
+                "match_mode": "arity",
+                "expected_signature": str(call.get("signature") or method_name),
+                "matched_signature": candidate.get("signature"),
+                "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
+                "matched_method_detail": candidate,
+            }
         for candidate in candidates:
             if len(candidate.get("parameter_types", [])) == expected_parameter_count:
-                return {
-                    "matched": True,
-                    "match_mode": "arity",
-                    "expected_signature": str(call.get("signature") or method_name),
-                    "matched_signature": candidate.get("signature"),
-                    "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-                }
+                break
         return {
             "matched": False,
             "match_mode": "arity",
             "expected_signature": str(call.get("signature") or method_name),
             "matched_signature": None,
             "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
+            "matched_method_detail": None,
+        }
+    if len(candidates) == 1:
+        candidate = candidates[0]
+        return {
+            "matched": True,
+            "match_mode": "name",
+            "expected_signature": str(call.get("signature") or method_name),
+            "matched_signature": candidate.get("signature"),
+            "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
+            "matched_method_detail": candidate,
         }
     return {
-        "matched": True,
+        "matched": False,
         "match_mode": "name",
         "expected_signature": str(call.get("signature") or method_name),
-        "matched_signature": candidates[0].get("signature"),
+        "matched_signature": None,
         "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
+        "matched_method_detail": None,
     }
+
+
+def summarize_method_framework_evidence(method_match_details: list[dict[str, object]]) -> dict[str, object]:
+    summary = {
+        "inherited_matches": 0,
+        "mybatis_bound_matches": 0,
+        "mybatis_result_map_matches": 0,
+        "low_confidence_matches": 0,
+        "lombok_inferred_matches": 0,
+        "owner_classes": [],
+        "inherited_from": [],
+        "mybatis_statement_ids": [],
+        "mybatis_result_map_ids": [],
+        "low_confidence_resource_keys": [],
+    }
+    owner_classes: set[str] = set()
+    inherited_from: set[str] = set()
+    mybatis_statement_ids: set[str] = set()
+    mybatis_result_map_ids: set[str] = set()
+    low_confidence_resource_keys: set[str] = set()
+    for item in method_match_details:
+        if not isinstance(item, dict) or not item.get("matched"):
+            continue
+        method_detail = item.get("matched_method_detail")
+        if not isinstance(method_detail, dict):
+            continue
+        owner_class = method_detail.get("owner_class")
+        if isinstance(owner_class, str) and owner_class:
+            owner_classes.add(owner_class)
+        inherited_parent = method_detail.get("inherited_from")
+        if isinstance(inherited_parent, str) and inherited_parent:
+            inherited_from.add(inherited_parent)
+            summary["inherited_matches"] += 1
+        confidence = str(method_detail.get("confidence") or "").lower()
+        if confidence == "low":
+            summary["low_confidence_matches"] += 1
+            resource_key = item.get("resource_key")
+            if isinstance(resource_key, str) and resource_key:
+                low_confidence_resource_keys.add(resource_key)
+        if str(method_detail.get("inference_source") or "").startswith("lombok-"):
+            summary["lombok_inferred_matches"] += 1
+        mybatis_statement = method_detail.get("mybatis_statement")
+        if isinstance(mybatis_statement, dict):
+            summary["mybatis_bound_matches"] += 1
+            statement_id = mybatis_statement.get("id")
+            if isinstance(statement_id, str) and statement_id:
+                mybatis_statement_ids.add(statement_id)
+            result_map_id = mybatis_statement.get("result_map")
+            if isinstance(result_map_id, str) and result_map_id:
+                mybatis_result_map_ids.add(result_map_id)
+                summary["mybatis_result_map_matches"] += 1
+    summary["owner_classes"] = sorted(owner_classes)
+    summary["inherited_from"] = sorted(inherited_from)
+    summary["mybatis_statement_ids"] = sorted(mybatis_statement_ids)
+    summary["mybatis_result_map_ids"] = sorted(mybatis_result_map_ids)
+    summary["low_confidence_resource_keys"] = sorted(low_confidence_resource_keys)
+    return summary
 
 
 def merge_module_entry(existing: dict[str, object], node: dict[str, object]) -> dict[str, object]:
@@ -688,6 +763,8 @@ def merge_module_entry(existing: dict[str, object], node: dict[str, object]) -> 
         merged["source_kind"] = node.get("source_kind")
     if not merged.get("component_id") and node.get("component_id"):
         merged["component_id"] = node.get("component_id")
+    if not merged.get("scan_reliability") and isinstance(node.get("scan_reliability"), dict):
+        merged["scan_reliability"] = dict(node.get("scan_reliability"))
     return merged
 
 
@@ -753,12 +830,15 @@ def resolve_module_class_entry(entries: dict[str, list[dict[str, object]]], clas
     candidates = entries.get(class_name) or entries.get(class_name.split(".")[-1]) or []
     if not candidates:
         return None
-    java_candidates = [item for item in candidates if str(item.get("source_kind") or "").startswith("java")]
-    if len(java_candidates) == 1:
-        return java_candidates[0]
     exact_fqn = [item for item in candidates if str(item.get("fqn") or "") == class_name]
     if len(exact_fqn) == 1:
         return exact_fqn[0]
+    exact_resource_key = [item for item in candidates if str(item.get("resource_key") or "") == class_name]
+    if len(exact_resource_key) == 1:
+        return exact_resource_key[0]
+    java_candidates = [item for item in candidates if str(item.get("source_kind") or "").startswith("java")]
+    if len(java_candidates) == 1 and len(candidates) == 1:
+        return java_candidates[0]
     if len(candidates) == 1:
         return candidates[0]
     return None
@@ -1007,6 +1087,7 @@ def analyze_implementation_traceability(
     ambiguous_classes: list[dict[str, object]] = []
     matched_methods: list[str] = []
     missing_methods: list[str] = []
+    missing_method_details: list[dict[str, object]] = []
     method_match_details: list[dict[str, object]] = []
 
     for class_name in referenced_classes:
@@ -1022,6 +1103,13 @@ def analyze_implementation_traceability(
                                 str(item.get("resource_key") or item.get("fqn") or item.get("class_name") or "")
                                 for item in candidates
                                 if isinstance(item, dict)
+                            }
+                        ),
+                        "candidate_components": sorted(
+                            {
+                                str(item.get("component_id") or "")
+                                for item in candidates
+                                if isinstance(item, dict) and str(item.get("component_id") or "")
                             }
                         ),
                     }
@@ -1057,12 +1145,26 @@ def analyze_implementation_traceability(
                 "component_id": entry.get("component_id"),
                 "resource_key": entry.get("resource_key"),
                 "fqn": entry.get("fqn"),
+                "scan_reliability": entry.get("scan_reliability"),
+                "matched_method_detail": match.get("matched_method_detail"),
             }
         )
         if match.get("matched"):
             matched_methods.append(display_name)
         else:
             missing_methods.append(display_name)
+            missing_method_details.append(
+                {
+                    "class_name": class_name,
+                    "method_name": method_name,
+                    "expected_signature": match.get("expected_signature"),
+                    "candidate_signatures": match.get("candidate_signatures", []),
+                    "component_id": entry.get("component_id"),
+                    "resource_key": entry.get("resource_key"),
+                    "fqn": entry.get("fqn"),
+                    "scan_reliability": entry.get("scan_reliability"),
+                }
+            )
 
     low_confidence = str(module_map_quality.get("confidence") or "").lower() == "low"
     result = "PASS" if not design_only_classes and not missing_classes and not ambiguous_classes and not missing_methods and not low_confidence else "WARN"
@@ -1103,7 +1205,9 @@ def analyze_implementation_traceability(
         "expected_methods": referenced_methods,
         "matched_methods": sorted(set(matched_methods)),
         "missing_methods": sorted(set(missing_methods)),
+        "missing_method_details": missing_method_details,
         "method_match_details": method_match_details,
+        "method_framework_evidence": summarize_method_framework_evidence(method_match_details),
         "module_map_quality": module_map_quality,
         "message": message,
     }
@@ -1137,6 +1241,9 @@ def build_implementation_traceability_report_fields(traceability: dict[str, obje
     method_match_details = traceability.get("method_match_details")
     if not isinstance(method_match_details, list):
         method_match_details = []
+    framework_evidence = traceability.get("method_framework_evidence")
+    if not isinstance(framework_evidence, dict):
+        framework_evidence = summarize_method_framework_evidence(method_match_details)
     match_modes = sorted(
         {
             str(item.get("match_mode"))
@@ -1144,12 +1251,41 @@ def build_implementation_traceability_report_fields(traceability: dict[str, obje
             if isinstance(item, dict) and item.get("matched") and item.get("match_mode")
         }
     )
+    matched_method_highlights: list[dict[str, object]] = []
+    for item in method_match_details:
+        if not isinstance(item, dict) or not item.get("matched"):
+            continue
+        method_detail = item.get("matched_method_detail")
+        if not isinstance(method_detail, dict):
+            continue
+        highlight = {
+            "class_name": item.get("class_name"),
+            "expected_signature": item.get("expected_signature"),
+            "matched_signature": item.get("matched_signature"),
+            "match_mode": item.get("match_mode"),
+            "resource_key": item.get("resource_key"),
+            "component_id": item.get("component_id"),
+            "owner_class": method_detail.get("owner_class"),
+            "inherited_from": method_detail.get("inherited_from"),
+            "inference_source": method_detail.get("inference_source"),
+            "confidence": method_detail.get("confidence"),
+            "scan_reliability": item.get("scan_reliability"),
+            "mybatis_statement": method_detail.get("mybatis_statement"),
+        }
+        if any(
+            highlight.get(key)
+            for key in ("owner_class", "inherited_from", "inference_source", "mybatis_statement", "scan_reliability")
+        ):
+            matched_method_highlights.append(highlight)
     return {
         "implementation_message": str(traceability.get("message") or ""),
         "implementation_match_modes": match_modes,
+        "implementation_method_framework_evidence": framework_evidence,
+        "implementation_method_match_highlights": matched_method_highlights,
         "implementation_method_match_details": method_match_details,
         "implementation_matched_methods": traceability.get("matched_methods", []),
         "implementation_missing_methods": traceability.get("missing_methods", []),
+        "implementation_missing_method_details": traceability.get("missing_method_details", []),
         "implementation_ambiguous_classes": traceability.get("ambiguous_classes", []),
     }
 

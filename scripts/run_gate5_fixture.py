@@ -21,6 +21,7 @@ def main() -> int:
         default="PASS",
         help="stubbed execution status for attempt_test_execution",
     )
+    parser.add_argument("--strict", action="store_true", help="run Gate 5 in strict mode")
     args = parser.parse_args()
 
     baseline_dir = Path(args.baseline_dir).resolve()
@@ -32,7 +33,10 @@ def main() -> int:
         check_design_test_coverage.attempt_test_execution = (
             lambda *_args, **_kwargs: {"status": args.execution_status, "mode": "fixture-stub"}
         )
-        return check_design_test_coverage.main_for_args([str(feature_dir)])
+        gate5_args = [str(feature_dir)]
+        if args.strict:
+            gate5_args.append("--strict")
+        return check_design_test_coverage.main_for_args(gate5_args)
     finally:
         check_design_test_coverage.get_active_baseline_dir = original_baseline
         check_design_test_coverage.attempt_test_execution = original_execution

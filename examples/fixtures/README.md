@@ -30,6 +30,14 @@
   - 场景：Gate 5 `WARN`
   - 命令：`gate5`
   - 预期：仅 `P1` 缺口时输出 `WARN` 且不阻断
+- `governance-warn-implementation-traceability`
+  - 场景：Gate 5 `implementation traceability WARN`
+  - 命令：`gate5`
+  - 预期：非 strict 模式下实现追溯为 `WARN`，`verify-report.implementation_result=WARN`
+- `governance-fail-implementation-traceability-strict`
+  - 场景：Gate 5 `implementation traceability FAIL(strict)`
+  - 命令：`gate5`、`validate-reports --stage implementation`
+  - 预期：strict 模式下实现追溯非 `PASS` 直接提升为 `FAIL`
 
 统一校验命令：
 

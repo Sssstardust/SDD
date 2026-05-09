@@ -22,6 +22,66 @@ from versioning import iter_feature_dirs
 def render_markdown(states: list[dict[str, object]], project_context: dict[str, object]) -> str:
     stage_counter = Counter(str(state.get("current_stage", "unknown")) for state in states)
     source_counter = Counter(str(state.get("state_source", "unknown")) for state in states)
+    def framework_badges(state: dict[str, object]) -> str:
+        evidence = state.get("implementation_framework_evidence")
+        if not isinstance(evidence, dict) or not evidence:
+            return "N/A"
+        parts: list[str] = []
+        inherited = evidence.get("inherited_matches")
+        mybatis = evidence.get("mybatis_bound_matches")
+        result_maps = evidence.get("mybatis_result_map_matches")
+        if isinstance(inherited, int) and inherited > 0:
+            parts.append(f"inherit={inherited}")
+        if isinstance(mybatis, int) and mybatis > 0:
+            parts.append(f"mybatis={mybatis}")
+        if isinstance(result_maps, int) and result_maps > 0:
+            parts.append(f"resultMap={result_maps}")
+        missing_method_details = state.get("implementation_missing_method_details")
+        if isinstance(missing_method_details, list) and missing_method_details:
+            parts.append(f"missingMethod={len(missing_method_details)}")
+        return ", ".join(parts) if parts else "N/A"
+
+    def claim_badges(state: dict[str, object]) -> str:
+        claim_brief = state.get("design_resource_claim_brief")
+        if not isinstance(claim_brief, dict):
+            return "N/A"
+        parts: list[str] = []
+        counts_by_kind = claim_brief.get("counts_by_kind")
+        if isinstance(counts_by_kind, dict):
+            operation_count = counts_by_kind.get("operation")
+            schema_table_count = counts_by_kind.get("schema-table")
+            if isinstance(operation_count, int) and operation_count > 0:
+                parts.append(f"op={operation_count}")
+            if isinstance(schema_table_count, int) and schema_table_count > 0:
+                parts.append(f"table={schema_table_count}")
+        operation_components = claim_brief.get("operation_components")
+        if isinstance(operation_components, list) and operation_components:
+            parts.append("op@" + ",".join(str(item) for item in operation_components[:2]))
+        schema_components = claim_brief.get("schema_table_components")
+        if isinstance(schema_components, list) and schema_components:
+            parts.append("tbl@" + ",".join(str(item) for item in schema_components[:2]))
+        return ", ".join(parts) if parts else "N/A"
+
+    def resolution_preview(state: dict[str, object]) -> str:
+        parts: list[str] = []
+        missing_method_details = state.get("implementation_missing_method_details")
+        if isinstance(missing_method_details, list) and missing_method_details:
+            first = missing_method_details[0]
+            if isinstance(first, dict):
+                class_name = str(first.get("class_name") or "")
+                signature = str(first.get("expected_signature") or "")
+                if class_name or signature:
+                    parts.append(f"missing={'.'.join(item for item in (class_name, signature) if item)}")
+        ambiguous_classes = state.get("implementation_ambiguous_classes")
+        if isinstance(ambiguous_classes, list) and ambiguous_classes:
+            first = ambiguous_classes[0]
+            if isinstance(first, dict) and first.get("class_name"):
+                parts.append(f"ambiguousClass={first.get('class_name')}")
+        table_brief = state.get("schema_table_resolution_brief")
+        if isinstance(table_brief, dict) and table_brief.get("ambiguous_count") and table_brief.get("first_ambiguous_table"):
+            parts.append(f"ambiguousTable={table_brief.get('first_ambiguous_table')}")
+        return "; ".join(parts) if parts else "N/A"
+
     lines = [
         "# Project Flow Overview",
         "",
@@ -50,13 +110,20 @@ def render_markdown(states: list[dict[str, object]], project_context: dict[str, 
     for source, count in sorted(source_counter.items()):
         lines.append(f"- `{source}`: {count}")
 
+    lines.extend(["", "## Resolution Preview", ""])
+    for state in states[:10]:
+        preview = resolution_preview(state)
+        if preview == "N/A":
+            continue
+        lines.append(f"- `{state.get('feature_name')}`: {preview}")
+
     lines.extend(
         [
             "",
             "## Features",
             "",
-            "| Feature | Stage | Source | Risk | Approval | gate2 | gate3 | gate4 | gate5 | Missing | Blockers | Next |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Approval | gate2 | gate3 | gate4 | gate5 | impl | Framework Evidence | Resource Claims | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
 
@@ -70,11 +137,14 @@ def render_markdown(states: list[dict[str, object]], project_context: dict[str, 
         gate3 = str(state.get("gate3_result", "N/A"))
         gate4 = str(state.get("gate4_result", "N/A"))
         gate5 = str(state.get("gate5_result", "N/A"))
+        implementation_result = str(state.get("implementation_result", "N/A"))
         missing = len(state.get("missing_artifacts", [])) if isinstance(state.get("missing_artifacts"), list) else 0
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
+        framework_evidence = framework_badges(state).replace("|", "\\|")
+        resource_claims = claim_badges(state).replace("|", "\\|")
         lines.append(
-            f"| {feature_name} | {stage} | {source} | {risk_tier} | {approval} | {gate2} | {gate3} | {gate4} | {gate5} | {missing} | {blockers} | `{next_command}` |"
+            f"| {feature_name} | {stage} | {source} | {risk_tier} | {approval} | {gate2} | {gate3} | {gate4} | {gate5} | {implementation_result} | {framework_evidence} | {resource_claims} | {missing} | {blockers} | `{next_command}` |"
         )
 
     lines.append("")

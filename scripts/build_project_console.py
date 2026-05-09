@@ -22,6 +22,85 @@ from project_artifact_paths import describe_active_project_artifacts, get_active
 from versioning import iter_feature_dirs
 
 
+def framework_badges(state: dict[str, object]) -> str:
+    evidence = state.get("implementation_framework_evidence")
+    if not isinstance(evidence, dict) or not evidence:
+        return "N/A"
+    parts: list[str] = []
+    inherited = evidence.get("inherited_matches")
+    if isinstance(inherited, int) and inherited > 0:
+        parts.append(f"inherit={inherited}")
+    mybatis = evidence.get("mybatis_bound_matches")
+    if isinstance(mybatis, int) and mybatis > 0:
+        parts.append(f"mybatis={mybatis}")
+    result_maps = evidence.get("mybatis_result_map_matches")
+    if isinstance(result_maps, int) and result_maps > 0:
+        parts.append(f"resultMap={result_maps}")
+    missing_method_details = state.get("implementation_missing_method_details")
+    if isinstance(missing_method_details, list) and missing_method_details:
+        parts.append(f"missingMethod={len(missing_method_details)}")
+    return ", ".join(parts) if parts else "N/A"
+
+
+def resource_claim_badges(state: dict[str, object]) -> str:
+    claim_brief = state.get("design_resource_claim_brief")
+    if not isinstance(claim_brief, dict):
+        return "N/A"
+    parts: list[str] = []
+    counts_by_kind = claim_brief.get("counts_by_kind")
+    if isinstance(counts_by_kind, dict):
+        operation_count = counts_by_kind.get("operation")
+        schema_table_count = counts_by_kind.get("schema-table")
+        if isinstance(operation_count, int) and operation_count > 0:
+            parts.append(f"op={operation_count}")
+        if isinstance(schema_table_count, int) and schema_table_count > 0:
+            parts.append(f"table={schema_table_count}")
+    operation_components = claim_brief.get("operation_components")
+    if isinstance(operation_components, list) and operation_components:
+        parts.append("op@" + ",".join(str(item) for item in operation_components[:2]))
+    schema_components = claim_brief.get("schema_table_components")
+    if isinstance(schema_components, list) and schema_components:
+        parts.append("tbl@" + ",".join(str(item) for item in schema_components[:2]))
+    return ", ".join(parts) if parts else "N/A"
+
+
+def resolution_preview(state: dict[str, object]) -> str:
+    parts: list[str] = []
+    missing_method_details = state.get("implementation_missing_method_details")
+    if isinstance(missing_method_details, list) and missing_method_details:
+        first = missing_method_details[0]
+        if isinstance(first, dict):
+            class_name = str(first.get("class_name") or "")
+            signature = str(first.get("expected_signature") or "")
+            resource_key = str(first.get("resource_key") or "")
+            preview = ".".join(item for item in (class_name, signature) if item)
+            if resource_key:
+                preview = f"{preview} @ {resource_key}"
+            if preview:
+                parts.append(f"missing={preview}")
+    ambiguous_classes = state.get("implementation_ambiguous_classes")
+    if isinstance(ambiguous_classes, list) and ambiguous_classes:
+        first = ambiguous_classes[0]
+        if isinstance(first, dict):
+            class_name = str(first.get("class_name") or "")
+            components = first.get("candidate_components")
+            if class_name:
+                suffix = ""
+                if isinstance(components, list) and components:
+                    suffix = " @ " + ",".join(str(item) for item in components[:2])
+                parts.append(f"ambiguousClass={class_name}{suffix}")
+    table_brief = state.get("schema_table_resolution_brief")
+    if isinstance(table_brief, dict) and table_brief.get("ambiguous_count"):
+        table_name = str(table_brief.get("first_ambiguous_table") or "")
+        components = table_brief.get("first_ambiguous_table_components")
+        if table_name:
+            suffix = ""
+            if isinstance(components, list) and components:
+                suffix = " @ " + ",".join(str(item) for item in components[:2])
+            parts.append(f"ambiguousTable={table_name}{suffix}")
+    return "; ".join(parts) if parts else "N/A"
+
+
 def render_markdown(
     states: list[dict[str, object]],
     candidate: dict[str, object] | None,
@@ -104,13 +183,20 @@ def render_markdown(
         elif issue_count == 0:
             lines.append("- No obvious generated-artifact or workspace hygiene issues were found.")
 
+    lines.extend(["", "## Resolution Preview", ""])
+    for state in states[:10]:
+        preview = resolution_preview(state)
+        if preview == "N/A":
+            continue
+        lines.append(f"- `{state.get('feature_name')}`: {preview}")
+
     lines.extend(
         [
             "",
             "## Features",
             "",
-            "| Feature | Stage | Source | Risk | Approval | gate2 | gate3 | gate4 | gate5 | Missing | Blockers | Next |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Approval | gate2 | gate3 | gate4 | gate5 | impl | Framework Evidence | Resource Claims | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
 
@@ -118,10 +204,13 @@ def render_markdown(
         missing = len(state.get("missing_artifacts", [])) if isinstance(state.get("missing_artifacts"), list) else 0
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
+        framework_evidence = framework_badges(state).replace("|", "\\|")
+        resource_claims = resource_claim_badges(state).replace("|", "\\|")
         lines.append(
             f"| {state.get('feature_name')} | {state.get('current_stage')} | {state.get('state_source')} | {state.get('risk_tier')} | "
             f"{state.get('approval_status')} | {state.get('gate2_result')} | {state.get('gate3_result')} | "
-            f"{state.get('gate4_result')} | {state.get('gate5_result')} | {missing} | {blockers} | `{next_command}` |"
+            f"{state.get('gate4_result')} | {state.get('gate5_result')} | {state.get('implementation_result')} | "
+            f"{framework_evidence} | {resource_claims} | {missing} | {blockers} | `{next_command}` |"
         )
 
     lines.append("")
@@ -150,6 +239,19 @@ def render_html(
         for state in states:
             missing = len(state.get("missing_artifacts", [])) if isinstance(state.get("missing_artifacts"), list) else 0
             blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
+            evidence = state.get("implementation_framework_evidence")
+            evidence_parts: list[str] = []
+            if isinstance(evidence, dict):
+                inherited = evidence.get("inherited_matches")
+                mybatis = evidence.get("mybatis_bound_matches")
+                result_maps = evidence.get("mybatis_result_map_matches")
+                if isinstance(inherited, int) and inherited > 0:
+                    evidence_parts.append(f"inherit={inherited}")
+                if isinstance(mybatis, int) and mybatis > 0:
+                    evidence_parts.append(f"mybatis={mybatis}")
+                if isinstance(result_maps, int) and result_maps > 0:
+                    evidence_parts.append(f"resultMap={result_maps}")
+            resource_claims = resource_claim_badges(state)
             rows.append(
                 "<tr>"
                 f"<td>{escape(str(state.get('feature_name')))}</td>"
@@ -161,6 +263,9 @@ def render_html(
                 f"<td>{escape(str(state.get('gate3_result')))}</td>"
                 f"<td>{escape(str(state.get('gate4_result')))}</td>"
                 f"<td>{escape(str(state.get('gate5_result')))}</td>"
+                f"<td>{escape(str(state.get('implementation_result')))}</td>"
+                f"<td>{escape(', '.join(evidence_parts) if evidence_parts else 'N/A')}</td>"
+                f"<td>{escape(resource_claims)}</td>"
                 f"<td>{missing}</td>"
                 f"<td>{blockers}</td>"
                 f"<td><code>{escape(str(state.get('next_command')))}</code></td>"
@@ -347,6 +452,9 @@ def render_html(
           <th>gate3</th>
           <th>gate4</th>
           <th>gate5</th>
+          <th>impl</th>
+          <th>framework evidence</th>
+          <th>resource claims</th>
           <th>Missing</th>
           <th>Blockers</th>
           <th>Next</th>
@@ -444,3 +552,18 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+    def framework_badges(state: dict[str, object]) -> str:
+        evidence = state.get("implementation_framework_evidence")
+        if not isinstance(evidence, dict) or not evidence:
+            return "N/A"
+        parts: list[str] = []
+        inherited = evidence.get("inherited_matches")
+        if isinstance(inherited, int) and inherited > 0:
+            parts.append(f"inherit={inherited}")
+        mybatis = evidence.get("mybatis_bound_matches")
+        if isinstance(mybatis, int) and mybatis > 0:
+            parts.append(f"mybatis={mybatis}")
+        result_maps = evidence.get("mybatis_result_map_matches")
+        if isinstance(result_maps, int) and result_maps > 0:
+            parts.append(f"resultMap={result_maps}")
+        return ", ".join(parts) if parts else "N/A"

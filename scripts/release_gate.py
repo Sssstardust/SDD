@@ -84,6 +84,22 @@ def load_verify_payload(reports_dir: Path) -> tuple[dict[str, object] | None, Pa
     return payload if isinstance(payload, dict) else None, verify_path
 
 
+def extract_verify_implementation_highlights(verify_payload: dict[str, object] | None) -> dict[str, object]:
+    if not isinstance(verify_payload, dict):
+        return {
+            "implementation_result": None,
+            "implementation_framework_evidence": {},
+            "implementation_match_highlights": [],
+        }
+    framework_evidence = verify_payload.get("implementation_method_framework_evidence")
+    match_highlights = verify_payload.get("implementation_method_match_highlights")
+    return {
+        "implementation_result": verify_payload.get("implementation_result"),
+        "implementation_framework_evidence": framework_evidence if isinstance(framework_evidence, dict) else {},
+        "implementation_match_highlights": match_highlights if isinstance(match_highlights, list) else [],
+    }
+
+
 def structured_release_plan(feature_dir: Path) -> dict[str, object]:
     release_plan = feature_dir / RELEASE_PLAN_NAME
     if not release_plan.exists():
@@ -181,6 +197,7 @@ def main() -> int:
     design_resource_claim_summary = summarize_resource_claims(design_resource_claims)
     verify_payload, verify_path = load_verify_payload(reports_dir)
     verify_result = str(verify_payload.get("result")) if isinstance(verify_payload, dict) and isinstance(verify_payload.get("result"), str) else None
+    verify_implementation_highlights = extract_verify_implementation_highlights(verify_payload)
 
     checks: list[str] = []
     warnings: list[str] = []
@@ -278,6 +295,9 @@ def main() -> int:
         "evidence": evidence,
         "design_resource_claim_summary": design_resource_claim_summary,
         "design_resource_claim_highlights": design_resource_claim_summary.get("highlights", {}),
+        "implementation_result": verify_implementation_highlights.get("implementation_result"),
+        "implementation_framework_evidence": verify_implementation_highlights.get("implementation_framework_evidence"),
+        "implementation_match_highlights": verify_implementation_highlights.get("implementation_match_highlights"),
         "structured_release_plan": structured_plan,
     }
 
@@ -297,6 +317,9 @@ def main() -> int:
             "errors": errors,
             "design_resource_claim_summary": design_resource_claim_summary,
             "design_resource_claim_highlights": design_resource_claim_summary.get("highlights", {}),
+            "implementation_result": verify_implementation_highlights.get("implementation_result"),
+            "implementation_framework_evidence": verify_implementation_highlights.get("implementation_framework_evidence"),
+            "implementation_match_highlights": verify_implementation_highlights.get("implementation_match_highlights"),
             "report_file": str(report_path),
         },
     )

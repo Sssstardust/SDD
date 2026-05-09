@@ -26,4 +26,24 @@ strict_1.default.equal((0, server_1.wantsAsync)({}, true), true);
 strict_1.default.equal((0, server_1.wantsAsync)({}, false), false);
 strict_1.default.equal((0, server_1.wantsAsync)({ async: true }, false), true);
 strict_1.default.equal((0, server_1.wantsAsync)({ async: false }, true), false);
+strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)({
+    implementation_result: "WARN",
+    implementation_method_framework_evidence: {
+        inherited_matches: 1,
+        mybatis_bound_matches: 2,
+    },
+    implementation_method_match_highlights: [{ class_name: "OrderMapper" }],
+}), {
+    implementation_result: "WARN",
+    implementation_framework_evidence: {
+        inherited_matches: 1,
+        mybatis_bound_matches: 2,
+    },
+    implementation_match_highlights: [{ class_name: "OrderMapper" }],
+});
+strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)(null), {
+    implementation_result: null,
+    implementation_framework_evidence: {},
+    implementation_match_highlights: [],
+});
 process.stdout.write("sdd-pipeline server tests passed\n");

@@ -103,6 +103,7 @@ def find_active_conflicts(
                     "kind": str(claim.get("kind") or resource_key.split("::", 1)[0] or "unknown"),
                     "name": str(claim.get("name") or resource_key.split("::", 1)[-1]),
                     "resource_key": resource_key,
+                    "component_id": str(claim.get("component_id") or ""),
                 }
         if existing_claims:
             return existing_claims
@@ -125,6 +126,7 @@ def find_active_conflicts(
         resource_conflicts: dict[str, list[str]] = {}
         existing_claims = claims_for_item(item)
         matched_resource_keys: set[str] = set()
+        matched_components: set[str] = set()
         for new_claim in new_claims:
             for existing_claim in existing_claims.values():
                 if not claim_matches(new_claim, existing_claim):
@@ -133,6 +135,9 @@ def find_active_conflicts(
                 name = str(new_claim.get("name") or new_claim.get("resource_key") or "")
                 resource_conflicts.setdefault(kind, []).append(name)
                 matched_resource_keys.add(str(new_claim.get("resource_key") or ""))
+                component_id = str(new_claim.get("component_id") or existing_claim.get("component_id") or "")
+                if component_id:
+                    matched_components.add(component_id)
                 break
 
         if resource_conflicts:
@@ -143,6 +148,7 @@ def find_active_conflicts(
                     "design_version": item.get("design_version"),
                     "resources": {key: sorted(set(values)) for key, values in resource_conflicts.items()},
                     "resource_keys": sorted(key for key in matched_resource_keys if key),
+                    "components": sorted(component for component in matched_components if component),
                 }
             )
 

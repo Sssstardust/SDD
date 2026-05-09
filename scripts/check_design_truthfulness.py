@@ -264,6 +264,130 @@ def validate_module_map_quality(
     return warnings, errors, metadata
 
 
+def summarize_design_class_reliability(
+    module_map: object,
+    participant_classes: list[str],
+    *,
+    affected_components: set[str],
+) -> dict[str, object]:
+    summary: dict[str, object] = {
+        "matched_classes": [],
+        "low_confidence_classes": [],
+        "lombok_inferred_classes": [],
+        "mybatis_bound_classes": [],
+        "inherited_classes": [],
+    }
+    if not isinstance(module_map, dict) or not participant_classes:
+        return summary
+
+    matched_classes: set[str] = set()
+    low_confidence_classes: set[str] = set()
+    lombok_inferred_classes: set[str] = set()
+    mybatis_bound_classes: set[str] = set()
+    inherited_classes: set[str] = set()
+
+    for item in module_map.get("classes", []):
+        if not isinstance(item, dict):
+            continue
+        if not matches_affected_components(item, affected_components):
+            continue
+        aliases = {
+            str(item.get(key)).split(".")[-1]
+            for key in ("simple_name", "class_name", "display_name", "fqn")
+            if isinstance(item.get(key), str) and item.get(key)
+        }
+        matched_participants = aliases & set(participant_classes)
+        if not matched_participants:
+            continue
+        scan_reliability = item.get("scan_reliability")
+        for participant in matched_participants:
+            matched_classes.add(participant)
+            if isinstance(scan_reliability, dict):
+                class_confidence = str(scan_reliability.get("class_confidence") or "").lower()
+                method_confidence = str(scan_reliability.get("method_confidence") or "").lower()
+                if "low" in {class_confidence, method_confidence}:
+                    low_confidence_classes.add(participant)
+                evidence_sources = scan_reliability.get("evidence_sources")
+                if isinstance(evidence_sources, list):
+                    normalized_sources = {str(source) for source in evidence_sources}
+                    if "lombok-inference" in normalized_sources:
+                        lombok_inferred_classes.add(participant)
+                    if "mybatis-xml" in normalized_sources:
+                        mybatis_bound_classes.add(participant)
+                    if "inheritance" in normalized_sources:
+                        inherited_classes.add(participant)
+
+    summary["matched_classes"] = sorted(matched_classes)
+    summary["low_confidence_classes"] = sorted(low_confidence_classes)
+    summary["lombok_inferred_classes"] = sorted(lombok_inferred_classes)
+    summary["mybatis_bound_classes"] = sorted(mybatis_bound_classes)
+    summary["inherited_classes"] = sorted(inherited_classes)
+    return summary
+
+
+def summarize_design_class_resolution(
+    module_map: object,
+    participant_classes: list[str],
+    *,
+    affected_components: set[str],
+) -> dict[str, object]:
+    summary: dict[str, object] = {
+        "resolved_classes": [],
+        "missing_classes": [],
+        "ambiguous_classes": [],
+    }
+    if not isinstance(module_map, dict) or not participant_classes:
+        return summary
+
+    aliases: dict[str, list[dict[str, object]]] = {}
+    for item in module_map.get("classes", []):
+        if not isinstance(item, dict):
+            continue
+        if not matches_affected_components(item, affected_components):
+            continue
+        for key in ("resource_key", "fqn", "simple_name", "class_name", "display_name"):
+            value = item.get(key)
+            if not isinstance(value, str) or not value:
+                continue
+            alias = value.split("::")[-1].split(".")[-1]
+            aliases.setdefault(alias, []).append(item)
+
+    resolved_classes: set[str] = set()
+    missing_classes: set[str] = set()
+    ambiguous_classes: list[dict[str, object]] = []
+    for class_name in participant_classes:
+        candidates = aliases.get(class_name, [])
+        unique_candidates = {
+            str(item.get("resource_key") or item.get("fqn") or item.get("class_name") or ""): item
+            for item in candidates
+            if isinstance(item, dict)
+        }
+        if len(unique_candidates) == 1:
+            resolved_classes.add(class_name)
+            continue
+        if len(unique_candidates) > 1:
+            ambiguous_classes.append(
+                {
+                    "class_name": class_name,
+                    "candidate_resource_keys": sorted(unique_candidates),
+                    "candidate_components": sorted(
+                        {
+                            str(item.get("component_id") or "")
+                            for item in unique_candidates.values()
+                            if str(item.get("component_id") or "")
+                        }
+                    ),
+                }
+            )
+            continue
+        missing_classes.add(class_name)
+
+    summary["resolved_classes"] = sorted(resolved_classes)
+    summary["missing_classes"] = sorted(missing_classes)
+    summary["ambiguous_classes"] = sorted(ambiguous_classes, key=lambda item: str(item.get("class_name") or ""))
+    return summary
+
+
 def validate_attached_project_signature(
     module_map_path: Path,
     *,
@@ -383,6 +507,8 @@ def extract_controller_endpoints_from_module_map(module_map: object) -> list[dic
         if not isinstance(item, dict):
             continue
         class_name = str(item.get("simple_name") or item.get("class_name") or "")
+        component_id = str(item.get("component_id") or "")
+        resource_key = str(item.get("resource_key") or item.get("fqn") or class_name)
         for endpoint in item.get("endpoints", []):
             if not isinstance(endpoint, dict):
                 continue
@@ -397,9 +523,66 @@ def extract_controller_endpoints_from_module_map(module_map: object) -> list[dic
                     "operation_id": str(endpoint.get("operation_id") or endpoint.get("method_name") or ""),
                     "method_name": str(endpoint.get("method_name") or ""),
                     "class_name": class_name,
+                    "component_id": component_id,
+                    "resource_key": resource_key,
                 }
             )
     return endpoints
+
+
+def summarize_controller_endpoint_mapping(
+    openapi_operations: list[dict[str, str]],
+    controller_endpoints: list[dict[str, str]],
+) -> dict[str, object]:
+    summary: dict[str, object] = {
+        "missing": [],
+        "operation_mismatches": [],
+        "ambiguous": [],
+    }
+    endpoints_by_resource: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for endpoint in controller_endpoints:
+        endpoints_by_resource.setdefault((endpoint["path"], endpoint["method"]), []).append(endpoint)
+
+    missing: list[str] = []
+    operation_mismatches: list[str] = []
+    ambiguous: list[dict[str, object]] = []
+    for operation in openapi_operations:
+        path = normalize_endpoint_path(operation.get("path"))
+        method = normalize_http_method(operation.get("method"))
+        operation_id = str(operation.get("operation_id") or "")
+        matches = endpoints_by_resource.get((path, method), [])
+        if not matches:
+            missing.append(f"{method} {path}")
+            continue
+        unique_resources = {
+            str(item.get("resource_key") or item.get("class_name") or "")
+            for item in matches
+            if isinstance(item, dict)
+        }
+        if len(unique_resources) > 1:
+            ambiguous.append(
+                {
+                    "path": path,
+                    "method": method,
+                    "candidate_resource_keys": sorted(unique_resources),
+                    "candidate_components": sorted(
+                        {
+                            str(item.get("component_id") or "")
+                            for item in matches
+                            if isinstance(item, dict) and str(item.get("component_id") or "")
+                        }
+                    ),
+                }
+            )
+        if operation_id:
+            candidate_ids = {str(item.get("operation_id") or item.get("method_name") or "") for item in matches}
+            if operation_id not in candidate_ids:
+                operation_mismatches.append(f"{method} {path}: openapi={operation_id}, controller={', '.join(sorted(candidate_ids))}")
+
+    summary["missing"] = sorted(set(missing))
+    summary["operation_mismatches"] = sorted(set(operation_mismatches))
+    summary["ambiguous"] = sorted(ambiguous, key=lambda item: (str(item.get("method") or ""), str(item.get("path") or "")))
+    return summary
 
 
 def validate_openapi_controller_mapping(
@@ -414,30 +597,25 @@ def validate_openapi_controller_mapping(
     if not controller_endpoints:
         return checks, errors
 
-    endpoints_by_resource: dict[tuple[str, str], list[dict[str, str]]] = {}
-    for endpoint in controller_endpoints:
-        endpoints_by_resource.setdefault((endpoint["path"], endpoint["method"]), []).append(endpoint)
+    mapping_summary = summarize_controller_endpoint_mapping(openapi_operations, controller_endpoints)
+    missing = mapping_summary.get("missing", [])
+    operation_mismatches = mapping_summary.get("operation_mismatches", [])
+    ambiguous = mapping_summary.get("ambiguous", [])
 
-    missing: list[str] = []
-    operation_mismatches: list[str] = []
-    for operation in openapi_operations:
-        path = normalize_endpoint_path(operation.get("path"))
-        method = normalize_http_method(operation.get("method"))
-        operation_id = str(operation.get("operation_id") or "")
-        matches = endpoints_by_resource.get((path, method), [])
-        if not matches:
-            missing.append(f"{method} {path}")
-            continue
-        if operation_id:
-            candidate_ids = {str(item.get("operation_id") or item.get("method_name") or "") for item in matches}
-            if operation_id not in candidate_ids:
-                operation_mismatches.append(f"{method} {path}: openapi={operation_id}, controller={', '.join(sorted(candidate_ids))}")
-
-    if missing:
-        errors.append("OpenAPI 接口未映射到真实 Controller: " + ", ".join(sorted(set(missing))))
-    if operation_mismatches:
-        errors.append("OpenAPI operationId 与 Controller 方法不一致: " + ", ".join(sorted(set(operation_mismatches))))
-    if not missing and not operation_mismatches:
+    if isinstance(missing, list) and missing:
+        errors.append("OpenAPI 接口未映射到真实 Controller: " + ", ".join(sorted(set(str(item) for item in missing))))
+    if isinstance(operation_mismatches, list) and operation_mismatches:
+        errors.append("OpenAPI operationId 与 Controller 方法不一致: " + ", ".join(sorted(set(str(item) for item in operation_mismatches))))
+    if isinstance(ambiguous, list) and ambiguous:
+        errors.append(
+            "OpenAPI 接口映射到多个 Controller 候选，无法稳定归因: "
+            + ", ".join(
+                f"{item.get('method')} {item.get('path')} -> [{', '.join(item.get('candidate_resource_keys', []))}]"
+                for item in ambiguous
+                if isinstance(item, dict)
+            )
+        )
+    if not missing and not operation_mismatches and not ambiguous:
         checks.append("OpenAPI path/method/operationId 均映射到真实 Controller")
     return checks, errors
 
@@ -683,6 +861,60 @@ def schema_table_candidates(entries: dict[str, list[dict[str, object]]], table_n
     return entries.get(table_name) or entries.get(table_name.lower()) or []
 
 
+def summarize_schema_table_resolution(
+    schema_context: object,
+    table_names: list[str],
+    *,
+    affected_components: set[str],
+) -> dict[str, object]:
+    summary: dict[str, object] = {
+        "resolved_tables": [],
+        "missing_tables": [],
+        "ambiguous_tables": [],
+    }
+    if not isinstance(schema_context, dict) or not table_names:
+        return summary
+
+    entries = extract_schema_table_entries(schema_context, affected_components)
+    resolved_tables: set[str] = set()
+    missing_tables: set[str] = set()
+    ambiguous_tables: list[dict[str, object]] = []
+
+    for table_name in table_names:
+        entry = resolve_schema_table_entry(entries, table_name)
+        if entry:
+            resolved_tables.add(table_name)
+            continue
+        candidates = schema_table_candidates(entries, table_name)
+        if len(candidates) > 1:
+            ambiguous_tables.append(
+                {
+                    "table_name": table_name,
+                    "candidate_resource_keys": sorted(
+                        {
+                            str(item.get("resource_key") or item.get("table_name") or "")
+                            for item in candidates
+                            if isinstance(item, dict)
+                        }
+                    ),
+                    "candidate_components": sorted(
+                        {
+                            str(item.get("component_id") or "")
+                            for item in candidates
+                            if isinstance(item, dict) and str(item.get("component_id") or "")
+                        }
+                    ),
+                }
+            )
+            continue
+        missing_tables.add(table_name)
+
+    summary["resolved_tables"] = sorted(resolved_tables)
+    summary["missing_tables"] = sorted(missing_tables)
+    summary["ambiguous_tables"] = sorted(ambiguous_tables, key=lambda item: str(item.get("table_name") or ""))
+    return summary
+
+
 def normalize_schema_type(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
@@ -752,28 +984,52 @@ def extract_jpa_entities_from_module_map(
         jpa_entity = item.get("jpa_entity")
         if not isinstance(jpa_entity, dict):
             continue
+        raw_candidates = jpa_entity.get("candidate_table_names")
+        candidate_table_names = [
+            str(value).lower()
+            for value in raw_candidates
+            if isinstance(value, str) and value
+        ] if isinstance(raw_candidates, list) else []
         table_name = jpa_entity.get("table_name")
-        if not isinstance(table_name, str) or not table_name:
+        if isinstance(table_name, str) and table_name:
+            candidate_table_names.append(table_name.lower())
+        candidate_table_names = sorted(set(candidate_table_names))
+        if not candidate_table_names:
             continue
-        existing = entities_by_table.setdefault(
-            table_name,
-            {
-                "table_name": table_name,
-                "columns": set(),
-                "fields": set(),
-                "entity_classes": set(),
-            },
-        )
-        existing["entity_classes"].add(str(item.get("simple_name") or item.get("class_name") or table_name))
+        existing_entities: list[dict[str, object]] = []
+        for candidate_table_name in candidate_table_names:
+            existing = entities_by_table.setdefault(
+                candidate_table_name,
+                {
+                    "table_name": candidate_table_name,
+                    "columns": set(),
+                    "fields": set(),
+                    "entity_classes": set(),
+                },
+            )
+            existing_entities.append(existing)
+        entity_name = str(item.get("simple_name") or item.get("class_name") or candidate_table_names[0])
+        for existing in existing_entities:
+            existing["entity_classes"].add(entity_name)
         for column in jpa_entity.get("column_mappings", []):
             if not isinstance(column, dict):
                 continue
             field_name = column.get("field_name")
             column_name = column.get("column_name")
-            if isinstance(field_name, str) and field_name:
-                existing["fields"].add(field_name.lower())
+            raw_column_candidates = column.get("candidate_column_names")
+            candidate_column_names = [
+                str(value).lower()
+                for value in raw_column_candidates
+                if isinstance(value, str) and value
+            ] if isinstance(raw_column_candidates, list) else []
             if isinstance(column_name, str) and column_name:
-                existing["columns"].add(column_name.lower())
+                candidate_column_names.append(column_name.lower())
+            candidate_column_names = sorted(set(candidate_column_names))
+            for existing in existing_entities:
+                if isinstance(field_name, str) and field_name:
+                    existing["fields"].add(field_name.lower())
+                for candidate_column_name in candidate_column_names:
+                    existing["columns"].add(candidate_column_name)
     return entities_by_table
 
 
@@ -976,28 +1232,46 @@ def check_brownfield_baseline_truthfulness(
     design_text = design_path.read_text(encoding="utf-8", errors="ignore") if design_path.exists() else ""
 
     module_map = read_json_file(module_map_path, {})
-    module_classes: set[str] = set()
-    if isinstance(module_map, dict):
-        for item in module_map.get("classes", []):
-            if not isinstance(item, dict):
-                continue
-            if not matches_affected_components(item, affected_component_set):
-                continue
-            for key in ("simple_name", "class_name", "display_name", "fqn"):
-                value = item.get(key)
-                if isinstance(value, str) and value:
-                    module_classes.add(value.split(".")[-1])
-
     participants = extract_design_participants(design_text)
+    class_resolution_summary = summarize_design_class_resolution(
+        module_map,
+        participants,
+        affected_components=affected_component_set,
+    )
+    class_reliability_summary = summarize_design_class_reliability(
+        module_map,
+        participants,
+        affected_components=affected_component_set,
+    )
+    brownfield_evidence["module_map"]["class_resolution"] = class_resolution_summary
+    brownfield_evidence["module_map"]["class_reliability"] = class_reliability_summary
     if participants:
-        if not module_classes:
+        resolved_classes = class_resolution_summary.get("resolved_classes", [])
+        missing_classes = class_resolution_summary.get("missing_classes", [])
+        ambiguous_classes = class_resolution_summary.get("ambiguous_classes", [])
+        if not resolved_classes and not ambiguous_classes:
             errors.append(f"Brownfield 缺少可用 module-map 类快照: {module_map_path}")
         else:
-            missing_classes = [name for name in participants if name not in module_classes]
-            if missing_classes:
+            if isinstance(missing_classes, list) and missing_classes:
                 errors.append(f"设计参与类未在 module-map.json 中找到: {', '.join(missing_classes)}")
-            else:
+            if isinstance(ambiguous_classes, list) and ambiguous_classes:
+                errors.append(
+                    "设计参与类存在多个 component/resource_key 候选，无法稳定映射: "
+                    + ", ".join(
+                        f"{item.get('class_name')} -> [{', '.join(item.get('candidate_resource_keys', []))}]"
+                        for item in ambiguous_classes
+                        if isinstance(item, dict)
+                    )
+                )
+            if not missing_classes and not ambiguous_classes:
                 checks.append("Mermaid/classDiagram 参与类均存在于 module-map.json")
+            low_confidence_classes = class_reliability_summary.get("low_confidence_classes", [])
+            if isinstance(low_confidence_classes, list) and low_confidence_classes:
+                message = "设计参与类命中了低可信 scanner 结果: " + ", ".join(str(item) for item in low_confidence_classes)
+                if strict:
+                    errors.append(message)
+                else:
+                    warnings.append(message)
     elif has_new_domain_mermaid_fallback(design_text):
         checks.append("新领域模式下 Mermaid 参与类校验已按 fallback 说明豁免")
     else:
@@ -1031,9 +1305,20 @@ def check_brownfield_baseline_truthfulness(
     data_model_tables = extract_tables_from_data_model(design_pack_dir / "数据模型.md")
     data_model_fields = extract_table_fields_from_data_model(design_pack_dir / "数据模型.md")
     created_tables = extract_created_tables(design_pack_dir / "数据库变更.sql")
+    existing_data_model_tables = [table_name for table_name in data_model_tables if table_name not in created_tables]
+    table_resolution_summary = summarize_schema_table_resolution(
+        schema_context,
+        existing_data_model_tables,
+        affected_components=affected_component_set,
+    )
+    evidence["schema_context"]["table_resolution"] = table_resolution_summary
     jpa_entities_by_table = extract_jpa_entities_from_module_map(module_map, affected_component_set)
     mybatis_mappings_by_table = extract_mybatis_table_mappings_from_module_map(module_map, affected_component_set)
-    ambiguous_schema_tables: dict[str, list[str]] = {}
+    ambiguous_schema_tables: dict[str, dict[str, object]] = {
+        str(item.get("table_name") or ""): dict(item)
+        for item in table_resolution_summary.get("ambiguous_tables", [])
+        if isinstance(item, dict) and str(item.get("table_name") or "")
+    }
     if data_model_tables:
         missing_tables: list[str] = []
         for table_name in data_model_tables:
@@ -1041,16 +1326,7 @@ def check_brownfield_baseline_truthfulness(
                 continue
             table_meta = resolve_schema_table_entry(schema_table_entries, table_name)
             if not table_meta:
-                candidates = schema_table_candidates(schema_table_entries, table_name)
-                if len(candidates) > 1:
-                    ambiguous_schema_tables[table_name] = sorted(
-                        {
-                            str(item.get("resource_key") or item.get("table_name") or "")
-                            for item in candidates
-                            if isinstance(item, dict)
-                        }
-                    )
-                else:
+                if table_name not in ambiguous_schema_tables:
                     missing_tables.append(table_name)
                 continue
             sources = table_meta.get("sources", [])
@@ -1060,8 +1336,13 @@ def check_brownfield_baseline_truthfulness(
             errors.append(
                 "数据模型引用的表在 schema-context 中存在多个 resource_key 候选，无法稳定映射: "
                 + ", ".join(
-                    f"{table_name} -> [{', '.join(keys)}]"
-                    for table_name, keys in sorted(ambiguous_schema_tables.items())
+                    f"{table_name} -> [{', '.join(item.get('candidate_resource_keys', []))}]"
+                    + (
+                        f" components={','.join(item.get('candidate_components', []))}"
+                        if item.get("candidate_components")
+                        else ""
+                    )
+                    for table_name, item in sorted(ambiguous_schema_tables.items())
                 )
             )
         if missing_tables:

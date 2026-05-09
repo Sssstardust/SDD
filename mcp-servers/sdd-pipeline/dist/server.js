@@ -36,6 +36,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.wantsAsync = wantsAsync;
 exports.shouldRunAsyncByDefault = shouldRunAsyncByDefault;
+exports.implementationSummaryFromReport = implementationSummaryFromReport;
 exports.toolDispatch = toolDispatch;
 exports.main = main;
 const fs = __importStar(require("node:fs"));
@@ -483,6 +484,30 @@ function withArtifactStatus(execution, artifact) {
         artifact_status: execution.ok ? "refreshed" : artifact ? "fallback-existing" : "missing",
     };
 }
+function implementationSummaryFromReport(report) {
+    if (!report || typeof report !== "object") {
+        return {
+            implementation_result: null,
+            implementation_framework_evidence: {},
+            implementation_match_highlights: [],
+        };
+    }
+    const frameworkEvidence = report.implementation_method_framework_evidence && typeof report.implementation_method_framework_evidence === "object"
+        ? report.implementation_method_framework_evidence
+        : report.implementation_framework_evidence && typeof report.implementation_framework_evidence === "object"
+            ? report.implementation_framework_evidence
+            : {};
+    const matchHighlights = Array.isArray(report.implementation_method_match_highlights)
+        ? report.implementation_method_match_highlights
+        : Array.isArray(report.implementation_match_highlights)
+            ? report.implementation_match_highlights
+            : [];
+    return {
+        implementation_result: typeof report.implementation_result === "string" ? report.implementation_result : null,
+        implementation_framework_evidence: frameworkEvidence,
+        implementation_match_highlights: matchHighlights,
+    };
+}
 function latestArtifactFile(fileName) {
     if (!fs.existsSync(PROJECT_ARTIFACTS_DIR)) {
         return null;
@@ -540,6 +565,7 @@ function toolDispatch(name, argumentsObject) {
             project_next: projectNext,
             project_console_path: projectConsolePath,
             project_console: projectConsole,
+            project_console_features: Array.isArray(projectConsole?.features) ? projectConsole.features : [],
         };
     }
     if (name === "project_next") {
@@ -560,6 +586,13 @@ function toolDispatch(name, argumentsObject) {
             ...withArtifactStatus(execution, flowStatus),
             flow_status_path: flowStatusPath,
             flow_status: flowStatus,
+            implementation_result: typeof flowStatus?.implementation_result === "string" ? flowStatus.implementation_result : null,
+            implementation_framework_evidence: flowStatus?.implementation_framework_evidence && typeof flowStatus.implementation_framework_evidence === "object"
+                ? flowStatus.implementation_framework_evidence
+                : {},
+            implementation_match_highlights: Array.isArray(flowStatus?.implementation_match_highlights)
+                ? flowStatus.implementation_match_highlights
+                : [],
         };
     }
     if (name === "validate_reports") {
@@ -620,6 +653,7 @@ function toolDispatch(name, argumentsObject) {
             ...withArtifactStatus(execution, verifyReport),
             verify_report_path: verifyReportPath,
             verify_report: verifyReport,
+            ...implementationSummaryFromReport(verifyReport),
         };
     }
     if (name === "release_gate") {
@@ -639,6 +673,7 @@ function toolDispatch(name, argumentsObject) {
             ...withArtifactStatus(execution, releaseGateReport),
             release_gate_report_path: reportPath,
             release_gate_report: releaseGateReport,
+            ...implementationSummaryFromReport(releaseGateReport),
         };
     }
     if (name === "onboard_project") {

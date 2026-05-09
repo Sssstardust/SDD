@@ -38,8 +38,20 @@ export type ProjectExplorerClass = {
   dependencies: string[];
   jpa_entity?: ProjectExplorerJpaEntity;
   mybatis_mapper?: ProjectExplorerMyBatisMapper;
+  scan_reliability?: ProjectExplorerClassReliability;
   source_files: string[];
   display_name?: string;
+};
+
+export type ProjectExplorerClassReliability = {
+  class_confidence: string;
+  method_confidence: string;
+  evidence_sources: string[];
+  inferred_methods: number;
+  inherited_methods: number;
+  mybatis_bound_methods: number;
+  jpa_entity: boolean;
+  warnings: string[];
 };
 
 export type ProjectExplorerMethod = {
@@ -51,6 +63,19 @@ export type ProjectExplorerMethod = {
   inferred?: boolean;
   inference_source?: string | null;
   confidence?: string | null;
+  owner_class?: string | null;
+  inherited_from?: string | null;
+  mybatis_statement?: {
+    id: string;
+    kind: string;
+    parameter_type: string | null;
+    result_type: string | null;
+    result_map: string | null;
+    result_map_type?: string | null;
+    mapped_columns?: string[];
+    mapped_properties?: string[];
+    tables: string[];
+  } | null;
 };
 
 export type ProjectExplorerField = {
@@ -67,12 +92,15 @@ export type ProjectExplorerEndpoint = {
 };
 
 export type ProjectExplorerJpaEntity = {
+  entity_kind?: "entity" | "mapped-superclass";
   table_name: string | null;
+  candidate_table_names?: string[];
   id_fields: string[];
   column_mappings: Array<{
     field_name: string;
     field_type: string | null;
     column_name: string | null;
+    candidate_column_names?: string[];
     annotations: string[];
   }>;
   relation_fields: string[];
@@ -417,7 +445,13 @@ function buildMethodDetail(
   params: string,
   returnType: string | null,
   annotationText: string,
-  options: { inferred?: boolean; inferenceSource?: string | null; confidence?: string | null } = {},
+  options: {
+    inferred?: boolean;
+    inferenceSource?: string | null;
+    confidence?: string | null;
+    ownerClass?: string | null;
+    inheritedFrom?: string | null;
+  } = {},
 ): ProjectExplorerMethod {
   const annotations = Array.from(annotationText.matchAll(/@([A-Za-z_][A-Za-z0-9_.]*)/g)).map((match) => match[1].split(".").pop() || match[1]);
   return {
@@ -429,6 +463,9 @@ function buildMethodDetail(
     inferred: Boolean(options.inferred),
     inference_source: options.inferenceSource ?? null,
     confidence: options.confidence ?? null,
+    owner_class: options.ownerClass ?? null,
+    inherited_from: options.inheritedFrom ?? null,
+    mybatis_statement: null,
   };
 }
 
@@ -476,6 +513,35 @@ function capitalizeJavaIdentifier(value: string): string {
   return `${value[0].toUpperCase()}${value.slice(1)}`;
 }
 
+function toSnakeCase(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .replace(/[-\s]+/g, "_")
+    .toLowerCase();
+}
+
+function uniqueNormalizedNames(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const rawValue of values) {
+    const value = String(rawValue || "").trim();
+    if (!value) {
+      continue;
+    }
+    if (!seen.has(value)) {
+      seen.add(value);
+      result.push(value);
+    }
+    const lower = value.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      result.push(lower);
+    }
+  }
+  return result;
+}
+
 function lombokPropertyName(fieldName: string, fieldType: string | null): string {
   if (isPrimitiveBooleanType(fieldType) && /^is[A-Z]/.test(fieldName)) {
     return fieldName.slice(2);
@@ -505,6 +571,7 @@ function inferLombokSetter(fieldName: string, fieldType: string | null): { metho
 }
 
 function inferLombokMethods(
+  className: string,
   classAnnotations: string[],
   fieldMetadata: Array<{
     field_name: string;
@@ -541,6 +608,7 @@ function inferLombokMethods(
           inferred: true,
           inferenceSource: "lombok-getter",
           confidence: "low",
+          ownerClass: className,
         },
       );
       if (!existingSignatures.has(detail.signature)) {
@@ -559,6 +627,7 @@ function inferLombokMethods(
           inferred: true,
           inferenceSource: "lombok-setter",
           confidence: "low",
+          ownerClass: className,
         },
       );
       if (!existingSignatures.has(detail.signature)) {
@@ -571,12 +640,25 @@ function inferLombokMethods(
 }
 
 function buildJpaMetadata(
+  className: string,
   classAnnotationText: string,
   fieldMetadata: Array<{ field_name: string; field_type: string | null; annotations: string[]; raw_annotation_text: string }>,
 ): ProjectExplorerJpaEntity | undefined {
-  if (!/@Entity\b/.test(classAnnotationText) && !/@MappedSuperclass\b/.test(classAnnotationText)) {
+  const hasEntity = /@Entity\b/.test(classAnnotationText);
+  const hasMappedSuperclass = /@MappedSuperclass\b/.test(classAnnotationText);
+  if (!hasEntity && !hasMappedSuperclass) {
     return undefined;
   }
+  const explicitTableName = parseFieldAnnotationName(classAnnotationText, "Table");
+  const entityName = parseFieldAnnotationName(classAnnotationText, "Entity");
+  const candidateTableNames = hasEntity
+    ? uniqueNormalizedNames([
+        explicitTableName,
+        entityName,
+        className,
+        toSnakeCase(className),
+      ])
+    : [];
   const idFields = fieldMetadata
     .filter((item) => item.annotations.includes("Id") || item.annotations.includes("EmbeddedId"))
     .map((item) => item.field_name)
@@ -586,15 +668,27 @@ function buildJpaMetadata(
     .map((item) => item.field_name)
     .sort();
   return {
-    table_name: parseFieldAnnotationName(classAnnotationText, "Table"),
+    entity_kind: hasEntity ? "entity" : "mapped-superclass",
+    table_name: hasEntity ? (explicitTableName || entityName || className) : null,
+    candidate_table_names: candidateTableNames,
     id_fields: idFields,
     relation_fields: relationFields,
-    column_mappings: fieldMetadata.map((item) => ({
-      field_name: item.field_name,
-      field_type: item.field_type,
-      column_name: parseFieldAnnotationName(item.raw_annotation_text, "Column"),
-      annotations: item.annotations,
-    })),
+    column_mappings: fieldMetadata.map((item) => {
+      const columnName = parseFieldAnnotationName(item.raw_annotation_text, "Column");
+      const joinColumnName = parseFieldAnnotationName(item.raw_annotation_text, "JoinColumn");
+      return {
+        field_name: item.field_name,
+        field_type: item.field_type,
+        column_name: columnName || joinColumnName,
+        candidate_column_names: uniqueNormalizedNames([
+          columnName,
+          joinColumnName,
+          item.field_name,
+          toSnakeCase(item.field_name),
+        ]),
+        annotations: item.annotations,
+      };
+    }),
   };
 }
 
@@ -671,7 +765,12 @@ function collectClassMembers(
           const annotationText = pendingAnnotations.join("\n");
           const signature = normalizeMethodSignature(methodName, publicMethodMatch.params);
           declaredMethods.add(signature);
-          methodDetails.set(signature, buildMethodDetail(methodName, publicMethodMatch.params, publicMethodMatch.returnType, annotationText));
+          methodDetails.set(
+            signature,
+            buildMethodDetail(methodName, publicMethodMatch.params, publicMethodMatch.returnType, annotationText, {
+              ownerClass: className,
+            }),
+          );
           const endpoint = extractEndpointFromAnnotations(annotationText, methodName, classBasePath);
           if (endpoint) {
             endpoints.set(`${endpoint.method} ${endpoint.path} ${endpoint.operation_id}`, endpoint);
@@ -690,7 +789,12 @@ function collectClassMembers(
             const annotationText = pendingAnnotations.join("\n");
             const signature = normalizeMethodSignature(methodName, interfaceMethodMatch.params);
             declaredMethods.add(signature);
-            methodDetails.set(signature, buildMethodDetail(methodName, interfaceMethodMatch.params, interfaceMethodMatch.returnType, annotationText));
+            methodDetails.set(
+              signature,
+              buildMethodDetail(methodName, interfaceMethodMatch.params, interfaceMethodMatch.returnType, annotationText, {
+                ownerClass: className,
+              }),
+            );
             const endpoint = extractEndpointFromAnnotations(annotationText, methodName, classBasePath);
             if (endpoint) {
               endpoints.set(`${endpoint.method} ${endpoint.path} ${endpoint.operation_id}`, endpoint);
@@ -710,7 +814,8 @@ function collectClassMembers(
     depth += countBraceDelta(line);
   }
 
-  const inferredMethodDetails = classType === "class" ? inferLombokMethods(classAnnotations, Array.from(fieldMetadata.values()), Array.from(methodDetails.values())) : [];
+  const inferredMethodDetails =
+    classType === "class" ? inferLombokMethods(className, classAnnotations, Array.from(fieldMetadata.values()), Array.from(methodDetails.values())) : [];
   for (const detail of inferredMethodDetails) {
     declaredMethods.add(detail.signature);
     methodDetails.set(detail.signature, detail);
@@ -842,6 +947,237 @@ type MyBatisBinding = {
   }>;
 };
 
+function cloneMethodDetail(detail: ProjectExplorerMethod): ProjectExplorerMethod {
+  return {
+    ...detail,
+    annotations: [...(detail.annotations || [])],
+    parameter_types: [...(detail.parameter_types || [])],
+    mybatis_statement: detail.mybatis_statement
+      ? {
+          ...detail.mybatis_statement,
+          mapped_columns: [...(detail.mybatis_statement.mapped_columns || [])],
+          mapped_properties: [...(detail.mybatis_statement.mapped_properties || [])],
+          tables: [...(detail.mybatis_statement.tables || [])],
+        }
+      : null,
+  };
+}
+
+function methodConfidenceRank(value: string | null | undefined): number {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "high") {
+    return 3;
+  }
+  if (normalized === "medium") {
+    return 2;
+  }
+  if (normalized === "low") {
+    return 1;
+  }
+  return 2;
+}
+
+function rankToConfidence(rank: number): string {
+  if (rank >= 3) {
+    return "high";
+  }
+  if (rank <= 1) {
+    return "low";
+  }
+  return "medium";
+}
+
+function buildClassReliability(item: ProjectExplorerClass): ProjectExplorerClassReliability {
+  const methodDetails = Array.isArray(item.method_details) ? item.method_details : [];
+  const warnings: string[] = [];
+  const evidenceSources = new Set<string>([String(item.source_kind || "").startsWith("java") ? "lexical-java" : "design-snapshot"]);
+  let inferredMethods = 0;
+  let inheritedMethods = 0;
+  let mybatisBoundMethods = 0;
+  let methodConfidenceRankValue = 2;
+
+  if (item.jpa_entity) {
+    evidenceSources.add("jpa-annotation");
+  }
+  if (item.mybatis_mapper) {
+    evidenceSources.add("mybatis-xml");
+  }
+
+  for (const detail of methodDetails) {
+    const confidenceRankValue = methodConfidenceRank(detail.confidence);
+    methodConfidenceRankValue = Math.min(methodConfidenceRankValue, confidenceRankValue);
+    if (detail.inferred) {
+      inferredMethods += 1;
+    }
+    if (detail.inherited_from) {
+      inheritedMethods += 1;
+      evidenceSources.add("inheritance");
+    }
+    if (detail.inference_source === "lombok-getter" || detail.inference_source === "lombok-setter") {
+      evidenceSources.add("lombok-inference");
+      warnings.push(`method ${detail.signature} relies on ${detail.inference_source}`);
+    }
+    if (detail.mybatis_statement) {
+      mybatisBoundMethods += 1;
+      evidenceSources.add("mybatis-xml");
+    }
+  }
+
+  if (mybatisBoundMethods > 0) {
+    methodConfidenceRankValue = Math.max(methodConfidenceRankValue, 2);
+  }
+  if (methodDetails.length === 0 && item.type === "interface" && item.mybatis_mapper) {
+    methodConfidenceRankValue = Math.min(methodConfidenceRankValue, 2);
+  }
+
+  let classConfidence = "medium";
+  if (String(item.source_kind || "") === "design") {
+    classConfidence = "low";
+  } else if (warnings.length > 0 || inferredMethods > 0) {
+    classConfidence = "low";
+  } else if (item.jpa_entity || item.mybatis_mapper || inheritedMethods > 0) {
+    classConfidence = "medium";
+  }
+
+  return {
+    class_confidence: classConfidence,
+    method_confidence: rankToConfidence(methodConfidenceRankValue),
+    evidence_sources: Array.from(evidenceSources).sort(),
+    inferred_methods: inferredMethods,
+    inherited_methods: inheritedMethods,
+    mybatis_bound_methods: mybatisBoundMethods,
+    jpa_entity: Boolean(item.jpa_entity),
+    warnings: Array.from(new Set(warnings)).sort(),
+  };
+}
+
+function buildMethodDetailFromSignature(
+  signature: string,
+  ownerClass: string | null,
+  inheritedFrom: string | null = null,
+): ProjectExplorerMethod {
+  const match = /^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/.exec(signature.trim());
+  const methodName = match ? match[1] : signature;
+  const params = match ? match[2] : "";
+  return buildMethodDetail(methodName, params, null, "", {
+    inferred: Boolean(inheritedFrom),
+    inferenceSource: inheritedFrom ? "inheritance" : null,
+    confidence: inheritedFrom ? "medium" : null,
+    ownerClass,
+    inheritedFrom,
+  });
+}
+
+function simpleJavaTypeName(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = normalizeJavaType(value).replace(/\.\.\./g, "[]");
+  const simple = normalized.split(".").pop() || normalized;
+  return simple.trim() || null;
+}
+
+function methodTypeIncludes(expectedType: string | null, actualType: string | null): boolean {
+  const expectedSimple = simpleJavaTypeName(expectedType);
+  const actualNormalized = normalizeJavaType(actualType || "");
+  if (!expectedSimple || !actualNormalized) {
+    return true;
+  }
+  const tokenPattern = new RegExp(`(^|[^A-Za-z0-9_])${expectedSimple}([^A-Za-z0-9_]|$)`);
+  return tokenPattern.test(actualNormalized);
+}
+
+function resolveMyBatisMethodCandidate(
+  candidates: ProjectExplorerMethod[],
+  statement: MyBatisBinding["statements"][number],
+  effectiveResultType: string | null,
+): ProjectExplorerMethod | null {
+  if (candidates.length <= 1) {
+    return candidates[0] || null;
+  }
+  const scored = candidates.map((detail) => {
+    let score = 0;
+    if (statement.parameter_type) {
+      if (detail.parameter_types.length === 1 && methodTypeIncludes(statement.parameter_type, detail.parameter_types[0])) {
+        score += 4;
+      } else if (detail.parameter_types.some((parameterType) => methodTypeIncludes(statement.parameter_type, parameterType))) {
+        score += 2;
+      }
+    } else if (detail.parameter_types.length === 0) {
+      score += 1;
+    }
+    if (effectiveResultType && detail.return_type && methodTypeIncludes(effectiveResultType, detail.return_type)) {
+      score += 3;
+    }
+    return { detail, score };
+  });
+  const bestScore = Math.max(...scored.map((item) => item.score));
+  if (bestScore <= 0) {
+    return null;
+  }
+  const winners = scored.filter((item) => item.score === bestScore);
+  return winners.length === 1 ? winners[0].detail : null;
+}
+
+function attachMyBatisBindings(target: ProjectExplorerClass, binding: MyBatisBinding, scanWarnings: string[]): void {
+  const methodDetails = new Map<string, ProjectExplorerMethod>();
+  for (const detail of target.method_details || []) {
+    methodDetails.set(detail.signature, cloneMethodDetail(detail));
+  }
+  const resultMapsById = new Map(binding.result_maps.map((item) => [item.id, item]));
+  const methodsByName = new Map<string, ProjectExplorerMethod[]>();
+  for (const detail of methodDetails.values()) {
+    methodsByName.set(detail.name, [...(methodsByName.get(detail.name) || []), detail]);
+  }
+  for (const statement of binding.statements) {
+    let candidates = methodsByName.get(statement.id) || [];
+    const resultMap = statement.result_map ? resultMapsById.get(statement.result_map) || null : null;
+    const effectiveResultType = statement.result_type || resultMap?.type || null;
+    if (statement.result_map && !resultMap) {
+      scanWarnings.push(`${binding.xml_file} MyBatis statement ${binding.namespace}.${statement.id} 引用了未解析的 resultMap=${statement.result_map}`);
+    }
+    if (candidates.length > 1) {
+      const resolvedCandidate = resolveMyBatisMethodCandidate(candidates, statement, effectiveResultType);
+      if (resolvedCandidate) {
+        candidates = [resolvedCandidate];
+      }
+    }
+    if (candidates.length === 0) {
+      scanWarnings.push(`${binding.xml_file} MyBatis statement ${binding.namespace}.${statement.id} 鏈尮閰嶅埌 Java mapper 鏂规硶`);
+      continue;
+    }
+    if (candidates.length > 1) {
+      scanWarnings.push(`${binding.xml_file} MyBatis statement ${binding.namespace}.${statement.id} 鍖归厤鍒板涓?Java mapper 鏂规硶`);
+      continue;
+    }
+    const detail = candidates[0];
+    detail.mybatis_statement = {
+      id: statement.id,
+      kind: statement.kind,
+      parameter_type: statement.parameter_type,
+      result_type: statement.result_type,
+      result_map: statement.result_map,
+      result_map_type: resultMap?.type || null,
+      mapped_columns: [...(resultMap?.mapped_columns || [])],
+      mapped_properties: [...(resultMap?.mapped_properties || [])],
+      tables: [...statement.tables],
+    };
+    detail.inference_source = detail.inference_source || "mybatis-xml-binding";
+    detail.confidence = detail.confidence || "medium";
+    if (statement.parameter_type && detail.parameter_types.length === 1 && !methodTypeIncludes(statement.parameter_type, detail.parameter_types[0])) {
+      scanWarnings.push(
+        `${binding.xml_file} MyBatis statement ${binding.namespace}.${statement.id} parameterType=${statement.parameter_type} 涓?Java 鏂规硶鍙傛暟涓嶄竴鑷? ${detail.signature}`,
+      );
+    }
+    if (effectiveResultType && detail.return_type && !methodTypeIncludes(effectiveResultType, detail.return_type)) {
+      scanWarnings.push(
+        `${binding.xml_file} MyBatis statement ${binding.namespace}.${statement.id} resultType=${statement.result_type} 涓?Java 鏂规硶杩斿洖鍊间笉涓€鑷? ${detail.signature}`,
+      );
+    }
+  }
+  target.method_details = Array.from(methodDetails.values()).sort((a, b) => a.signature.localeCompare(b.signature));
+}
+
 export function parseJavaFile(filePath: string, sourceKind: string, modulePrefixMap: Record<string, string>): JavaParseResult {
   const text = fs.readFileSync(filePath, "utf8");
   const packageMatch = PACKAGE_PATTERN.exec(text);
@@ -884,6 +1220,7 @@ export function parseJavaFile(filePath: string, sourceKind: string, modulePrefix
     const classBasePath = extractClassBasePath(classAnnotationText);
     const fqn = packageName ? `${packageName}.${className}` : null;
     const members = collectClassMembers(body, className, classType, classBasePath, classAnnotations);
+    const ownerClass = fqn || className;
     classes.push({
       class_name: className,
       simple_name: className,
@@ -894,7 +1231,10 @@ export function parseJavaFile(filePath: string, sourceKind: string, modulePrefix
       source_file: snapshotPath,
       source_kind: sourceKind,
       public_methods: members.declaredMethods,
-      method_details: members.methodDetails,
+      method_details: members.methodDetails.map((detail) => ({
+        ...detail,
+        owner_class: ownerClass,
+      })),
       declared_public_methods: members.declaredMethods,
       inherited_public_methods: [],
       fields: members.fields,
@@ -903,7 +1243,7 @@ export function parseJavaFile(filePath: string, sourceKind: string, modulePrefix
       extends: inheritance.extendsList,
       implements: inheritance.implementsList,
       endpoints: members.endpoints,
-      jpa_entity: buildJpaMetadata(classAnnotationText, members.fieldMetadata),
+      jpa_entity: buildJpaMetadata(className, classAnnotationText, members.fieldMetadata),
       dependencies: Array.from(new Set([...imports, ...inheritance.extendsList, ...inheritance.implementsList])).sort(),
       source_files: [snapshotPath],
     });
@@ -1091,48 +1431,207 @@ function enrichInheritedMethods(classes: ProjectExplorerClass[]): ProjectExplore
     bySimpleName.set(key, [...(bySimpleName.get(key) || []), item]);
   }
 
-  const memo = new Map<string, string[]>();
+  const memo = new Map<string, { signatures: string[]; details: ProjectExplorerMethod[] }>();
   const visiting = new Set<string>();
 
   function keyFor(item: ProjectExplorerClass): string {
     return String(item.fqn || `${item.source_kind}::${item.source_file}::${item.simple_name}`);
   }
 
-  function collect(item: ProjectExplorerClass): string[] {
+  function collect(item: ProjectExplorerClass): { signatures: string[]; details: ProjectExplorerMethod[] } {
     const itemKey = keyFor(item);
     if (memo.has(itemKey)) {
-      return memo.get(itemKey) || [];
+      return memo.get(itemKey) || { signatures: [], details: [] };
     }
     if (visiting.has(itemKey)) {
-      return [];
+      return { signatures: [], details: [] };
     }
     visiting.add(itemKey);
     const inherited = new Set<string>();
+    const inheritedDetails = new Map<string, ProjectExplorerMethod>();
     for (const reference of [...(item.extends || []), ...(item.implements || [])]) {
       const parent = resolveParentReference(reference, byFqn, bySimpleName);
       if (!parent || parent === item) {
         continue;
       }
+      const parentOwner = String(parent.fqn || parent.simple_name || parent.class_name || "");
       const parentDeclared = parent.declared_public_methods || parent.public_methods || [];
       for (const methodName of parentDeclared) {
         inherited.add(methodName);
+        const declaredDetail =
+          (parent.method_details || []).find((detail) => detail.signature === methodName) ||
+          buildMethodDetailFromSignature(methodName, parentOwner || null);
+        inheritedDetails.set(
+          methodName,
+          {
+            ...cloneMethodDetail(declaredDetail),
+            inferred: true,
+            inference_source: "inheritance",
+            confidence: declaredDetail.confidence || "medium",
+            owner_class: declaredDetail.owner_class || parentOwner || null,
+            inherited_from: parentOwner || null,
+          },
+        );
       }
-      for (const methodName of collect(parent)) {
+      const parentInherited = collect(parent);
+      for (const methodName of parentInherited.signatures) {
         inherited.add(methodName);
+      }
+      for (const detail of parentInherited.details) {
+        inheritedDetails.set(
+          detail.signature,
+          {
+            ...cloneMethodDetail(detail),
+            inferred: true,
+            inference_source: "inheritance",
+            confidence: detail.confidence || "medium",
+            inherited_from: detail.inherited_from || parentOwner || null,
+          },
+        );
       }
     }
     visiting.delete(itemKey);
-    const result = Array.from(inherited).sort();
+    const result = {
+      signatures: Array.from(inherited).sort(),
+      details: Array.from(inheritedDetails.values()).sort((a, b) => a.signature.localeCompare(b.signature)),
+    };
     memo.set(itemKey, result);
     return result;
   }
 
   for (const item of classes) {
     const declared = Array.from(new Set(item.declared_public_methods || item.public_methods || [])).sort();
-    const inherited = collect(item).filter((methodName) => !declared.includes(methodName));
+    const inheritedResult = collect(item);
+    const inherited = inheritedResult.signatures.filter((methodName) => !declared.includes(methodName));
     item.declared_public_methods = declared;
     item.inherited_public_methods = inherited;
     item.public_methods = Array.from(new Set([...declared, ...inherited])).sort();
+    const methodDetails = new Map<string, ProjectExplorerMethod>();
+    for (const detail of item.method_details || []) {
+      methodDetails.set(detail.signature, cloneMethodDetail(detail));
+    }
+    for (const detail of inheritedResult.details) {
+      if (!methodDetails.has(detail.signature)) {
+        methodDetails.set(detail.signature, cloneMethodDetail(detail));
+      }
+    }
+    item.method_details = Array.from(methodDetails.values()).sort((a, b) => a.signature.localeCompare(b.signature));
+  }
+  return classes;
+}
+
+function enrichJpaInheritance(classes: ProjectExplorerClass[]): ProjectExplorerClass[] {
+  const byFqn = new Map<string, ProjectExplorerClass>();
+  const bySimpleName = new Map<string, ProjectExplorerClass[]>();
+  for (const item of classes) {
+    if (item.fqn) {
+      byFqn.set(item.fqn, item);
+    }
+    const key = String(item.simple_name || "");
+    bySimpleName.set(key, [...(bySimpleName.get(key) || []), item]);
+  }
+
+  const memo = new Map<string, ProjectExplorerJpaEntity | null>();
+  const visiting = new Set<string>();
+
+  function keyFor(item: ProjectExplorerClass): string {
+    return String(item.fqn || `${item.source_kind}::${item.source_file}::${item.simple_name}`);
+  }
+
+  function collect(item: ProjectExplorerClass): ProjectExplorerJpaEntity | null {
+    const itemKey = keyFor(item);
+    if (memo.has(itemKey)) {
+      return memo.get(itemKey) || null;
+    }
+    if (visiting.has(itemKey)) {
+      return item.jpa_entity || null;
+    }
+    visiting.add(itemKey);
+    const current = item.jpa_entity
+      ? {
+          ...item.jpa_entity,
+          id_fields: [...(item.jpa_entity.id_fields || [])],
+          relation_fields: [...(item.jpa_entity.relation_fields || [])],
+          candidate_table_names: [...(item.jpa_entity.candidate_table_names || [])],
+          column_mappings: (item.jpa_entity.column_mappings || []).map((mapping) => ({
+            field_name: mapping.field_name,
+            field_type: mapping.field_type ?? null,
+            column_name: mapping.column_name,
+            candidate_column_names: [...(mapping.candidate_column_names || [])],
+            annotations: [...mapping.annotations],
+          })),
+        }
+      : null;
+    const merged = current
+      ? current
+      : {
+          entity_kind: "mapped-superclass" as const,
+          table_name: null,
+          candidate_table_names: [],
+          id_fields: [],
+          relation_fields: [],
+          column_mappings: [],
+        };
+    const columnMappings = new Map<
+      string,
+      {
+        field_name: string;
+        field_type: string | null;
+        column_name: string | null;
+        candidate_column_names: string[];
+        annotations: string[];
+      }
+    >();
+    for (const mapping of merged.column_mappings) {
+      columnMappings.set(mapping.field_name, mapping);
+    }
+    for (const reference of [...(item.extends || []), ...(item.implements || [])]) {
+      const parent = resolveParentReference(reference, byFqn, bySimpleName);
+      if (!parent || parent === item || !parent.jpa_entity) {
+        continue;
+      }
+      const parentJpa = collect(parent);
+      if (!parentJpa) {
+        continue;
+      }
+      for (const fieldName of parentJpa.id_fields || []) {
+        if (!merged.id_fields.includes(fieldName)) {
+          merged.id_fields.push(fieldName);
+        }
+      }
+      for (const fieldName of parentJpa.relation_fields || []) {
+        if (!merged.relation_fields.includes(fieldName)) {
+          merged.relation_fields.push(fieldName);
+        }
+      }
+      for (const mapping of parentJpa.column_mappings || []) {
+        if (!columnMappings.has(mapping.field_name)) {
+          columnMappings.set(mapping.field_name, {
+            field_name: mapping.field_name,
+            field_type: mapping.field_type ?? null,
+            column_name: mapping.column_name,
+            candidate_column_names: [...(mapping.candidate_column_names || [])],
+            annotations: [...mapping.annotations],
+          });
+        }
+      }
+    }
+    merged.id_fields = Array.from(new Set(merged.id_fields)).sort();
+    merged.relation_fields = Array.from(new Set(merged.relation_fields)).sort();
+    merged.column_mappings = Array.from(columnMappings.values()).sort((a, b) => a.field_name.localeCompare(b.field_name));
+    visiting.delete(itemKey);
+    memo.set(itemKey, current ? merged : null);
+    return current ? merged : null;
+  }
+
+  for (const item of classes) {
+    if (!item.jpa_entity) {
+      continue;
+    }
+    const enriched = collect(item);
+    if (enriched) {
+      item.jpa_entity = enriched;
+    }
   }
   return classes;
 }
@@ -1172,12 +1671,15 @@ function mergeClasses(items: ProjectExplorerClass[], duplicateStrategy: string):
         jpa_entity: item.jpa_entity
           ? {
               ...item.jpa_entity,
+              entity_kind: item.jpa_entity.entity_kind || "entity",
               id_fields: [...item.jpa_entity.id_fields],
               relation_fields: [...item.jpa_entity.relation_fields],
+              candidate_table_names: [...(item.jpa_entity.candidate_table_names || [])],
               column_mappings: item.jpa_entity.column_mappings.map((mapping) => ({
                 field_name: mapping.field_name,
                 field_type: mapping.field_type ?? null,
                 column_name: mapping.column_name,
+                candidate_column_names: [...(mapping.candidate_column_names || [])],
                 annotations: [...mapping.annotations],
               })),
             }
@@ -1223,12 +1725,16 @@ function mergeClasses(items: ProjectExplorerClass[], duplicateStrategy: string):
     ).sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`));
     existing.dependencies = Array.from(new Set([...(existing.dependencies || []), ...(item.dependencies || [])])).sort();
     if (item.jpa_entity) {
-      const columnMappings = new Map<string, { field_name: string; field_type: string | null; column_name: string | null; annotations: string[] }>();
+      const columnMappings = new Map<string, { field_name: string; field_type: string | null; column_name: string | null; candidate_column_names?: string[]; annotations: string[] }>();
       for (const mapping of [...(existing.jpa_entity?.column_mappings || []), ...item.jpa_entity.column_mappings]) {
         columnMappings.set(mapping.field_name, mapping);
       }
       existing.jpa_entity = {
+        entity_kind: item.jpa_entity.entity_kind || existing.jpa_entity?.entity_kind || "entity",
         table_name: item.jpa_entity.table_name || existing.jpa_entity?.table_name || null,
+        candidate_table_names: Array.from(
+          new Set([...(existing.jpa_entity?.candidate_table_names || []), ...(item.jpa_entity.candidate_table_names || [])]),
+        ).sort(),
         id_fields: Array.from(new Set([...(existing.jpa_entity?.id_fields || []), ...item.jpa_entity.id_fields])).sort(),
         relation_fields: Array.from(new Set([...(existing.jpa_entity?.relation_fields || []), ...item.jpa_entity.relation_fields])).sort(),
         column_mappings: Array.from(columnMappings.values()).sort((a, b) => a.field_name.localeCompare(b.field_name)),
@@ -1287,7 +1793,11 @@ function mergeClasses(items: ProjectExplorerClass[], duplicateStrategy: string):
     }
   }
 
-  return enrichInheritedMethods(result);
+  const enriched = enrichJpaInheritance(enrichInheritedMethods(result));
+  for (const item of enriched) {
+    item.scan_reliability = buildClassReliability(item);
+  }
+  return enriched;
 }
 
 export function buildSnapshot(config: ProjectExplorerConfig, options: { forceRefresh?: boolean } = {}): [SnapshotPayload, boolean] {
@@ -1393,6 +1903,7 @@ export function buildSnapshot(config: ProjectExplorerConfig, options: { forceRef
           result_maps: binding.result_maps,
           statements: binding.statements.sort((a, b) => a.id.localeCompare(b.id)),
         };
+        attachMyBatisBindings(target, binding, scanWarnings);
         target.dependencies = Array.from(
           new Set([
             ...(target.dependencies || []),

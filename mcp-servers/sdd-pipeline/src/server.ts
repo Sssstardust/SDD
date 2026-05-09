@@ -476,6 +476,32 @@ function withArtifactStatus(execution: JsonRecord, artifact: unknown): JsonRecor
   };
 }
 
+export function implementationSummaryFromReport(report: any): JsonRecord {
+  if (!report || typeof report !== "object") {
+    return {
+      implementation_result: null,
+      implementation_framework_evidence: {},
+      implementation_match_highlights: [],
+    };
+  }
+  const frameworkEvidence =
+    report.implementation_method_framework_evidence && typeof report.implementation_method_framework_evidence === "object"
+      ? report.implementation_method_framework_evidence
+      : report.implementation_framework_evidence && typeof report.implementation_framework_evidence === "object"
+        ? report.implementation_framework_evidence
+        : {};
+  const matchHighlights = Array.isArray(report.implementation_method_match_highlights)
+    ? report.implementation_method_match_highlights
+    : Array.isArray(report.implementation_match_highlights)
+      ? report.implementation_match_highlights
+      : [];
+  return {
+    implementation_result: typeof report.implementation_result === "string" ? report.implementation_result : null,
+    implementation_framework_evidence: frameworkEvidence,
+    implementation_match_highlights: matchHighlights,
+  };
+}
+
 function latestArtifactFile(fileName: string): string | null {
   if (!fs.existsSync(PROJECT_ARTIFACTS_DIR)) {
     return null;
@@ -537,6 +563,7 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       project_next: projectNext,
       project_console_path: projectConsolePath,
       project_console: projectConsole,
+      project_console_features: Array.isArray(projectConsole?.features) ? projectConsole.features : [],
     };
   }
 
@@ -559,6 +586,14 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       ...withArtifactStatus(execution, flowStatus),
       flow_status_path: flowStatusPath,
       flow_status: flowStatus,
+      implementation_result: typeof flowStatus?.implementation_result === "string" ? flowStatus.implementation_result : null,
+      implementation_framework_evidence:
+        flowStatus?.implementation_framework_evidence && typeof flowStatus.implementation_framework_evidence === "object"
+          ? flowStatus.implementation_framework_evidence
+          : {},
+      implementation_match_highlights: Array.isArray(flowStatus?.implementation_match_highlights)
+        ? flowStatus.implementation_match_highlights
+        : [],
     };
   }
 
@@ -624,6 +659,7 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       ...withArtifactStatus(execution, verifyReport),
       verify_report_path: verifyReportPath,
       verify_report: verifyReport,
+      ...implementationSummaryFromReport(verifyReport),
     };
   }
 
@@ -644,6 +680,7 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       ...withArtifactStatus(execution, releaseGateReport),
       release_gate_report_path: reportPath,
       release_gate_report: releaseGateReport,
+      ...implementationSummaryFromReport(releaseGateReport),
     };
   }
 

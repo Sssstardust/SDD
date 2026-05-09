@@ -4,5 +4,18 @@ config/polyquery.json
 !config/polyquery.example.json
 .env
 **/.env
+.idea/
+**/__pycache__/
+*.py[cod]
+.cache/project-explorer-snapshot.json
+.cache/pytest/
+**/.pytest_cache/
+**/.mypy_cache/
+mcp-servers/project-explorer/dist/
 
 .spec
+specs
+docs
+document
+examples
+tests

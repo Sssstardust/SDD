@@ -320,6 +320,7 @@ def build_design_resource_claims(
     operations: list[dict[str, str]] | None = None,
     schema_table_claims: list[dict[str, str]] | None = None,
     omit_generic_tables_for_exact: bool = False,
+    affected_components: list[str] | None = None,
 ) -> list[dict[str, str]]:
     claims: dict[str, dict[str, str]] = {}
     covered_paths: set[str] = set()
@@ -328,16 +329,20 @@ def build_design_resource_claims(
         for item in (schema_table_claims or [])
         if isinstance(item, dict)
     }
+    resolved_component_id = affected_components[0] if isinstance(affected_components, list) and len(affected_components) == 1 else None
 
     def add_claim(kind: str, name: str) -> None:
         if not name:
             return
         resource_key = f"{kind}::{name}"
-        claims[resource_key] = {
+        claim = {
             "kind": kind,
             "name": name,
             "resource_key": resource_key,
         }
+        if resolved_component_id:
+            claim["component_id"] = resolved_component_id
+        claims[resource_key] = claim
 
     for operation in operations or []:
         method = str(operation.get("method") or "").strip().upper()
@@ -390,25 +395,31 @@ def build_design_resource_claims_for_pack(
         operations=operations,
         schema_table_claims=schema_table_claims,
         omit_generic_tables_for_exact=omit_generic_tables_for_exact,
+        affected_components=affected_components,
     )
 
 
 def summarize_resource_claims(resource_claims: list[dict[str, str]]) -> dict[str, object]:
     names_by_kind: dict[str, list[str]] = {}
     resource_keys_by_kind: dict[str, list[str]] = {}
+    component_ids_by_kind: dict[str, list[str]] = {}
     for claim in resource_claims:
         if not isinstance(claim, dict):
             continue
         kind = str(claim.get("kind") or "unknown")
         name = str(claim.get("name") or "")
         resource_key = str(claim.get("resource_key") or "")
+        component_id = str(claim.get("component_id") or "")
         if name:
             names_by_kind.setdefault(kind, []).append(name)
         if resource_key:
             resource_keys_by_kind.setdefault(kind, []).append(resource_key)
+        if component_id:
+            component_ids_by_kind.setdefault(kind, []).append(component_id)
 
     normalized_names = {kind: sorted(set(values)) for kind, values in names_by_kind.items()}
     normalized_keys = {kind: sorted(set(values)) for kind, values in resource_keys_by_kind.items()}
+    normalized_components = {kind: sorted(set(values)) for kind, values in component_ids_by_kind.items()}
     counts_by_kind = {kind: len(values) for kind, values in normalized_names.items()}
     highlights = {
         kind: normalized_names[kind]
@@ -421,5 +432,6 @@ def summarize_resource_claims(resource_claims: list[dict[str, str]]) -> dict[str
         "counts_by_kind": counts_by_kind,
         "names_by_kind": normalized_names,
         "resource_keys_by_kind": normalized_keys,
+        "component_ids_by_kind": normalized_components,
         "highlights": highlights,
     }
