@@ -77,6 +77,8 @@ from ops_log import append_project_op
 from polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
 from project_artifact_paths import get_active_project_artifacts_dir
 from pipeline_result import build_result, emit_result
+from pipeline_orchestration import append_post_flow_steps, build_design_gate_steps, build_feature_cycle_steps, build_implementation_gate_steps, build_refresh_baseline_steps
+from project_flow_runner import capture_project_cycle_candidates, dispatch_feature_next_command, load_project_next_candidate, project_next_json_path, run_project_console_refresh_steps
 from versioning import detect_latest_design_path, get_primary_design_root, reports_dir_for_design, resolve_feature_dir
 
 
@@ -720,25 +722,21 @@ def run_design_gates(
     profile: str | None = None,
 ) -> int:
     return run_steps(
-        [
-            (
-                "refresh-baseline",
-                lambda: run_refresh_baseline(
-                    strict=strict,
-                    feature_dir=feature_dir,
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-            ("gate1", lambda: gate1(feature_dir)),
-            ("gate2", lambda: gate2(feature_dir, strict=strict)),
-            ("gate3", lambda: gate3(feature_dir)),
-            ("check-approval", lambda: check_approval(feature_dir)),
-            ("update-design-index", lambda: update_design_index(feature_dir)),
-            ("generate-task-slices", lambda: generate_task_slices(feature_dir)),
-            ("validate-reports(design)", lambda: validate_reports(feature_dir, "design")),
-            ("build-approval-summary", lambda: build_approval_summary(feature_dir)),
-        ]
+        build_design_gate_steps(
+            feature_dir=feature_dir,
+            strict=strict,
+            run_refresh_baseline=run_refresh_baseline,
+            gate1=gate1,
+            gate2=gate2,
+            gate3=gate3,
+            check_approval=check_approval,
+            update_design_index=update_design_index,
+            generate_task_slices=generate_task_slices,
+            validate_reports=validate_reports,
+            build_approval_summary=build_approval_summary,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     )
 
 
@@ -760,53 +758,45 @@ def run_design_cycle(
     profile: str | None = None,
 ) -> int:
     return run_steps(
-        [
-            ("prepare-design-cycle", lambda: run_prepare_design_cycle(feature_dir)),
-            (
-                "refresh-baseline",
-                lambda: run_refresh_baseline(
-                    strict=strict,
+        append_post_flow_steps(
+            [
+                ("prepare-design-cycle", lambda: run_prepare_design_cycle(feature_dir)),
+                *build_design_gate_steps(
                     feature_dir=feature_dir,
+                    strict=strict,
+                    run_refresh_baseline=run_refresh_baseline,
+                    gate1=gate1,
+                    gate2=gate2,
+                    gate3=gate3,
+                    check_approval=check_approval,
+                    update_design_index=update_design_index,
+                    generate_task_slices=generate_task_slices,
+                    validate_reports=validate_reports,
+                    build_approval_summary=build_approval_summary,
                     attachment_file=attachment_file,
                     profile=profile,
                 ),
-            ),
-            ("gate1", lambda: gate1(feature_dir)),
-            ("gate2", lambda: gate2(feature_dir, strict=strict)),
-            ("gate3", lambda: gate3(feature_dir)),
-            ("check-approval", lambda: check_approval(feature_dir)),
-            ("update-design-index", lambda: update_design_index(feature_dir)),
-            ("generate-task-slices", lambda: generate_task_slices(feature_dir)),
-            ("validate-reports(design)", lambda: validate_reports(feature_dir, "design")),
-            ("build-approval-summary", lambda: build_approval_summary(feature_dir)),
-            (
-                "flow-status",
-                lambda: refresh_feature_state(
-                    feature_dir,
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-            (
-                "project-console-cycle",
-                lambda: run_project_console_cycle(
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-        ]
+            ],
+            feature_dir=feature_dir,
+            refresh_feature_state=refresh_feature_state,
+            run_project_console_cycle=run_project_console_cycle,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     )
 
 
 def run_implementation_gates(feature_dir: str, strict: bool = False) -> int:
     return run_steps(
-        [
-            ("gate4", lambda: gate4(feature_dir)),
-            ("gate5", lambda: gate5(feature_dir, require_attached_execution=strict, strict=strict)),
-            ("update-design-index", lambda: update_design_index(feature_dir)),
-            ("sync-baseline", lambda: sync_baseline(feature_dir)),
-            ("validate-reports(implementation)", lambda: validate_reports(feature_dir, "implementation")),
-        ]
+        build_implementation_gate_steps(
+            feature_dir=feature_dir,
+            strict=strict,
+            gate4=gate4,
+            gate5=gate5,
+            update_design_index=update_design_index,
+            sync_baseline=sync_baseline,
+            validate_reports=validate_reports,
+        )
     )
 
 
@@ -817,25 +807,17 @@ def run_approved_implementation_cycle(
     profile: str | None = None,
 ) -> int:
     return run_steps(
-        [
+        append_post_flow_steps(
+            [
             ("check-approval", lambda: check_approval(feature_dir)),
             ("implementation-gates", lambda: run_implementation_gates(feature_dir, strict=strict)),
-            (
-                "flow-status",
-                lambda: refresh_feature_state(
-                    feature_dir,
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-            (
-                "project-console-cycle",
-                lambda: run_project_console_cycle(
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-        ]
+            ],
+            feature_dir=feature_dir,
+            refresh_feature_state=refresh_feature_state,
+            run_project_console_cycle=run_project_console_cycle,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     )
 
 
@@ -843,25 +825,22 @@ def detect_next_flow_step(feature_dir: str) -> tuple[str, callable]:
     normalized_feature_dir = resolve_feature_dir(feature_dir)
     state = inspect_feature_state(normalized_feature_dir, prefer_persisted=False)
     next_command = str(state.get("next_command") or "")
-    feature_dir_path = normalized_feature_dir
     strict = next_command_requires_strict(next_command)
-
-    if next_command.endswith(f"init-feature {feature_dir_path.name}"):
-        return ("init-feature", lambda: init_feature(feature_dir_path.name))
-    if "bootstrap" in next_command:
-        return ("bootstrap", lambda: bootstrap(str(normalized_feature_dir)))
-    if "design-cycle" in next_command:
-        return ("design-cycle", lambda: run_design_cycle(str(normalized_feature_dir), strict=strict))
-    if "build-approval-summary" in next_command:
-        return ("build-approval-summary", lambda: build_approval_summary(str(normalized_feature_dir)))
-    if "approved-implementation-cycle" in next_command:
-        return (
-            "approved-implementation-cycle",
-            lambda: run_approved_implementation_cycle(str(normalized_feature_dir), strict=strict),
-        )
-    if "release-gate" in next_command:
-        return ("release-gate", lambda: release_gate(str(normalized_feature_dir), strict=strict))
-    return ("full-flow", lambda: run_full_flow(str(normalized_feature_dir), strict=strict))
+    dispatched = dispatch_feature_next_command(
+        next_command=next_command,
+        feature_dir=str(normalized_feature_dir),
+        strict=strict,
+        init_feature=init_feature,
+        bootstrap=bootstrap,
+        run_design_cycle=run_design_cycle,
+        build_approval_summary=build_approval_summary,
+        run_approved_implementation_cycle=run_approved_implementation_cycle,
+        release_gate=release_gate,
+        run_full_flow=run_full_flow,
+    )
+    if dispatched is None:
+        return ("full-flow", lambda: run_full_flow(str(normalized_feature_dir), strict=strict))
+    return dispatched
 
 
 def run_continue_flow(feature_dir: str) -> int:
@@ -876,11 +855,11 @@ def run_continue_flow(feature_dir: str) -> int:
 
 def run_feature_cycle(feature_dir: str) -> int:
     return run_steps(
-        [
-            ("flow-status(before)", lambda: refresh_feature_state(feature_dir)),
-            ("continue-flow", lambda: run_continue_flow(feature_dir)),
-            ("flow-status(after)", lambda: refresh_feature_state(feature_dir)),
-        ]
+        build_feature_cycle_steps(
+            feature_dir=feature_dir,
+            continue_action=lambda: run_continue_flow(feature_dir),
+            refresh_feature_state=refresh_feature_state,
+        )
     )
 
 
@@ -903,24 +882,16 @@ def run_continue_project_flow(
                 print(result.stderr)
         return result.returncode
 
-    project_next_path = (
-        get_active_project_artifacts_dir(
-            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
-            profile=profile,
-            create=True,
-        )
-        / "project-next.json"
-    )
+    project_next_path = project_next_json_path(attachment_file=attachment_file, profile=profile)
     if not project_next_path.exists():
         console_print("[ERROR] project-next.json 未生成")
         return 1
 
-    payload = read_json(project_next_path)
+    candidate, payload = load_project_next_candidate(attachment_file=attachment_file, profile=profile)
     if not isinstance(payload, dict):
         console_print("[ERROR] project-next.json 结构非法")
         return 1
 
-    candidate = payload.get("candidate")
     if not isinstance(candidate, dict):
         append_project_op("continue-project-flow", {"result": "no_candidate"})
         console_print("[OK] 当前没有需要自动推进的 feature")
@@ -946,38 +917,25 @@ def run_continue_project_flow(
         "command": next_command,
     }
 
-    if "full-flow" in next_command:
-        code = run_full_flow(
-            feature_dir,
-            strict=strict,
-            attachment_file=attachment_file,
-            profile=profile,
-        )
-    elif "bootstrap" in next_command:
-        code = bootstrap(feature_dir)
-    elif "design-cycle" in next_command:
-        code = run_design_cycle(
-            feature_dir,
-            strict=strict,
-            attachment_file=attachment_file,
-            profile=profile,
-        )
-    elif "build-approval-summary" in next_command:
-        code = build_approval_summary(feature_dir)
-    elif "approved-implementation-cycle" in next_command:
-        code = run_approved_implementation_cycle(
-            feature_dir,
-            strict=strict,
-            attachment_file=attachment_file,
-            profile=profile,
-        )
-    elif "release-gate" in next_command:
-        code = release_gate(feature_dir, strict=strict)
-    elif "init-feature" in next_command:
-        code = init_feature(Path(feature_dir).name)
-    else:
+    dispatched = dispatch_feature_next_command(
+        next_command=next_command,
+        feature_dir=feature_dir,
+        strict=strict,
+        init_feature=init_feature,
+        bootstrap=bootstrap,
+        run_design_cycle=run_design_cycle,
+        build_approval_summary=build_approval_summary,
+        run_approved_implementation_cycle=run_approved_implementation_cycle,
+        release_gate=release_gate,
+        run_full_flow=run_full_flow,
+        attachment_file=attachment_file,
+        profile=profile,
+    )
+    if dispatched is None:
         console_print("[ERROR] 无法解析 project-next 推荐命令")
         return 1
+    _label, action = dispatched
+    code = action()
 
     after_state = inspect_feature_state(Path(feature_dir), prefer_persisted=False)
     summary["result"] = "ok" if code == 0 else "fail"
@@ -992,41 +950,17 @@ def run_project_console_cycle(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
-    steps = [
-        (
-            "refresh-project-state",
-            lambda: refresh_project_state(
-                attachment_file=attachment_file,
-                profile=profile,
-            ),
-        ),
-        (
-            "flow-overview",
-            lambda: build_flow_overview(
-                attachment_file=attachment_file,
-                profile=profile,
-            ),
-        ),
-        (
-            "project-next",
-            lambda: build_project_next(
-                attachment_file=attachment_file,
-                profile=profile,
-            ),
-        ),
-        ("tooling-hygiene", build_tooling_hygiene),
-    ]
-    for label, step in steps:
-        console_print(f"[RUN] {label}")
-        code = step()
-        if code != 0:
-            append_project_op("project-console-cycle", {"result": "fail", "failed_step": label})
-            console_print(f"[STOP] {label} failed with exit code {code}")
-            return code
-
-    append_project_op("project-console-cycle", {"result": "ok"})
-    console_print("[RUN] project-console")
-    return build_project_console(attachment_file=attachment_file, profile=profile)
+    return run_project_console_refresh_steps(
+        refresh_project_state=refresh_project_state,
+        build_flow_overview=build_flow_overview,
+        build_project_next=build_project_next,
+        build_tooling_hygiene=build_tooling_hygiene,
+        build_project_console=build_project_console,
+        append_project_op=append_project_op,
+        console_print=console_print,
+        attachment_file=attachment_file,
+        profile=profile,
+    )
 
 
 def run_project_cycle(
@@ -1038,16 +972,7 @@ def run_project_cycle(
         append_project_op("project-cycle", {"result": "fail", "failed_step": "project-console-cycle(before)"})
         return before
 
-    project_next_path = (
-        get_active_project_artifacts_dir(
-            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
-            profile=profile,
-            create=True,
-        )
-        / "project-next.json"
-    )
-    before_payload = read_json(project_next_path) if project_next_path.exists() else {}
-    before_candidate = before_payload.get("candidate") if isinstance(before_payload, dict) else None
+    before_snapshot = capture_project_cycle_candidates(attachment_file=attachment_file, profile=profile)
 
     continue_code = run_continue_project_flow(attachment_file=attachment_file, profile=profile)
 
@@ -1056,16 +981,15 @@ def run_project_cycle(
         append_project_op("project-cycle", {"result": "fail", "failed_step": "project-console-cycle(after)"})
         return after
 
-    after_payload = read_json(project_next_path) if project_next_path.exists() else {}
-    after_candidate = after_payload.get("candidate") if isinstance(after_payload, dict) else None
+    after_snapshot = capture_project_cycle_candidates(attachment_file=attachment_file, profile=profile)
 
     append_project_op(
         "project-cycle",
         {
             "result": "ok" if continue_code == 0 else "fail",
             "continue_code": continue_code,
-            "before_candidate": before_candidate,
-            "after_candidate": after_candidate,
+            "before_candidate": before_snapshot.get("candidate"),
+            "after_candidate": after_snapshot.get("candidate"),
         },
     )
     return continue_code
@@ -1079,7 +1003,8 @@ def run_full_flow(
 ) -> int:
     feature_brief = str(Path(feature_dir) / "feature-brief.md")
     return run_steps(
-        [
+        append_post_flow_steps(
+            [
             ("verify", lambda: verify(feature_brief)),
             (
                 "design-gates",
@@ -1090,23 +1015,22 @@ def run_full_flow(
                     profile=profile,
                 ),
             ),
-            ("implementation-gates", lambda: run_implementation_gates(feature_dir, strict=strict)),
-            (
-                "flow-status",
-                lambda: refresh_feature_state(
-                    feature_dir,
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
+            *build_implementation_gate_steps(
+                feature_dir=feature_dir,
+                strict=strict,
+                gate4=gate4,
+                gate5=gate5,
+                update_design_index=update_design_index,
+                sync_baseline=sync_baseline,
+                validate_reports=validate_reports,
             ),
-            (
-                "project-console-cycle",
-                lambda: run_project_console_cycle(
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-        ]
+            ],
+            feature_dir=feature_dir,
+            refresh_feature_state=refresh_feature_state,
+            run_project_console_cycle=run_project_console_cycle,
+            attachment_file=attachment_file,
+            profile=profile,
+        )
     )
 
 
@@ -1123,24 +1047,14 @@ def run_refresh_baseline(
         console_print("[WARN] strict 模式下未检测到 polyquery 配置或 snapshot，refresh-schema-context 将沿用本地快照策略")
 
     return run_steps(
-        [
-            (
-                "refresh-module-map",
-                lambda: refresh_module_map(
-                    attachment_file=attachment_file,
-                    profile=profile,
-                ),
-            ),
-            (
-                "refresh-schema-context",
-                lambda: refresh_schema_context(
-                    attachment_file=attachment_file,
-                    profile=profile,
-                    **refresh_strategy,
-                ),
-            ),
-            ("refresh-baseline-governance", refresh_baseline_governance),
-        ]
+        build_refresh_baseline_steps(
+            refresh_module_map=refresh_module_map,
+            refresh_schema_context=refresh_schema_context,
+            refresh_baseline_governance=refresh_baseline_governance,
+            attachment_file=attachment_file,
+            profile=profile,
+            refresh_strategy=refresh_strategy,
+        )
     )
 
 

@@ -11,7 +11,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 
 from baseline_extractors import (
@@ -25,13 +25,25 @@ from baseline_extractors import (
     extract_tables_from_data_model,
     summarize_resource_claims,
 )
-from attached_project import DEFAULT_ATTACHMENT_PATH, resolve_module_map_scan_settings, source_signature
+from attached_project import DEFAULT_ATTACHMENT_PATH
+from baseline_validators import (
+    parse_datetime,
+    parse_ttl,
+    validate_attached_project_signature,
+    validate_baseline_freshness,
+    validate_schema_context_signature,
+)
 from baseline_paths import get_active_baseline_dir
 from bootstrap_utils import BOOTSTRAP_REPORT_NAME, BOOTSTRAP_REQUIRED_FILES
 from design_evidence import hash_file, hash_tree, resolve_design_pack_dir
 from feature_brief import extract_affected_components
 from gate_report import write_gate_section
-from refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature
+from traceability_summaries import (
+    summarize_controller_endpoint_mapping as _summarize_controller_endpoint_mapping,
+    summarize_design_class_reliability as _summarize_design_class_reliability,
+    summarize_design_class_resolution as _summarize_design_class_resolution,
+    summarize_schema_table_resolution as _summarize_schema_table_resolution,
+)
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
@@ -270,59 +282,12 @@ def summarize_design_class_reliability(
     *,
     affected_components: set[str],
 ) -> dict[str, object]:
-    summary: dict[str, object] = {
-        "matched_classes": [],
-        "low_confidence_classes": [],
-        "lombok_inferred_classes": [],
-        "mybatis_bound_classes": [],
-        "inherited_classes": [],
-    }
-    if not isinstance(module_map, dict) or not participant_classes:
-        return summary
-
-    matched_classes: set[str] = set()
-    low_confidence_classes: set[str] = set()
-    lombok_inferred_classes: set[str] = set()
-    mybatis_bound_classes: set[str] = set()
-    inherited_classes: set[str] = set()
-
-    for item in module_map.get("classes", []):
-        if not isinstance(item, dict):
-            continue
-        if not matches_affected_components(item, affected_components):
-            continue
-        aliases = {
-            str(item.get(key)).split(".")[-1]
-            for key in ("simple_name", "class_name", "display_name", "fqn")
-            if isinstance(item.get(key), str) and item.get(key)
-        }
-        matched_participants = aliases & set(participant_classes)
-        if not matched_participants:
-            continue
-        scan_reliability = item.get("scan_reliability")
-        for participant in matched_participants:
-            matched_classes.add(participant)
-            if isinstance(scan_reliability, dict):
-                class_confidence = str(scan_reliability.get("class_confidence") or "").lower()
-                method_confidence = str(scan_reliability.get("method_confidence") or "").lower()
-                if "low" in {class_confidence, method_confidence}:
-                    low_confidence_classes.add(participant)
-                evidence_sources = scan_reliability.get("evidence_sources")
-                if isinstance(evidence_sources, list):
-                    normalized_sources = {str(source) for source in evidence_sources}
-                    if "lombok-inference" in normalized_sources:
-                        lombok_inferred_classes.add(participant)
-                    if "mybatis-xml" in normalized_sources:
-                        mybatis_bound_classes.add(participant)
-                    if "inheritance" in normalized_sources:
-                        inherited_classes.add(participant)
-
-    summary["matched_classes"] = sorted(matched_classes)
-    summary["low_confidence_classes"] = sorted(low_confidence_classes)
-    summary["lombok_inferred_classes"] = sorted(lombok_inferred_classes)
-    summary["mybatis_bound_classes"] = sorted(mybatis_bound_classes)
-    summary["inherited_classes"] = sorted(inherited_classes)
-    return summary
+    return _summarize_design_class_reliability(
+        module_map,
+        participant_classes,
+        affected_components=affected_components,
+        matches_affected_components=matches_affected_components,
+    )
 
 
 def summarize_design_class_resolution(
@@ -331,159 +296,21 @@ def summarize_design_class_resolution(
     *,
     affected_components: set[str],
 ) -> dict[str, object]:
-    summary: dict[str, object] = {
-        "resolved_classes": [],
-        "missing_classes": [],
-        "ambiguous_classes": [],
-    }
-    if not isinstance(module_map, dict) or not participant_classes:
-        return summary
-
-    aliases: dict[str, list[dict[str, object]]] = {}
-    for item in module_map.get("classes", []):
-        if not isinstance(item, dict):
-            continue
-        if not matches_affected_components(item, affected_components):
-            continue
-        for key in ("resource_key", "fqn", "simple_name", "class_name", "display_name"):
-            value = item.get(key)
-            if not isinstance(value, str) or not value:
-                continue
-            alias = value.split("::")[-1].split(".")[-1]
-            aliases.setdefault(alias, []).append(item)
-
-    resolved_classes: set[str] = set()
-    missing_classes: set[str] = set()
-    ambiguous_classes: list[dict[str, object]] = []
-    for class_name in participant_classes:
-        candidates = aliases.get(class_name, [])
-        unique_candidates = {
-            str(item.get("resource_key") or item.get("fqn") or item.get("class_name") or ""): item
-            for item in candidates
-            if isinstance(item, dict)
-        }
-        if len(unique_candidates) == 1:
-            resolved_classes.add(class_name)
-            continue
-        if len(unique_candidates) > 1:
-            ambiguous_classes.append(
-                {
-                    "class_name": class_name,
-                    "candidate_resource_keys": sorted(unique_candidates),
-                    "candidate_components": sorted(
-                        {
-                            str(item.get("component_id") or "")
-                            for item in unique_candidates.values()
-                            if str(item.get("component_id") or "")
-                        }
-                    ),
-                }
-            )
-            continue
-        missing_classes.add(class_name)
-
-    summary["resolved_classes"] = sorted(resolved_classes)
-    summary["missing_classes"] = sorted(missing_classes)
-    summary["ambiguous_classes"] = sorted(ambiguous_classes, key=lambda item: str(item.get("class_name") or ""))
-    return summary
-
-
-def validate_attached_project_signature(
-    module_map_path: Path,
-    *,
-    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
-    strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
-    warnings: list[str] = []
-    errors: list[str] = []
-    metadata: dict[str, object] = {"attachment_signature_status": "unknown"}
-    if not attachment_path.exists():
-        metadata["attachment_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-
-    module_map = read_json_file(module_map_path, {})
-    if not isinstance(module_map, dict):
-        return warnings, errors, metadata
-    recorded_signature = module_map.get("source_signature")
-    if not isinstance(recorded_signature, str) or not recorded_signature:
-        metadata["attachment_signature_status"] = "missing"
-        return warnings, errors, metadata
-
-    current_settings = resolve_module_map_scan_settings(
-        attachment_path=attachment_path,
-        scan_roots=None,
-        design_roots=None,
-        project_root=None,
+    return _summarize_design_class_resolution(
+        module_map,
+        participant_classes,
+        affected_components=affected_components,
+        matches_affected_components=matches_affected_components,
     )
-    if current_settings.get("source") != "attachment":
-        metadata["attachment_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-
-    current_signature = source_signature(current_settings)
-    metadata["attachment_signature_status"] = "matched" if current_signature == recorded_signature else "changed"
-    metadata["current_source_signature"] = current_signature
-    metadata["recorded_source_signature"] = recorded_signature
-    if current_signature != recorded_signature:
-        message = "attached project 配置已变化，module-map baseline 需要刷新"
-        if strict:
-            errors.append(message)
-        else:
-            warnings.append(message)
-    return warnings, errors, metadata
 
 
-def validate_schema_context_signature(
-    schema_context_path: Path,
-    *,
-    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
-    strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
-    warnings: list[str] = []
-    errors: list[str] = []
-    metadata: dict[str, object] = {"schema_context_signature_status": "unknown"}
-    if not attachment_path.exists():
-        metadata["schema_context_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
+def summarize_controller_endpoint_mapping(
+    openapi_operations: list[dict[str, str]],
+    controller_endpoints: list[dict[str, str]],
+) -> dict[str, object]:
+    return _summarize_controller_endpoint_mapping(openapi_operations, controller_endpoints)
 
-    schema_context = read_json_file(schema_context_path, {})
-    if not isinstance(schema_context, dict):
-        return warnings, errors, metadata
-    recorded_signature = schema_context.get("source_signature")
-    if not isinstance(recorded_signature, str) or not recorded_signature:
-        metadata["schema_context_signature_status"] = "missing"
-        return warnings, errors, metadata
 
-    source = str(schema_context.get("source") or "")
-    if source not in {"attachment", "local-fallback", "project_root", "default", "cli"}:
-        metadata["schema_context_signature_status"] = "not-applicable"
-        return warnings, errors, metadata
-
-    current_settings = resolve_schema_context_sources(
-        attachment_path=attachment_path,
-        design_roots=None,
-        schema_roots=None,
-        project_root=None,
-    )
-    if current_settings.get("source") != "attachment":
-        metadata["schema_context_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-
-    expected_payload = dict(schema_context)
-    expected_payload["design_roots"] = current_settings.get("design_roots", [])
-    expected_payload["schema_roots"] = current_settings.get("schema_roots", [])
-    if source != "local-fallback":
-        expected_payload["source"] = current_settings.get("source")
-    current_signature = schema_context_source_signature(expected_payload)
-    metadata["schema_context_signature_status"] = "matched" if current_signature == recorded_signature else "changed"
-    metadata["current_schema_source_signature"] = current_signature
-    metadata["recorded_schema_source_signature"] = recorded_signature
-    if current_signature != recorded_signature:
-        message = "schema-context 配置已变化，schema-context baseline 需要刷新"
-        if strict:
-            errors.append(message)
-        else:
-            warnings.append(message)
-    return warnings, errors, metadata
 
 
 def normalize_endpoint_path(value: object) -> str:
@@ -530,59 +357,6 @@ def extract_controller_endpoints_from_module_map(module_map: object) -> list[dic
     return endpoints
 
 
-def summarize_controller_endpoint_mapping(
-    openapi_operations: list[dict[str, str]],
-    controller_endpoints: list[dict[str, str]],
-) -> dict[str, object]:
-    summary: dict[str, object] = {
-        "missing": [],
-        "operation_mismatches": [],
-        "ambiguous": [],
-    }
-    endpoints_by_resource: dict[tuple[str, str], list[dict[str, str]]] = {}
-    for endpoint in controller_endpoints:
-        endpoints_by_resource.setdefault((endpoint["path"], endpoint["method"]), []).append(endpoint)
-
-    missing: list[str] = []
-    operation_mismatches: list[str] = []
-    ambiguous: list[dict[str, object]] = []
-    for operation in openapi_operations:
-        path = normalize_endpoint_path(operation.get("path"))
-        method = normalize_http_method(operation.get("method"))
-        operation_id = str(operation.get("operation_id") or "")
-        matches = endpoints_by_resource.get((path, method), [])
-        if not matches:
-            missing.append(f"{method} {path}")
-            continue
-        unique_resources = {
-            str(item.get("resource_key") or item.get("class_name") or "")
-            for item in matches
-            if isinstance(item, dict)
-        }
-        if len(unique_resources) > 1:
-            ambiguous.append(
-                {
-                    "path": path,
-                    "method": method,
-                    "candidate_resource_keys": sorted(unique_resources),
-                    "candidate_components": sorted(
-                        {
-                            str(item.get("component_id") or "")
-                            for item in matches
-                            if isinstance(item, dict) and str(item.get("component_id") or "")
-                        }
-                    ),
-                }
-            )
-        if operation_id:
-            candidate_ids = {str(item.get("operation_id") or item.get("method_name") or "") for item in matches}
-            if operation_id not in candidate_ids:
-                operation_mismatches.append(f"{method} {path}: openapi={operation_id}, controller={', '.join(sorted(candidate_ids))}")
-
-    summary["missing"] = sorted(set(missing))
-    summary["operation_mismatches"] = sorted(set(operation_mismatches))
-    summary["ambiguous"] = sorted(ambiguous, key=lambda item: (str(item.get("method") or ""), str(item.get("path") or "")))
-    return summary
 
 
 def validate_openapi_controller_mapping(
@@ -618,69 +392,6 @@ def validate_openapi_controller_mapping(
     if not missing and not operation_mismatches and not ambiguous:
         checks.append("OpenAPI path/method/operationId 均映射到真实 Controller")
     return checks, errors
-
-
-def parse_ttl(value: object) -> timedelta | None:
-    if isinstance(value, (int, float)):
-        return timedelta(seconds=float(value))
-    if not isinstance(value, str) or not value:
-        return None
-    if value.isdigit():
-        return timedelta(seconds=int(value))
-    match = re.fullmatch(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?", value)
-    if not match:
-        return None
-    days = int(match.group(1) or 0)
-    hours = int(match.group(2) or 0)
-    minutes = int(match.group(3) or 0)
-    seconds = int(match.group(4) or 0)
-    return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
-
-
-def parse_datetime(value: object) -> datetime | None:
-    if not isinstance(value, str) or not value:
-        return None
-    normalized = value.replace("Z", "+00:00")
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def validate_baseline_freshness(
-    label: str,
-    path: Path,
-    *,
-    strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
-    warnings: list[str] = []
-    errors: list[str] = []
-    payload = read_json_file(path, {})
-    metadata: dict[str, object] = {"freshness": "unknown"}
-    if not isinstance(payload, dict):
-        return warnings, errors, metadata
-
-    generated_at = parse_datetime(payload.get("generated_at"))
-    ttl = parse_ttl(payload.get("ttl"))
-    metadata["generated_at"] = payload.get("generated_at")
-    metadata["ttl"] = payload.get("ttl")
-    if generated_at is None or ttl is None:
-        return warnings, errors, metadata
-
-    expires_at = generated_at + ttl
-    now = datetime.now(timezone.utc)
-    metadata["expires_at"] = expires_at.isoformat()
-    metadata["freshness"] = "stale" if now > expires_at else "fresh"
-    if now > expires_at:
-        message = f"{label} baseline 已过期: generated_at={generated_at.isoformat()}, ttl={payload.get('ttl')}"
-        if strict:
-            errors.append(message)
-        else:
-            warnings.append(message)
-    return warnings, errors, metadata
 
 
 def normalize_resource_path(path: Path) -> str:
@@ -867,52 +578,16 @@ def summarize_schema_table_resolution(
     *,
     affected_components: set[str],
 ) -> dict[str, object]:
-    summary: dict[str, object] = {
-        "resolved_tables": [],
-        "missing_tables": [],
-        "ambiguous_tables": [],
-    }
-    if not isinstance(schema_context, dict) or not table_names:
-        return summary
+    return _summarize_schema_table_resolution(
+        schema_context,
+        table_names,
+        affected_components=affected_components,
+        extract_schema_table_entries=extract_schema_table_entries,
+        resolve_schema_table_entry=resolve_schema_table_entry,
+        schema_table_candidates=schema_table_candidates,
+    )
 
-    entries = extract_schema_table_entries(schema_context, affected_components)
-    resolved_tables: set[str] = set()
-    missing_tables: set[str] = set()
-    ambiguous_tables: list[dict[str, object]] = []
 
-    for table_name in table_names:
-        entry = resolve_schema_table_entry(entries, table_name)
-        if entry:
-            resolved_tables.add(table_name)
-            continue
-        candidates = schema_table_candidates(entries, table_name)
-        if len(candidates) > 1:
-            ambiguous_tables.append(
-                {
-                    "table_name": table_name,
-                    "candidate_resource_keys": sorted(
-                        {
-                            str(item.get("resource_key") or item.get("table_name") or "")
-                            for item in candidates
-                            if isinstance(item, dict)
-                        }
-                    ),
-                    "candidate_components": sorted(
-                        {
-                            str(item.get("component_id") or "")
-                            for item in candidates
-                            if isinstance(item, dict) and str(item.get("component_id") or "")
-                        }
-                    ),
-                }
-            )
-            continue
-        missing_tables.add(table_name)
-
-    summary["resolved_tables"] = sorted(resolved_tables)
-    summary["missing_tables"] = sorted(missing_tables)
-    summary["ambiguous_tables"] = sorted(ambiguous_tables, key=lambda item: str(item.get("table_name") or ""))
-    return summary
 
 
 def normalize_schema_type(value: object) -> str | None:
@@ -1237,11 +912,13 @@ def check_brownfield_baseline_truthfulness(
         module_map,
         participants,
         affected_components=affected_component_set,
+        matches_affected_components=matches_affected_components,
     )
     class_reliability_summary = summarize_design_class_reliability(
         module_map,
         participants,
         affected_components=affected_component_set,
+        matches_affected_components=matches_affected_components,
     )
     brownfield_evidence["module_map"]["class_resolution"] = class_resolution_summary
     brownfield_evidence["module_map"]["class_reliability"] = class_reliability_summary
@@ -1310,6 +987,9 @@ def check_brownfield_baseline_truthfulness(
         schema_context,
         existing_data_model_tables,
         affected_components=affected_component_set,
+        extract_schema_table_entries=extract_schema_table_entries,
+        resolve_schema_table_entry=resolve_schema_table_entry,
+        schema_table_candidates=schema_table_candidates,
     )
     evidence["schema_context"]["table_resolution"] = table_resolution_summary
     jpa_entities_by_table = extract_jpa_entities_from_module_map(module_map, affected_component_set)

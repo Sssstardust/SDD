@@ -14,22 +14,40 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config, resolve_module_map_scan_settings, source_signature
+from attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config
+from baseline_validators import (
+    parse_datetime,
+    parse_ttl,
+    validate_attached_project_signature,
+    validate_baseline_freshness,
+    validate_schema_context_signature,
+)
 from baseline_extractors import build_design_resource_claims_for_pack, extract_mermaid_participants, summarize_resource_claims
 from baseline_paths import get_active_baseline_dir
 from concurrency import atomic_write_text, feature_lock
 from design_evidence import evidence_level_for_schema_context, hash_file, resolve_design_pack_dir
 from feature_brief import extract_affected_components, extract_risk_tier
 from gate_report import write_gate_section
-from refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature
+from traceability_summaries import (
+    build_implementation_traceability_report_fields as _build_implementation_traceability_report_fields,
+    summarize_method_framework_evidence as _summarize_method_framework_evidence,
+)
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent
 M2_REPO = Path.home() / ".m2" / "repository"
+
+
+def summarize_method_framework_evidence(method_match_details: list[dict[str, object]]) -> dict[str, object]:
+    return _summarize_method_framework_evidence(method_match_details)
+
+
+def build_implementation_traceability_report_fields(traceability: dict[str, object]) -> dict[str, object]:
+    return _build_implementation_traceability_report_fields(traceability)
 
 
 def trim_output(text: str, limit: int = 1000) -> str:
@@ -680,61 +698,6 @@ def match_method_call(call: dict[str, object], entry: dict[str, object]) -> dict
     }
 
 
-def summarize_method_framework_evidence(method_match_details: list[dict[str, object]]) -> dict[str, object]:
-    summary = {
-        "inherited_matches": 0,
-        "mybatis_bound_matches": 0,
-        "mybatis_result_map_matches": 0,
-        "low_confidence_matches": 0,
-        "lombok_inferred_matches": 0,
-        "owner_classes": [],
-        "inherited_from": [],
-        "mybatis_statement_ids": [],
-        "mybatis_result_map_ids": [],
-        "low_confidence_resource_keys": [],
-    }
-    owner_classes: set[str] = set()
-    inherited_from: set[str] = set()
-    mybatis_statement_ids: set[str] = set()
-    mybatis_result_map_ids: set[str] = set()
-    low_confidence_resource_keys: set[str] = set()
-    for item in method_match_details:
-        if not isinstance(item, dict) or not item.get("matched"):
-            continue
-        method_detail = item.get("matched_method_detail")
-        if not isinstance(method_detail, dict):
-            continue
-        owner_class = method_detail.get("owner_class")
-        if isinstance(owner_class, str) and owner_class:
-            owner_classes.add(owner_class)
-        inherited_parent = method_detail.get("inherited_from")
-        if isinstance(inherited_parent, str) and inherited_parent:
-            inherited_from.add(inherited_parent)
-            summary["inherited_matches"] += 1
-        confidence = str(method_detail.get("confidence") or "").lower()
-        if confidence == "low":
-            summary["low_confidence_matches"] += 1
-            resource_key = item.get("resource_key")
-            if isinstance(resource_key, str) and resource_key:
-                low_confidence_resource_keys.add(resource_key)
-        if str(method_detail.get("inference_source") or "").startswith("lombok-"):
-            summary["lombok_inferred_matches"] += 1
-        mybatis_statement = method_detail.get("mybatis_statement")
-        if isinstance(mybatis_statement, dict):
-            summary["mybatis_bound_matches"] += 1
-            statement_id = mybatis_statement.get("id")
-            if isinstance(statement_id, str) and statement_id:
-                mybatis_statement_ids.add(statement_id)
-            result_map_id = mybatis_statement.get("result_map")
-            if isinstance(result_map_id, str) and result_map_id:
-                mybatis_result_map_ids.add(result_map_id)
-                summary["mybatis_result_map_matches"] += 1
-    summary["owner_classes"] = sorted(owner_classes)
-    summary["inherited_from"] = sorted(inherited_from)
-    summary["mybatis_statement_ids"] = sorted(mybatis_statement_ids)
-    summary["mybatis_result_map_ids"] = sorted(mybatis_result_map_ids)
-    summary["low_confidence_resource_keys"] = sorted(low_confidence_resource_keys)
-    return summary
 
 
 def merge_module_entry(existing: dict[str, object], node: dict[str, object]) -> dict[str, object]:
@@ -868,68 +831,6 @@ def read_module_map_quality(module_map_path: Path) -> dict[str, object]:
     }
 
 
-def parse_ttl(value: object) -> timedelta | None:
-    if isinstance(value, (int, float)):
-        return timedelta(seconds=float(value))
-    if not isinstance(value, str) or not value:
-        return None
-    if value.isdigit():
-        return timedelta(seconds=int(value))
-    match = re.fullmatch(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?", value)
-    if not match:
-        return None
-    return timedelta(
-        days=int(match.group(1) or 0),
-        hours=int(match.group(2) or 0),
-        minutes=int(match.group(3) or 0),
-        seconds=int(match.group(4) or 0),
-    )
-
-
-def parse_datetime(value: object) -> datetime | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def validate_baseline_freshness(label: str, path: Path, *, strict: bool) -> tuple[list[str], list[str], dict[str, object]]:
-    warnings: list[str] = []
-    errors: list[str] = []
-    metadata: dict[str, object] = {"freshness": "unknown"}
-    if not path.exists():
-        return warnings, errors, metadata
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return warnings, errors, metadata
-    if not isinstance(payload, dict):
-        return warnings, errors, metadata
-
-    generated_at = parse_datetime(payload.get("generated_at"))
-    ttl = parse_ttl(payload.get("ttl"))
-    metadata["generated_at"] = payload.get("generated_at")
-    metadata["ttl"] = payload.get("ttl")
-    if generated_at is None or ttl is None:
-        return warnings, errors, metadata
-
-    expires_at = generated_at + ttl
-    metadata["expires_at"] = expires_at.isoformat()
-    metadata["freshness"] = "stale" if datetime.now(timezone.utc) > expires_at else "fresh"
-    if metadata["freshness"] == "stale":
-        message = f"{label} baseline 已过期: generated_at={generated_at.isoformat()}, ttl={payload.get('ttl')}"
-        if strict:
-            errors.append(message)
-        else:
-            warnings.append(message)
-    return warnings, errors, metadata
-
-
 def validate_gate5_baseline_freshness(
     baseline_dir: Path,
     *,
@@ -955,105 +856,6 @@ def validate_gate5_baseline_freshness(
     )
 
 
-def validate_attached_project_signature(
-    module_map_path: Path,
-    *,
-    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
-    strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
-    warnings: list[str] = []
-    errors: list[str] = []
-    metadata: dict[str, object] = {"attachment_signature_status": "unknown"}
-    if not attachment_path.exists():
-        metadata["attachment_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-    try:
-        module_map = json.loads(module_map_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return warnings, errors, metadata
-    if not isinstance(module_map, dict):
-        return warnings, errors, metadata
-    recorded_signature = module_map.get("source_signature")
-    if not isinstance(recorded_signature, str) or not recorded_signature:
-        metadata["attachment_signature_status"] = "missing"
-        return warnings, errors, metadata
-
-    current_settings = resolve_module_map_scan_settings(
-        attachment_path=attachment_path,
-        scan_roots=None,
-        design_roots=None,
-        project_root=None,
-    )
-    if current_settings.get("source") != "attachment":
-        metadata["attachment_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-    current_signature = source_signature(current_settings)
-    metadata["attachment_signature_status"] = "matched" if current_signature == recorded_signature else "changed"
-    metadata["current_source_signature"] = current_signature
-    metadata["recorded_source_signature"] = recorded_signature
-    if current_signature != recorded_signature:
-        message = "attached project 配置已变化，module-map baseline 需要刷新"
-        if strict:
-            errors.append(message)
-        else:
-            warnings.append(message)
-    return warnings, errors, metadata
-
-
-def validate_schema_context_signature(
-    schema_context_path: Path,
-    *,
-    attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
-    strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
-    warnings: list[str] = []
-    errors: list[str] = []
-    metadata: dict[str, object] = {"schema_context_signature_status": "unknown"}
-    if not attachment_path.exists():
-        metadata["schema_context_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-    try:
-        schema_context = json.loads(schema_context_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return warnings, errors, metadata
-    if not isinstance(schema_context, dict):
-        return warnings, errors, metadata
-    recorded_signature = schema_context.get("source_signature")
-    if not isinstance(recorded_signature, str) or not recorded_signature:
-        metadata["schema_context_signature_status"] = "missing"
-        return warnings, errors, metadata
-
-    source = str(schema_context.get("source") or "")
-    if source not in {"attachment", "local-fallback", "project_root", "default", "cli"}:
-        metadata["schema_context_signature_status"] = "not-applicable"
-        return warnings, errors, metadata
-
-    current_settings = resolve_schema_context_sources(
-        attachment_path=attachment_path,
-        design_roots=None,
-        schema_roots=None,
-        project_root=None,
-    )
-    if current_settings.get("source") != "attachment":
-        metadata["schema_context_signature_status"] = "no-attachment"
-        return warnings, errors, metadata
-
-    expected_payload = dict(schema_context)
-    expected_payload["design_roots"] = current_settings.get("design_roots", [])
-    expected_payload["schema_roots"] = current_settings.get("schema_roots", [])
-    if source != "local-fallback":
-        expected_payload["source"] = current_settings.get("source")
-    current_signature = schema_context_source_signature(expected_payload)
-    metadata["schema_context_signature_status"] = "matched" if current_signature == recorded_signature else "changed"
-    metadata["current_schema_source_signature"] = current_signature
-    metadata["recorded_schema_source_signature"] = recorded_signature
-    if current_signature != recorded_signature:
-        message = "schema-context 配置已变化，schema-context baseline 需要刷新"
-        if strict:
-            errors.append(message)
-        else:
-            warnings.append(message)
-    return warnings, errors, metadata
 
 
 def analyze_implementation_traceability(
@@ -1237,57 +1039,6 @@ def resolve_effective_attachment_path(feature_dir: Path, attachment_path: Path =
     return feature_dir / ".spec" / "attached-project.json"
 
 
-def build_implementation_traceability_report_fields(traceability: dict[str, object]) -> dict[str, object]:
-    method_match_details = traceability.get("method_match_details")
-    if not isinstance(method_match_details, list):
-        method_match_details = []
-    framework_evidence = traceability.get("method_framework_evidence")
-    if not isinstance(framework_evidence, dict):
-        framework_evidence = summarize_method_framework_evidence(method_match_details)
-    match_modes = sorted(
-        {
-            str(item.get("match_mode"))
-            for item in method_match_details
-            if isinstance(item, dict) and item.get("matched") and item.get("match_mode")
-        }
-    )
-    matched_method_highlights: list[dict[str, object]] = []
-    for item in method_match_details:
-        if not isinstance(item, dict) or not item.get("matched"):
-            continue
-        method_detail = item.get("matched_method_detail")
-        if not isinstance(method_detail, dict):
-            continue
-        highlight = {
-            "class_name": item.get("class_name"),
-            "expected_signature": item.get("expected_signature"),
-            "matched_signature": item.get("matched_signature"),
-            "match_mode": item.get("match_mode"),
-            "resource_key": item.get("resource_key"),
-            "component_id": item.get("component_id"),
-            "owner_class": method_detail.get("owner_class"),
-            "inherited_from": method_detail.get("inherited_from"),
-            "inference_source": method_detail.get("inference_source"),
-            "confidence": method_detail.get("confidence"),
-            "scan_reliability": item.get("scan_reliability"),
-            "mybatis_statement": method_detail.get("mybatis_statement"),
-        }
-        if any(
-            highlight.get(key)
-            for key in ("owner_class", "inherited_from", "inference_source", "mybatis_statement", "scan_reliability")
-        ):
-            matched_method_highlights.append(highlight)
-    return {
-        "implementation_message": str(traceability.get("message") or ""),
-        "implementation_match_modes": match_modes,
-        "implementation_method_framework_evidence": framework_evidence,
-        "implementation_method_match_highlights": matched_method_highlights,
-        "implementation_method_match_details": method_match_details,
-        "implementation_matched_methods": traceability.get("matched_methods", []),
-        "implementation_missing_methods": traceability.get("missing_methods", []),
-        "implementation_missing_method_details": traceability.get("missing_method_details", []),
-        "implementation_ambiguous_classes": traceability.get("ambiguous_classes", []),
-    }
 
 
 def find_python_runner() -> Path | None:
