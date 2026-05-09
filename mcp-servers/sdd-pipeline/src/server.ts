@@ -499,6 +499,10 @@ export function implementationSummaryFromReport(report: any): JsonRecord {
     implementation_result: typeof report.implementation_result === "string" ? report.implementation_result : null,
     implementation_framework_evidence: frameworkEvidence,
     implementation_match_highlights: matchHighlights,
+    gate5_admission_summary:
+      report.gate5_admission_summary && typeof report.gate5_admission_summary === "object"
+        ? report.gate5_admission_summary
+        : {},
   };
 }
 
@@ -616,6 +620,10 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       implementation_match_highlights: Array.isArray(flowStatus?.implementation_match_highlights)
         ? flowStatus.implementation_match_highlights
         : [],
+      gate5_admission_summary:
+        flowStatus?.gate5_admission_summary && typeof flowStatus.gate5_admission_summary === "object"
+          ? flowStatus.gate5_admission_summary
+          : {},
     };
   }
 

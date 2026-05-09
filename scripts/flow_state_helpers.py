@@ -36,6 +36,10 @@ def base_state(feature_dir: Path) -> dict[str, object]:
         "implementation_match_highlights": [],
         "implementation_missing_method_details": [],
         "implementation_ambiguous_classes": [],
+        "real_test_req_admission": {},
+        "attached_execution_admission": {},
+        "affected_component_execution_admission": {},
+        "gate5_admission_summary": {},
         "design_class_resolution_brief": {},
         "schema_table_resolution_brief": {},
         "design_resource_claim_summary": {},
@@ -69,6 +73,14 @@ def normalize_feature_state_payload(feature_dir: Path, raw_state: object, state_
         state["implementation_missing_method_details"] = []
     if not isinstance(state.get("implementation_ambiguous_classes"), list):
         state["implementation_ambiguous_classes"] = []
+    if not isinstance(state.get("real_test_req_admission"), dict):
+        state["real_test_req_admission"] = {}
+    if not isinstance(state.get("attached_execution_admission"), dict):
+        state["attached_execution_admission"] = {}
+    if not isinstance(state.get("affected_component_execution_admission"), dict):
+        state["affected_component_execution_admission"] = {}
+    if not isinstance(state.get("gate5_admission_summary"), dict):
+        state["gate5_admission_summary"] = {}
     if not isinstance(state.get("design_class_resolution_brief"), dict):
         state["design_class_resolution_brief"] = {}
     if not isinstance(state.get("schema_table_resolution_brief"), dict):

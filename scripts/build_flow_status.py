@@ -14,7 +14,7 @@ from attached_project import DEFAULT_ATTACHMENT_PATH
 from concurrency import atomic_write_text, feature_lock
 from flow_state import compute_feature_state, write_project_state
 from json_io import write_json
-from state_view import framework_badges, resolution_preview, resource_claim_badges
+from state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate5_admission_summary_badge, real_test_admission_badge, resolution_preview, resource_claim_badges
 from versioning import resolve_feature_dir
 
 
@@ -40,7 +40,11 @@ def render_markdown(state: dict[str, object]) -> str:
         "",
         "## Implementation Signals",
         "",
+        f"- Gate 5 Admission Summary: `{gate5_admission_summary_badge(state)}`",
         f"- Framework Evidence: `{framework_badges(state)}`",
+        f"- Real Test Admission: `{real_test_admission_badge(state)}`",
+        f"- Attached Execution Admission: `{attached_execution_admission_badge(state)}`",
+        f"- Affected Component Execution: `{affected_component_execution_badge(state)}`",
         f"- Resource Claims: `{resource_claim_badges(state)}`",
         f"- Resolution Preview: `{resolution_preview(state)}`",
         "",

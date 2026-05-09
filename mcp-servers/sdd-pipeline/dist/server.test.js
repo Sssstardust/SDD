@@ -33,6 +33,10 @@ strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)({
         mybatis_bound_matches: 2,
     },
     implementation_method_match_highlights: [{ class_name: "OrderMapper" }],
+    gate5_admission_summary: {
+        result: "WARN",
+        warning_admissions: ["real_test_req"],
+    },
 }), {
     implementation_result: "WARN",
     implementation_framework_evidence: {
@@ -40,6 +44,10 @@ strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)({
         mybatis_bound_matches: 2,
     },
     implementation_match_highlights: [{ class_name: "OrderMapper" }],
+    gate5_admission_summary: {
+        result: "WARN",
+        warning_admissions: ["real_test_req"],
+    },
 });
 strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)(null), {
     implementation_result: null,

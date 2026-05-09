@@ -30,6 +30,77 @@ def framework_badges(state: dict[str, object]) -> str:
     return ", ".join(parts) if parts else "N/A"
 
 
+def real_test_admission_badge(state: dict[str, object]) -> str:
+    admission = state.get("real_test_req_admission")
+    if not isinstance(admission, dict) or not admission:
+        return "N/A"
+    result = str(admission.get("result") or "N/A")
+    requirement = str(admission.get("requirement") or "").strip()
+    missing = admission.get("missing_required_req_ids")
+    parts = [result]
+    if requirement:
+        parts.append(requirement)
+    if isinstance(missing, list) and missing:
+        parts.append(f"missing={len(missing)}")
+    return " ".join(parts)
+
+
+def attached_execution_admission_badge(state: dict[str, object]) -> str:
+    admission = state.get("attached_execution_admission")
+    if not isinstance(admission, dict) or not admission:
+        return "N/A"
+    result = str(admission.get("result") or "N/A")
+    reason = str(admission.get("requirement_reason") or "").strip()
+    required = admission.get("required")
+    failed_components = admission.get("failed_components")
+    failed_commands = admission.get("failed_commands")
+    parts = [result]
+    if required is True:
+        parts.append("required")
+    elif required is False and reason != "optional":
+        parts.append("optional")
+    if reason:
+        parts.append(reason)
+    if isinstance(failed_components, list) and failed_components:
+        parts.append("failed@" + ",".join(str(item) for item in failed_components[:2]))
+    elif isinstance(failed_commands, list) and failed_commands:
+        parts.append(f"failedCmd={len(failed_commands)}")
+    return " ".join(parts)
+
+
+def affected_component_execution_badge(state: dict[str, object]) -> str:
+    admission = state.get("affected_component_execution_admission")
+    if not isinstance(admission, dict) or not admission:
+        return "N/A"
+    result = str(admission.get("result") or "N/A")
+    required_components = admission.get("required_components")
+    missing_components = admission.get("missing_components")
+    failed_components = admission.get("failed_components")
+    parts = [result]
+    if isinstance(required_components, list) and required_components:
+        parts.append(f"components={len(required_components)}")
+    if isinstance(failed_components, list) and failed_components:
+        parts.append("failed@" + ",".join(str(item) for item in failed_components[:2]))
+    if isinstance(missing_components, list) and missing_components:
+        parts.append("missing@" + ",".join(str(item) for item in missing_components[:2]))
+    return " ".join(parts)
+
+
+def gate5_admission_summary_badge(state: dict[str, object]) -> str:
+    summary = state.get("gate5_admission_summary")
+    if not isinstance(summary, dict) or not summary:
+        return "N/A"
+    result = str(summary.get("result") or "N/A")
+    failing = summary.get("failing_admissions")
+    warning = summary.get("warning_admissions")
+    parts = [result]
+    if isinstance(failing, list) and failing:
+        parts.append("fail=" + ",".join(str(item) for item in failing[:3]))
+    if isinstance(warning, list) and warning:
+        parts.append("warn=" + ",".join(str(item) for item in warning[:3]))
+    return " ".join(parts)
+
+
 def resource_claim_badges(state: dict[str, object]) -> str:
     claim_brief = state.get("design_resource_claim_brief")
     if not isinstance(claim_brief, dict):

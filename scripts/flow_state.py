@@ -59,6 +59,10 @@ STATE_KEYS = (
     "implementation_match_highlights",
     "implementation_missing_method_details",
     "implementation_ambiguous_classes",
+    "real_test_req_admission",
+    "attached_execution_admission",
+    "affected_component_execution_admission",
+    "gate5_admission_summary",
     "design_class_resolution_brief",
     "schema_table_resolution_brief",
     "design_resource_claim_summary",
@@ -229,12 +233,39 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
             ambiguous_classes = verify.get("implementation_ambiguous_classes")
             if isinstance(ambiguous_classes, list):
                 state["implementation_ambiguous_classes"] = ambiguous_classes
+            real_test_req_admission = verify.get("real_test_req_admission")
+            if isinstance(real_test_req_admission, dict):
+                state["real_test_req_admission"] = real_test_req_admission
+            attached_execution_admission = verify.get("attached_execution_admission")
+            if isinstance(attached_execution_admission, dict):
+                state["attached_execution_admission"] = attached_execution_admission
+            component_execution_admission = verify.get("affected_component_execution_admission")
+            if isinstance(component_execution_admission, dict):
+                state["affected_component_execution_admission"] = component_execution_admission
+            gate5_admission_summary = verify.get("gate5_admission_summary")
+            if isinstance(gate5_admission_summary, dict):
+                state["gate5_admission_summary"] = gate5_admission_summary
             execution = verify.get("execution")
             if isinstance(execution, dict) and execution.get("status") == "FAIL":
                 state["blockers"].append("gate5: execution phase failed")
             implementation_result = verify.get("implementation_result")
             if implementation_result and implementation_result != "PASS":
                 state["blockers"].append(f"gate5: implementation traceability={implementation_result}")
+            admission = state.get("real_test_req_admission")
+            if isinstance(admission, dict):
+                admission_result = admission.get("result")
+                if admission_result and admission_result != "PASS":
+                    state["blockers"].append(f"gate5: real-test admission={admission_result}")
+            attached_admission = state.get("attached_execution_admission")
+            if isinstance(attached_admission, dict):
+                attached_result = attached_admission.get("result")
+                if attached_result and attached_result not in {"PASS", "SKIPPED"}:
+                    state["blockers"].append(f"gate5: attached-execution admission={attached_result}")
+            component_admission = state.get("affected_component_execution_admission")
+            if isinstance(component_admission, dict):
+                component_result = component_admission.get("result")
+                if component_result and component_result != "PASS":
+                    state["blockers"].append(f"gate5: affected-component execution={component_result}")
     else:
         state["missing_artifacts"].append(str(verify_path))
 

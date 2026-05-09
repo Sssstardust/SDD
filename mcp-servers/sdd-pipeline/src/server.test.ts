@@ -40,6 +40,10 @@ assert.deepEqual(
       mybatis_bound_matches: 2,
     },
     implementation_method_match_highlights: [{ class_name: "OrderMapper" }],
+    gate5_admission_summary: {
+      result: "WARN",
+      warning_admissions: ["real_test_req"],
+    },
   }),
   {
     implementation_result: "WARN",
@@ -48,6 +52,10 @@ assert.deepEqual(
       mybatis_bound_matches: 2,
     },
     implementation_match_highlights: [{ class_name: "OrderMapper" }],
+    gate5_admission_summary: {
+      result: "WARN",
+      warning_admissions: ["real_test_req"],
+    },
   },
 );
 

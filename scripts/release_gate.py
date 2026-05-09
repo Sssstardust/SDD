@@ -24,6 +24,7 @@ from check_design_pack import has_rollback_statement, split_sql_migration_blocks
 from concurrency import atomic_write_text, feature_lock
 from design_evidence import resolve_design_pack_dir
 from feature_brief import extract_affected_components
+from gate5_admissions import summarize_gate5_admissions_from_report
 from gate_report import write_gate_section
 from sdd_yaml import get_list, get_scalar, load_first_yaml_mapping
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
@@ -151,6 +152,7 @@ def extract_verify_implementation_highlights(verify_payload: dict[str, object] |
             "implementation_result": None,
             "implementation_framework_evidence": {},
             "implementation_match_highlights": [],
+            "gate5_admission_summary": {},
         }
     framework_evidence = verify_payload.get("implementation_method_framework_evidence")
     match_highlights = verify_payload.get("implementation_method_match_highlights")
@@ -158,6 +160,9 @@ def extract_verify_implementation_highlights(verify_payload: dict[str, object] |
         "implementation_result": verify_payload.get("implementation_result"),
         "implementation_framework_evidence": framework_evidence if isinstance(framework_evidence, dict) else {},
         "implementation_match_highlights": match_highlights if isinstance(match_highlights, list) else [],
+        "gate5_admission_summary": verify_payload.get("gate5_admission_summary")
+        if isinstance(verify_payload.get("gate5_admission_summary"), dict)
+        else summarize_gate5_admissions_from_report(verify_payload),
     }
 
 
@@ -284,6 +289,12 @@ def main() -> int:
     attached_execution_reason = "strict-mode" if strict_mode else "high-risk-feature" if risk_tier == "high" else "optional"
 
     if attached_execution_required:
+        gate5_admission_summary = verify_implementation_highlights.get("gate5_admission_summary")
+        admission_result = (
+            str(gate5_admission_summary.get("result"))
+            if isinstance(gate5_admission_summary, dict) and gate5_admission_summary.get("result")
+            else None
+        )
         attached_status = None
         reported_attached_required = None
         if isinstance(verify_payload, dict):
@@ -291,7 +302,9 @@ def main() -> int:
             if isinstance(attached_execution, dict):
                 attached_status = attached_execution.get("status")
             reported_attached_required = verify_payload.get("attached_execution_required")
-        if attached_status != "PASS":
+        if admission_result == "FAIL":
+            errors.append(f"Gate 5 admission summary failed: {gate5_admission_summary}")
+        elif attached_status != "PASS":
             if strict_mode:
                 errors.append("严格模式要求 Gate 5 attached_execution 为 PASS")
             else:
@@ -394,6 +407,7 @@ def main() -> int:
         "implementation_result": verify_implementation_highlights.get("implementation_result"),
         "implementation_framework_evidence": verify_implementation_highlights.get("implementation_framework_evidence"),
         "implementation_match_highlights": verify_implementation_highlights.get("implementation_match_highlights"),
+        "gate5_admission_summary": verify_implementation_highlights.get("gate5_admission_summary"),
         "structured_release_plan": structured_plan,
         "release_exception": release_exception if isinstance(release_exception, dict) else None,
         "release_exception_path": str(release_exception_path),
@@ -419,6 +433,7 @@ def main() -> int:
             "implementation_result": verify_implementation_highlights.get("implementation_result"),
             "implementation_framework_evidence": verify_implementation_highlights.get("implementation_framework_evidence"),
             "implementation_match_highlights": verify_implementation_highlights.get("implementation_match_highlights"),
+            "gate5_admission_summary": verify_implementation_highlights.get("gate5_admission_summary"),
             "report_file": str(report_path),
         },
     )

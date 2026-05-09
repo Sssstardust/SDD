@@ -1,0 +1,85 @@
+name: sdd-pipeline-example
+
+on:
+  workflow_dispatch:
+    inputs:
+      feature_dir:
+        description: "Feature directory, e.g. specs/task-board"
+        required: true
+        default: "specs/task-board"
+      strict:
+        description: "Run strict-first pipeline"
+        required: true
+        default: "true"
+  pull_request:
+    paths:
+      - "specs/**"
+      - "scripts/**"
+      - "docs/**"
+      - "mcp-servers/**"
+      - "examples/**"
+
+jobs:
+  sdd:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build MCP servers
+        shell: powershell
+        run: |
+          Push-Location mcp-servers/project-explorer
+          npm.cmd install
+          npm.cmd test
+          Pop-Location
+          Push-Location mcp-servers/sdd-pipeline
+          npm.cmd install
+          npm.cmd test
+          Pop-Location
+
+      - name: Run strict-first SDD pipeline
+        shell: powershell
+        run: |
+          $strict = "${{ inputs.strict }}"
+          if (-not $strict) { $strict = "true" }
+          $featureDir = "${{ inputs.feature_dir }}"
+          if (-not $featureDir) { $featureDir = "specs/task-board" }
+          if ($strict -eq "true") {
+            python scripts/run_pipeline.py refresh-baseline --strict --feature-dir $featureDir
+            python scripts/run_pipeline.py design-gates $featureDir --strict
+            python scripts/run_pipeline.py implementation-gates $featureDir --strict
+            python scripts/run_pipeline.py release-gate $featureDir --strict
+          } else {
+            python scripts/run_pipeline.py refresh-baseline --feature-dir $featureDir
+            python scripts/run_pipeline.py design-gates $featureDir
+            python scripts/run_pipeline.py implementation-gates $featureDir
+            python scripts/run_pipeline.py release-gate $featureDir
+          }
+          python scripts/run_pipeline.py validate-all-reports --stage all
+
+      - name: Upload project artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdd-artifacts
+          path: |
+            specs/**/reports/**
+            specs/**/flow-status.json
+            specs/**/flow-status.md
+            specs/**/project-state.json
+            .spec/project-artifacts/**
+            .spec/baselines/**

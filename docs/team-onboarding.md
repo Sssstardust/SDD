@@ -108,6 +108,10 @@ python scripts/run_pipeline.py release-gate specs\your-feature --strict
 python scripts/run_pipeline.py validate-all-reports --stage all
 ```
 
+GitHub Actions 示例：
+
+- [../.github/workflows/sdd-pipeline.example.yml](../.github/workflows/sdd-pipeline.example.yml)
+
 校验仓库内置样例矩阵：
 
 ```powershell

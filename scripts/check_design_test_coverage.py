@@ -30,6 +30,7 @@ from baseline_paths import get_active_baseline_dir
 from concurrency import atomic_write_text, feature_lock
 from design_evidence import evidence_level_for_schema_context, hash_file, resolve_design_pack_dir
 from feature_brief import extract_affected_components, extract_risk_tier
+from gate5_admissions import summarize_gate5_admissions
 from gate_report import write_gate_section
 from traceability_summaries import (
     build_implementation_traceability_report_fields as _build_implementation_traceability_report_fields,
@@ -1375,6 +1376,160 @@ def determine_attached_execution_requirement(
     return False, "optional"
 
 
+def evaluate_real_test_req_admission(
+    mappings: list[dict[str, object]],
+    real_test_req_coverage: dict[str, object],
+    *,
+    risk_tier: str,
+) -> dict[str, object]:
+    expected_req_ids = [
+        str(item.get("req_id"))
+        for item in mappings
+        if isinstance(item, dict) and isinstance(item.get("req_id"), str) and item.get("req_id")
+    ]
+    required_req_ids = expected_req_ids
+    requirement = "all-req"
+    if risk_tier == "high":
+        required_req_ids = [
+            str(item.get("req_id"))
+            for item in mappings
+            if isinstance(item, dict)
+            and isinstance(item.get("req_id"), str)
+            and item.get("req_id")
+            and str(item.get("priority") or "").upper() == "P0"
+        ]
+        requirement = "high-risk-p0-req"
+
+    covered_req_ids = set(
+        str(item)
+        for item in real_test_req_coverage.get("covered_req_ids", [])
+        if isinstance(item, str) and item
+    ) if isinstance(real_test_req_coverage, dict) else set()
+    missing_required_req_ids = sorted(req_id for req_id in required_req_ids if req_id not in covered_req_ids)
+
+    if not required_req_ids:
+        result = "PASS"
+        message = "no required req ids for real-test admission"
+    elif missing_required_req_ids:
+        result = "FAIL" if risk_tier == "high" else "WARN"
+        message = (
+            "high-risk feature requires real-test coverage for all P0 req ids"
+            if risk_tier == "high"
+            else "real-test coverage is missing required req ids"
+        )
+    else:
+        result = "PASS"
+        message = "real-test req admission passed"
+
+    return {
+        "result": result,
+        "requirement": requirement,
+        "required_req_ids": required_req_ids,
+        "missing_required_req_ids": missing_required_req_ids,
+        "message": message,
+    }
+
+
+def evaluate_attached_execution_admission(
+    attached_execution: dict[str, object],
+    *,
+    required: bool,
+    requirement_reason: str,
+) -> dict[str, object]:
+    status = str(attached_execution.get("status") or "SKIPPED") if isinstance(attached_execution, dict) else "SKIPPED"
+    commands = attached_execution.get("commands", []) if isinstance(attached_execution, dict) else []
+    components = attached_execution.get("components", []) if isinstance(attached_execution, dict) else []
+    failed_components = [
+        str(item.get("component_id"))
+        for item in components
+        if isinstance(item, dict)
+        and item.get("component_id")
+        and str(item.get("status") or "") == "FAIL"
+    ] if isinstance(components, list) else []
+    failed_commands = [
+        str(item.get("name") or item.get("command") or "")
+        for item in commands
+        if isinstance(item, dict) and str(item.get("status") or "") == "FAIL"
+    ] if isinstance(commands, list) else []
+    command_count = len(commands) if isinstance(commands, list) else 0
+
+    if status == "FAIL":
+        result = "FAIL"
+        message = "attached execution failed"
+    elif required and status != "PASS":
+        result = "FAIL"
+        message = "attached execution is required but did not pass"
+    elif status == "PASS":
+        result = "PASS"
+        message = "attached execution admission passed"
+    else:
+        result = "SKIPPED"
+        message = "attached execution is optional and was skipped"
+
+    return {
+        "result": result,
+        "required": required,
+        "requirement_reason": requirement_reason,
+        "execution_status": status,
+        "command_count": command_count,
+        "failed_components": sorted(set(failed_components)),
+        "failed_commands": [item for item in failed_commands if item],
+        "message": message,
+    }
+
+
+def evaluate_affected_component_execution_admission(
+    attached_execution: dict[str, object],
+    *,
+    affected_components: list[str],
+    required: bool,
+) -> dict[str, object]:
+    required_components = sorted({item for item in affected_components if item})
+    components = attached_execution.get("components", []) if isinstance(attached_execution, dict) else []
+    component_statuses: dict[str, str] = {}
+    if isinstance(components, list):
+        for item in components:
+            if not isinstance(item, dict):
+                continue
+            component_id = str(item.get("component_id") or "")
+            if not component_id:
+                continue
+            component_statuses[component_id] = str(item.get("status") or "UNKNOWN")
+
+    missing_components = sorted(component_id for component_id in required_components if component_id not in component_statuses)
+    failed_components = sorted(
+        component_id
+        for component_id in required_components
+        if component_statuses.get(component_id) == "FAIL"
+    )
+
+    if not required_components:
+        result = "PASS"
+        message = "no affected components declared for execution admission"
+    elif missing_components and required:
+        result = "FAIL"
+        message = "affected components require component-level attached execution evidence"
+    elif failed_components:
+        result = "FAIL"
+        message = "affected component attached execution failed"
+    elif missing_components:
+        result = "WARN"
+        message = "affected components are missing component-level attached execution evidence"
+    else:
+        result = "PASS"
+        message = "affected component execution admission passed"
+
+    return {
+        "result": result,
+        "required": required,
+        "required_components": required_components,
+        "covered_components": sorted(component_id for component_id in required_components if component_statuses.get(component_id) == "PASS"),
+        "missing_components": missing_components,
+        "failed_components": failed_components,
+        "message": message,
+    }
+
+
 def main_for_args(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1436,6 +1591,22 @@ def main_for_args(argv: list[str] | None = None) -> int:
     attached_execution_status = str(attached_execution.get("status", "SKIPPED"))
     if attached_execution_status == "FAIL":
         result = "FAIL"
+    attached_execution_admission = evaluate_attached_execution_admission(
+        attached_execution,
+        required=attached_execution_required,
+        requirement_reason=attached_execution_requirement_reason,
+    )
+    if attached_execution_admission["result"] == "FAIL":
+        result = "FAIL"
+    affected_component_execution_admission = evaluate_affected_component_execution_admission(
+        attached_execution,
+        affected_components=affected_components,
+        required=attached_execution_required,
+    )
+    if affected_component_execution_admission["result"] == "FAIL":
+        result = "FAIL"
+    elif affected_component_execution_admission["result"] == "WARN" and result == "PASS":
+        result = "WARN"
 
     baseline_dir = get_active_baseline_dir(create=True, migrate_legacy=True)
     design_pack_dir = resolve_design_pack_dir(feature_dir, reports_dir)
@@ -1456,8 +1627,22 @@ def main_for_args(argv: list[str] | None = None) -> int:
         attachment_path=effective_attachment_path,
         affected_components=affected_components,
     )
+    real_test_req_admission = evaluate_real_test_req_admission(
+        report["mappings"],
+        real_test_req_coverage,
+        risk_tier=risk_tier,
+    )
+    gate5_admission_summary = summarize_gate5_admissions(
+        real_test_req_admission=real_test_req_admission,
+        attached_execution_admission=attached_execution_admission,
+        affected_component_execution_admission=affected_component_execution_admission,
+    )
     if strict_mode and implementation_traceability["result"] != "PASS":
         result = "FAIL"
+    if real_test_req_admission["result"] == "FAIL":
+        result = "FAIL"
+    elif real_test_req_admission["result"] == "WARN" and result == "PASS":
+        result = "WARN"
     baseline_warnings, baseline_errors, baseline_freshness = validate_gate5_baseline_freshness(baseline_dir, strict=strict_mode)
     attachment_warnings, attachment_errors, attachment_signature = validate_attached_project_signature(
         module_map_path,
@@ -1535,6 +1720,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
         "attached_execution": attached_execution,
         "attached_execution_required": attached_execution_required,
         "attached_execution_requirement_reason": attached_execution_requirement_reason,
+        "attached_execution_admission": attached_execution_admission,
+        "affected_component_execution_admission": affected_component_execution_admission,
         "uncovered_p0": uncovered_p0,
         "uncovered_p1": uncovered_p1,
         "design_resource_claims": design_resource_claims,
@@ -1543,6 +1730,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
         **implementation_report_fields,
         "implementation_traceability": implementation_traceability,
         "real_test_req_coverage": real_test_req_coverage,
+        "real_test_req_admission": real_test_req_admission,
+        "gate5_admission_summary": gate5_admission_summary,
         "affected_components": affected_components,
         "strict": strict_mode,
         "warnings": baseline_warnings + placeholder_warnings,
@@ -1567,6 +1756,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
             "attached_execution": attached_execution,
             "attached_execution_required": attached_execution_required,
             "attached_execution_requirement_reason": attached_execution_requirement_reason,
+            "attached_execution_admission": attached_execution_admission,
+            "affected_component_execution_admission": affected_component_execution_admission,
             "uncovered_p0": uncovered_p0,
             "uncovered_p1": uncovered_p1,
             "design_resource_claim_summary": design_resource_claim_summary,
@@ -1575,6 +1766,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
             **implementation_report_fields,
             "implementation_traceability": implementation_traceability,
             "real_test_req_coverage_result": real_test_req_coverage["result"],
+            "real_test_req_admission": real_test_req_admission,
+            "gate5_admission_summary": gate5_admission_summary,
             "strict": strict_mode,
             "warnings": baseline_warnings + placeholder_warnings,
             "errors": baseline_errors,

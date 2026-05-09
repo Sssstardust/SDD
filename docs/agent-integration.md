@@ -197,6 +197,10 @@ python scripts/run_pipeline.py release-gate specs\your-feature --strict
 python scripts/run_pipeline.py validate-all-reports --stage all
 ```
 
+GitHub Actions 示例：
+
+- [../.github/workflows/sdd-pipeline.example.yml](../.github/workflows/sdd-pipeline.example.yml)
+
 Long-running `sdd-pipeline` tools now run asynchronously by default, and also accept `{"async": false}` to force synchronous execution. Async calls return a task envelope that can
 be polled with `get_pipeline_task` and read back with `read_pipeline_task_result`.
 

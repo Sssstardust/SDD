@@ -17,7 +17,7 @@ from build_project_next import choose_candidate
 from concurrency import atomic_write_text, path_lock
 from json_io import read_json
 from project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
-from state_view import framework_badges, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
+from state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate5_admission_summary_badge, real_test_admission_badge, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
 
 
 def render_markdown(
@@ -120,8 +120,8 @@ def render_markdown(
             "",
             "## Features",
             "",
-            "| Feature | Stage | Source | Risk | Strict | Approval | gate2 | gate3 | gate4 | gate5 | impl | Framework Evidence | Resource Claims | Release Exception | Missing | Blockers | Next |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Strict | Approval | gate2 | gate3 | gate4 | gate5 | impl | Gate5 Admission | Real Test Admission | Attached Execution | Component Execution | Framework Evidence | Resource Claims | Release Exception | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
 
@@ -130,6 +130,10 @@ def render_markdown(
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         strict_mode = strict_flag(state)
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
+        gate5_admission = gate5_admission_summary_badge(state).replace("|", "\\|")
+        real_test_admission = real_test_admission_badge(state).replace("|", "\\|")
+        attached_execution_admission = attached_execution_admission_badge(state).replace("|", "\\|")
+        component_execution_admission = affected_component_execution_badge(state).replace("|", "\\|")
         framework_evidence = framework_badges(state).replace("|", "\\|")
         resource_claims = resource_claim_badges(state).replace("|", "\\|")
         release_exception = release_exception_badges(state).replace("|", "\\|")
@@ -137,7 +141,7 @@ def render_markdown(
             f"| {state.get('feature_name')} | {state.get('current_stage')} | {state.get('state_source')} | {state.get('risk_tier')} | {strict_mode} | "
             f"{state.get('approval_status')} | {state.get('gate2_result')} | {state.get('gate3_result')} | "
             f"{state.get('gate4_result')} | {state.get('gate5_result')} | {state.get('implementation_result')} | "
-            f"{framework_evidence} | {resource_claims} | {release_exception} | {missing} | {blockers} | `{next_command}` |"
+            f"{gate5_admission} | {real_test_admission} | {attached_execution_admission} | {component_execution_admission} | {framework_evidence} | {resource_claims} | {release_exception} | {missing} | {blockers} | `{next_command}` |"
         )
 
     lines.append("")
@@ -179,6 +183,10 @@ def render_html(
                 if isinstance(result_maps, int) and result_maps > 0:
                     evidence_parts.append(f"resultMap={result_maps}")
             resource_claims = resource_claim_badges(state)
+            gate5_admission = gate5_admission_summary_badge(state)
+            real_test_admission = real_test_admission_badge(state)
+            attached_execution_admission = attached_execution_admission_badge(state)
+            component_execution_admission = affected_component_execution_badge(state)
             rows.append(
                 "<tr>"
                 f"<td>{escape(str(state.get('feature_name')))}</td>"
@@ -191,6 +199,10 @@ def render_html(
                 f"<td>{escape(str(state.get('gate4_result')))}</td>"
                 f"<td>{escape(str(state.get('gate5_result')))}</td>"
                 f"<td>{escape(str(state.get('implementation_result')))}</td>"
+                f"<td>{escape(gate5_admission)}</td>"
+                f"<td>{escape(real_test_admission)}</td>"
+                f"<td>{escape(attached_execution_admission)}</td>"
+                f"<td>{escape(component_execution_admission)}</td>"
                 f"<td>{escape(', '.join(evidence_parts) if evidence_parts else 'N/A')}</td>"
                 f"<td>{escape(resource_claims)}</td>"
                 f"<td>{missing}</td>"
@@ -380,6 +392,10 @@ def render_html(
           <th>gate4</th>
           <th>gate5</th>
           <th>impl</th>
+          <th>gate5 admission</th>
+          <th>real test admission</th>
+          <th>attached execution</th>
+          <th>component execution</th>
           <th>framework evidence</th>
           <th>resource claims</th>
           <th>Missing</th>

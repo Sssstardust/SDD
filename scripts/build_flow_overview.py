@@ -13,7 +13,7 @@ from pathlib import Path
 from attached_project import DEFAULT_ATTACHMENT_PATH
 from concurrency import atomic_write_text, path_lock
 from project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
-from state_view import framework_badges, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
+from state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate5_admission_summary_badge, real_test_admission_badge, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
 
 
 def render_markdown(states: list[dict[str, object]], project_context: dict[str, object], workspace: dict[str, object] | None = None) -> str:
@@ -66,8 +66,8 @@ def render_markdown(states: list[dict[str, object]], project_context: dict[str, 
             "",
             "## Features",
             "",
-            "| Feature | Stage | Source | Risk | Strict | Approval | gate2 | gate3 | gate4 | gate5 | impl | Framework Evidence | Resource Claims | Release Exception | Missing | Blockers | Next |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Strict | Approval | gate2 | gate3 | gate4 | gate5 | impl | Gate5 Admission | Real Test Admission | Attached Execution | Component Execution | Framework Evidence | Resource Claims | Release Exception | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
 
@@ -87,10 +87,14 @@ def render_markdown(states: list[dict[str, object]], project_context: dict[str, 
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
         framework_evidence = framework_badges(state).replace("|", "\\|")
+        gate5_admission = gate5_admission_summary_badge(state).replace("|", "\\|")
+        real_test_admission = real_test_admission_badge(state).replace("|", "\\|")
+        attached_execution_admission = attached_execution_admission_badge(state).replace("|", "\\|")
+        component_execution_admission = affected_component_execution_badge(state).replace("|", "\\|")
         resource_claims = resource_claim_badges(state).replace("|", "\\|")
         release_exception = release_exception_badges(state).replace("|", "\\|")
         lines.append(
-            f"| {feature_name} | {stage} | {source} | {risk_tier} | {strict_mode} | {approval} | {gate2} | {gate3} | {gate4} | {gate5} | {implementation_result} | {framework_evidence} | {resource_claims} | {release_exception} | {missing} | {blockers} | `{next_command}` |"
+            f"| {feature_name} | {stage} | {source} | {risk_tier} | {strict_mode} | {approval} | {gate2} | {gate3} | {gate4} | {gate5} | {implementation_result} | {gate5_admission} | {real_test_admission} | {attached_execution_admission} | {component_execution_admission} | {framework_evidence} | {resource_claims} | {release_exception} | {missing} | {blockers} | `{next_command}` |"
         )
 
     lines.append("")
