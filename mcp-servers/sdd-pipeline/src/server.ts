@@ -577,6 +577,14 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
         projectConsole?.strict_summary && typeof projectConsole.strict_summary === "object"
           ? projectConsole.strict_summary
           : {},
+      gate_summary:
+        projectConsole?.gate_summary && typeof projectConsole.gate_summary === "object"
+          ? projectConsole.gate_summary
+          : {},
+      gate3_ai_review:
+        projectConsole?.candidate?.gate3_ai_review && typeof projectConsole.candidate.gate3_ai_review === "object"
+          ? projectConsole.candidate.gate3_ai_review
+          : {},
     };
   }
 
@@ -593,6 +601,18 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       strict_summary:
         projectNext?.candidate?.strict_summary && typeof projectNext.candidate.strict_summary === "object"
           ? projectNext.candidate.strict_summary
+          : {},
+      gate_summary:
+        projectNext?.gate_summary && typeof projectNext.gate_summary === "object"
+          ? projectNext.gate_summary
+          : {},
+      project_highlights:
+        projectNext?.project_highlights && typeof projectNext.project_highlights === "object"
+          ? projectNext.project_highlights
+          : {},
+      gate3_ai_review:
+        projectNext?.candidate?.gate3_ai_review && typeof projectNext.candidate.gate3_ai_review === "object"
+          ? projectNext.candidate.gate3_ai_review
           : {},
     };
   }
@@ -612,6 +632,10 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
         flowStatus?.strict_summary && typeof flowStatus.strict_summary === "object"
           ? flowStatus.strict_summary
           : {},
+      gate3_rule_evaluation:
+        flowStatus?.gate3_rule_evaluation && typeof flowStatus.gate3_rule_evaluation === "object"
+          ? flowStatus.gate3_rule_evaluation
+          : {},
       implementation_result: typeof flowStatus?.implementation_result === "string" ? flowStatus.implementation_result : null,
       implementation_framework_evidence:
         flowStatus?.implementation_framework_evidence && typeof flowStatus.implementation_framework_evidence === "object"
@@ -620,6 +644,10 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
       implementation_match_highlights: Array.isArray(flowStatus?.implementation_match_highlights)
         ? flowStatus.implementation_match_highlights
         : [],
+      gate3_ai_review:
+        flowStatus?.gate3_ai_review && typeof flowStatus.gate3_ai_review === "object"
+          ? flowStatus.gate3_ai_review
+          : {},
       gate5_admission_summary:
         flowStatus?.gate5_admission_summary && typeof flowStatus.gate5_admission_summary === "object"
           ? flowStatus.gate5_admission_summary

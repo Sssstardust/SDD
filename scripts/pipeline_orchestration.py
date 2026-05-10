@@ -98,6 +98,7 @@ def build_refresh_baseline_steps(
     refresh_module_map: Callable[..., int],
     refresh_schema_context: Callable[..., int],
     refresh_baseline_governance: Callable[[], int],
+    check_baseline_keys: Callable[[str | None, str | None], int],
     attachment_file: str | None = None,
     profile: str | None = None,
     refresh_strategy: dict[str, object] | None = None,
@@ -120,6 +121,7 @@ def build_refresh_baseline_steps(
             ),
         ),
         ("refresh-baseline-governance", refresh_baseline_governance),
+        ("check-baseline-keys", lambda: check_baseline_keys(attachment_file=attachment_file, profile=profile)),
     ]
 
 

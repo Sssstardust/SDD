@@ -66,6 +66,47 @@ assert.deepEqual(implementationSummaryFromReport(null), {
 });
 
 assert.equal(
+  typeof {
+    gate3_ai_review: {
+      result: "WARN",
+      mode: "rule-modeled-review",
+    },
+  }.gate3_ai_review.result,
+  "string",
+);
+
+assert.equal(
+  typeof {
+    candidate: {
+      gate3_ai_review: {
+        result: "WARN",
+      },
+    },
+  }.candidate.gate3_ai_review.result,
+  "string",
+);
+
+assert.equal(
+  typeof {
+    gate_summary: {
+      gate3_ai: {
+        WARN: 1,
+      },
+    },
+  }.gate_summary.gate3_ai.WARN,
+  "number",
+);
+
+assert.equal(
+  typeof {
+    project_highlights: {
+      gate5_fail_count: 1,
+    },
+  }.project_highlights.gate5_fail_count,
+  "number",
+);
+
+assert.equal(
   "strict_recommended" in {
     strict_recommended: true,
     strict_next_step: true,

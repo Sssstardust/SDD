@@ -15,9 +15,10 @@
 
 ## 安装前提
 
-- Windows + PowerShell
+- Windows + PowerShell preferred; cross-platform readiness check is available via `python scripts/doctor.py`
 - Python 3.13+
 - Node.js 18+
+- Platform matrix: [docs/platform-support-matrix.md](docs/platform-support-matrix.md)
 - Java / `javac`（用于 Gate 5 Java 验证测试）
 
 ---

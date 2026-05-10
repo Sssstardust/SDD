@@ -15,6 +15,7 @@ import argparse
 import json
 import re
 import subprocess
+import os
 from pathlib import Path
 
 from gate_report import write_gate_section
@@ -25,6 +26,155 @@ ROOT = Path(__file__).resolve().parent.parent
 ARCH_STANDARD_SERVER = ROOT / "mcp-servers" / "arch-standard" / "dist" / "server.js"
 DOCS_LAYERING_SEMANTICS_FILE = ROOT / "docs" / "arch-standards" / "layering-semantics.json"
 MCP_LAYERING_SEMANTICS_FILE = ROOT / "mcp-servers" / "arch-standard" / "rules" / "layering-semantics.json"
+REVIEW_HINT_TYPES = {
+    "transaction-boundary": {
+        "scope": "transaction-boundary",
+        "confidence": "medium",
+        "default_rationale": "Check whether transaction boundary is explicitly justified",
+    },
+    "layering-risk": {
+        "scope": "layering-risk",
+        "confidence": "medium",
+        "default_rationale": "Check whether layering direction and dependency boundaries need manual review",
+    },
+}
+GATE3_AI_REVIEW_CONFIG_FILE = ROOT / ".spec" / "gate3-ai-review.json"
+
+
+def load_gate3_ai_review_command() -> list[str] | None:
+    raw = os.environ.get("SDD_GATE3_AI_REVIEW_COMMAND", "").strip()
+    if not raw:
+        if GATE3_AI_REVIEW_CONFIG_FILE.exists():
+            try:
+                config_data = json.loads(GATE3_AI_REVIEW_CONFIG_FILE.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                return None
+            if not isinstance(config_data, dict) or config_data.get("enabled") is not True:
+                return None
+            data = config_data.get("command")
+        else:
+            return None
+    else:
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(data, list) or not data or not all(isinstance(item, str) and item for item in data):
+        return None
+    return [str(item) for item in data]
+
+
+def load_gate3_ai_review_timeout_seconds() -> float:
+    raw = os.environ.get("SDD_GATE3_AI_REVIEW_TIMEOUT_SECONDS", "").strip()
+    if not raw and GATE3_AI_REVIEW_CONFIG_FILE.exists():
+        try:
+            config_data = json.loads(GATE3_AI_REVIEW_CONFIG_FILE.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            config_data = {}
+        if isinstance(config_data, dict):
+            raw = str(config_data.get("timeout_seconds") or "").strip()
+    try:
+        return float(raw) if raw else 30.0
+    except ValueError:
+        return 30.0
+
+
+def run_gate3_ai_review_provider(
+    *,
+    command: list[str],
+    feature_name: str,
+    feature_type: str,
+    tags: list[str],
+    design_path: Path,
+    design_text: str,
+    rule_result: str,
+    checks: list[str],
+    warnings: list[str],
+    errors: list[str],
+    semantic_checks: list[dict[str, object]],
+) -> dict[str, object]:
+    payload = {
+        "feature_name": feature_name,
+        "feature_type": feature_type,
+        "capability_tags": tags,
+        "design_path": str(design_path),
+        "design_text": design_text,
+        "rule_result": rule_result,
+        "checks": checks,
+        "warnings": warnings,
+        "errors": errors,
+        "semantic_checks": semantic_checks,
+    }
+    timeout = load_gate3_ai_review_timeout_seconds()
+    try:
+        result = subprocess.run(
+            command,
+            input=json.dumps(payload, ensure_ascii=False),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=timeout,
+            cwd=str(ROOT),
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "result": "SKIPPED",
+            "mode": "provider-timeout",
+            "confidence": None,
+            "rationale": "AI semantic review provider timed out",
+            "evidence_refs": [],
+            "violations": [],
+        }
+    if result.returncode != 0:
+        return {
+            "result": "SKIPPED",
+            "mode": "provider-error",
+            "confidence": None,
+            "rationale": "AI semantic review provider failed",
+            "evidence_refs": [],
+            "violations": [],
+        }
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {
+            "result": "SKIPPED",
+            "mode": "provider-invalid-json",
+            "confidence": None,
+            "rationale": "AI semantic review provider returned invalid JSON",
+            "evidence_refs": [],
+            "violations": [],
+        }
+    ai_review = data.get("ai_review") if isinstance(data, dict) and isinstance(data.get("ai_review"), dict) else data
+    if not isinstance(ai_review, dict):
+        return {
+            "result": "SKIPPED",
+            "mode": "provider-empty",
+            "confidence": None,
+            "rationale": "AI semantic review provider returned empty payload",
+            "evidence_refs": [],
+            "violations": [],
+        }
+    return {
+        "result": str(ai_review.get("result") or "SKIPPED"),
+        "mode": str(ai_review.get("mode") or "provider"),
+        "confidence": ai_review.get("confidence"),
+        "rationale": str(ai_review.get("rationale") or ""),
+        "evidence_refs": [str(item) for item in ai_review.get("evidence_refs", []) if isinstance(item, str)],
+        "violations": [
+            {
+                "severity": str(item.get("severity") or "warn"),
+                "scope": str(item.get("scope") or "design"),
+                "rationale": str(item.get("rationale") or ""),
+                "confidence": str(item.get("confidence") or "medium"),
+                "evidence_refs": [str(x) for x in item.get("evidence_refs", []) if isinstance(x, str)],
+            }
+            for item in ai_review.get("violations", [])
+            if isinstance(item, dict)
+        ],
+    }
 
 
 def extract_yaml_blocks(text: str) -> list[str]:
@@ -245,10 +395,10 @@ def load_arch_feature_rules(feature_type: str, tags: list[str]) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def main() -> int:
+def main_for_args(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     feature_dir = resolve_feature_dir(args.feature_dir)
     feature_brief = feature_dir / "feature-brief.md"
@@ -267,6 +417,7 @@ def main() -> int:
     checks: list[str] = []
     warnings: list[str] = []
     errors: list[str] = []
+    ai_review_violations: list[dict[str, object]] = []
     arch_rules = load_arch_feature_rules(feature_type, tags)
     semantic_checks = []
     constraints = arch_rules.get("constraints", {}) if isinstance(arch_rules, dict) else {}
@@ -317,12 +468,69 @@ def main() -> int:
                 checks.append(success_message)
             else:
                 errors.append(error_message)
+        elif rule_type == "review_hint":
+            hint_type = str(rule.get("hintType") or "")
+            hint_meta = REVIEW_HINT_TYPES.get(hint_type, {})
+            ai_review_violations.append(
+                {
+                    "severity": "warn",
+                    "scope": str(rule.get("scope") or hint_meta.get("scope") or "design"),
+                    "rationale": str(rule.get("rationale") or hint_meta.get("default_rationale") or error_message or "AI review hint"),
+                    "confidence": str(rule.get("confidence") or hint_meta.get("confidence") or "medium"),
+                    "evidence_refs": [str(item) for item in rule.get("evidenceRefs", []) if isinstance(item, str)],
+                }
+            )
 
-    result = "PASS"
+    rule_result = "PASS"
     if errors:
-        result = "FAIL"
+        rule_result = "FAIL"
     elif warnings:
-        result = "WARN"
+        rule_result = "WARN"
+
+    ai_review = {
+        "result": "WARN" if ai_review_violations else "SKIPPED",
+        "mode": "rule-modeled-review" if ai_review_violations else "not-configured",
+        "confidence": "medium" if ai_review_violations else None,
+        "rationale": "Semantic review hints were emitted from configured review rules" if ai_review_violations else "AI semantic review is not configured in the current Gate 3 implementation",
+        "evidence_refs": sorted(
+            {
+                str(item)
+                for violation in ai_review_violations
+                if isinstance(violation, dict)
+                for item in violation.get("evidence_refs", [])
+                if isinstance(item, str)
+            }
+        ),
+        "violations": [
+                {
+                    "severity": str(violation.get("severity") or "warn"),
+                    "scope": str(violation.get("scope") or "design"),
+                    "rationale": str(violation.get("rationale") or ""),
+                    "confidence": str(violation.get("confidence") or "medium"),
+                    "evidence_refs": [str(item) for item in violation.get("evidence_refs", []) if isinstance(item, str)],
+                }
+            for violation in ai_review_violations
+            if isinstance(violation, dict)
+        ],
+    }
+
+    ai_review_provider_command = load_gate3_ai_review_command()
+    if ai_review_provider_command:
+        ai_review = run_gate3_ai_review_provider(
+            command=ai_review_provider_command,
+            feature_name=feature_name,
+            feature_type=feature_type,
+            tags=tags,
+            design_path=design_path,
+            design_text=design_text,
+            rule_result=rule_result,
+            checks=checks,
+            warnings=warnings,
+            errors=errors,
+            semantic_checks=semantic_checks if isinstance(semantic_checks, list) else [],
+        )
+
+    result = rule_result
 
     report_path = write_gate_section(
         reports_dir,
@@ -331,6 +539,13 @@ def main() -> int:
         design_version=design_path.name,
         payload={
             "result": result,
+            "rule_evaluation": {
+                "result": rule_result,
+                "checks": checks,
+                "warnings": warnings,
+                "errors": errors,
+            },
+            "ai_review": ai_review,
             "checks": checks,
             "warnings": warnings,
             "errors": errors,
@@ -349,6 +564,9 @@ def main() -> int:
         print(f"  [WARN] {warning}")
     print(f"  - report: {report_path}")
     return 0
+
+def main() -> int:
+    return main_for_args()
 
 
 if __name__ == "__main__":

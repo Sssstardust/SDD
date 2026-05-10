@@ -30,6 +30,21 @@ from baseline_paths import get_active_baseline_dir
 from concurrency import atomic_write_text, feature_lock
 from design_evidence import evidence_level_for_schema_context, hash_file, resolve_design_pack_dir
 from feature_brief import extract_affected_components, extract_risk_tier
+from gate_adapters import (
+    GateAdapterContext,
+    GateTraceabilityContext,
+    build_method_detail_index as _build_method_detail_index,
+    build_module_entry_aliases as _build_module_entry_aliases,
+    default_gate_adapter_registry,
+    extract_referenced_classes as _extract_referenced_classes,
+    extract_referenced_method_calls as _extract_referenced_method_calls,
+    extract_module_class_entries as _extract_module_class_entries,
+    match_method_call as _match_method_call,
+    merge_module_entry as _merge_module_entry,
+    module_class_candidates as _module_class_candidates,
+    read_module_map_quality as _read_module_map_quality,
+    resolve_module_class_entry as _resolve_module_class_entry,
+)
 from gate5_admissions import summarize_gate5_admissions
 from gate_report import write_gate_section
 from traceability_summaries import (
@@ -439,317 +454,29 @@ def analyze_real_test_req_coverage(
 
 
 def extract_referenced_classes(design_text: str) -> list[str]:
-    return extract_mermaid_participants(design_text)
+    return _extract_referenced_classes(design_text, extract_mermaid_participants)
 
 
 def extract_referenced_method_calls(design_text: str) -> list[dict[str, object]]:
-    alias_to_class: dict[str, str] = {}
-    calls: list[dict[str, object]] = []
-    in_sequence = False
-    for raw_line in design_text.splitlines():
-        line = raw_line.strip()
-        if line.startswith("```mermaid"):
-            in_sequence = False
-            continue
-        if line == "sequenceDiagram":
-            in_sequence = True
-            continue
-        if line.startswith("```"):
-            in_sequence = False
-            continue
-        if not in_sequence:
-            continue
-
-        participant = re.match(r"participant\s+([A-Za-z_][A-Za-z0-9_]*)\s+as\s+([A-Z][A-Za-z0-9_]*)", line)
-        if participant:
-            alias_to_class[participant.group(1)] = participant.group(2)
-            continue
-        bare_participant = re.match(r"participant\s+([A-Z][A-Za-z0-9_]*)\s*$", line)
-        if bare_participant:
-            alias_to_class[bare_participant.group(1)] = bare_participant.group(1)
-            continue
-
-        call = re.match(r"[A-Za-z_][A-Za-z0-9_]*\s*-+>>?\+?\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)\s*$", line)
-        if not call:
-            continue
-        target_alias, method_name, args_text = call.groups()
-        target_class = alias_to_class.get(target_alias, target_alias)
-        if target_class and method_name:
-            parameter_types = extract_design_parameter_type_hints(args_text)
-            calls.append(
-                {
-                    "class_name": target_class,
-                    "method_name": method_name,
-                    "signature": f"{method_name}({args_text.strip()})",
-                    "parameter_count": len(split_top_level_args(args_text)),
-                    "parameter_types": parameter_types,
-                }
-            )
-    deduped = {
-        f"{item['class_name']}.{item['method_name']}::{','.join(item.get('parameter_types', []))}::{item.get('parameter_count', 0)}": item
-        for item in calls
-    }
-    return [deduped[key] for key in sorted(deduped)]
-
-
-def split_top_level_args(value: str) -> list[str]:
-    if not value.strip():
-        return []
-    parts: list[str] = []
-    current: list[str] = []
-    angle_depth = 0
-    paren_depth = 0
-    bracket_depth = 0
-    brace_depth = 0
-    for char in value:
-        if char == "<":
-            angle_depth += 1
-        elif char == ">":
-            angle_depth = max(0, angle_depth - 1)
-        elif char == "(":
-            paren_depth += 1
-        elif char == ")":
-            paren_depth = max(0, paren_depth - 1)
-        elif char == "[":
-            bracket_depth += 1
-        elif char == "]":
-            bracket_depth = max(0, bracket_depth - 1)
-        elif char == "{":
-            brace_depth += 1
-        elif char == "}":
-            brace_depth = max(0, brace_depth - 1)
-        elif char == "," and angle_depth == 0 and paren_depth == 0 and bracket_depth == 0 and brace_depth == 0:
-            part = "".join(current).strip()
-            if part:
-                parts.append(part)
-            current = []
-            continue
-        current.append(char)
-    part = "".join(current).strip()
-    if part:
-        parts.append(part)
-    return parts
-
-
-def normalize_type_name(value: object) -> str:
-    if not isinstance(value, str):
-        return ""
-    normalized = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", value).strip()
-    normalized = re.sub(r"\s+", " ", normalized)
-    normalized = normalized.replace("? extends ", "").replace("? super ", "").replace("...", "[]")
-    normalized = re.sub(r"\b(?:final|volatile|transient)\b\s*", "", normalized)
-    normalized = re.sub(r"([A-Za-z_][A-Za-z0-9_$.]*)", lambda match: match.group(1).split(".")[-1], normalized)
-    normalized = re.sub(r"\s*<\s*", "<", normalized)
-    normalized = re.sub(r"\s*>\s*", ">", normalized)
-    normalized = re.sub(r"\s*,\s*", ", ", normalized)
-    normalized = re.sub(r"\s*\[\s*\]\s*", "[]", normalized)
-    return normalized.strip()
-
-
-def extract_design_parameter_type_hints(args_text: str) -> list[str]:
-    hints: list[str] = []
-    for item in split_top_level_args(args_text):
-        candidate = item.strip()
-        if not candidate:
-            continue
-        if " " not in candidate:
-            continue
-        tokens = candidate.split()
-        type_candidate = " ".join(tokens[:-1]).strip()
-        if not type_candidate:
-            continue
-        normalized = normalize_type_name(type_candidate)
-        if normalized:
-            hints.append(normalized)
-    return hints
-
-
-def method_name_from_signature(signature: object) -> str | None:
-    if not isinstance(signature, str) or not signature:
-        return None
-    match = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(", signature)
-    return match.group(1) if match else None
-
-
-def parameter_types_from_signature(signature: object) -> list[str]:
-    if not isinstance(signature, str) or "(" not in signature or ")" not in signature:
-        return []
-    match = re.match(r"\s*[A-Za-z_][A-Za-z0-9_]*\s*\((.*)\)\s*", signature)
-    if not match:
-        return []
-    params_text = match.group(1).strip()
-    if not params_text:
-        return []
-    result: list[str] = []
-    for item in split_top_level_args(params_text):
-        candidate = item.strip()
-        if not candidate:
-            continue
-        tokens = candidate.split()
-        type_candidate = " ".join(tokens[:-1]).strip() if len(tokens) > 1 else candidate
-        normalized = normalize_type_name(type_candidate)
-        if normalized:
-            result.append(normalized)
-    return result
+    return _extract_referenced_method_calls(design_text)
 
 
 def build_method_detail_index(entry: dict[str, object]) -> list[dict[str, object]]:
-    details = entry.get("method_details")
-    indexed: list[dict[str, object]] = []
-    if isinstance(details, list):
-        for item in details:
-            if not isinstance(item, dict):
-                continue
-            signature = item.get("signature")
-            name = item.get("name") or method_name_from_signature(signature)
-            parameter_types = item.get("parameter_types") if isinstance(item.get("parameter_types"), list) else []
-            indexed_item = dict(item)
-            indexed_item["name"] = str(name or "")
-            indexed_item["signature"] = str(signature or "")
-            indexed_item["parameter_types"] = [normalize_type_name(param) for param in parameter_types if isinstance(param, str)]
-            indexed.append(indexed_item)
-    if indexed:
-        return indexed
-    for signature in entry.get("public_methods", []):
-        if not isinstance(signature, str):
-            continue
-        indexed.append(
-            {
-                "name": str(method_name_from_signature(signature) or ""),
-                "signature": signature,
-                "parameter_types": parameter_types_from_signature(signature),
-            }
-        )
-    return indexed
+    return _build_method_detail_index(entry)
 
 
 def match_method_call(call: dict[str, object], entry: dict[str, object]) -> dict[str, object]:
-    method_name = str(call.get("method_name") or "")
-    expected_parameter_types = [normalize_type_name(item) for item in call.get("parameter_types", []) if isinstance(item, str)]
-    expected_parameter_count = int(call.get("parameter_count") or 0)
-    candidates = [item for item in build_method_detail_index(entry) if item.get("name") == method_name]
-    if not candidates:
-        return {
-            "matched": False,
-            "match_mode": "missing",
-            "expected_signature": str(call.get("signature") or method_name),
-            "matched_signature": None,
-            "candidate_signatures": [],
-            "matched_method_detail": None,
-        }
-    if expected_parameter_types:
-        for candidate in candidates:
-            if candidate.get("parameter_types") == expected_parameter_types:
-                return {
-                    "matched": True,
-                    "match_mode": "signature",
-                    "expected_signature": str(call.get("signature") or method_name),
-                    "matched_signature": candidate.get("signature"),
-                    "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-                    "matched_method_detail": candidate,
-                }
-        return {
-            "matched": False,
-            "match_mode": "signature",
-            "expected_signature": str(call.get("signature") or method_name),
-            "matched_signature": None,
-            "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-            "matched_method_detail": None,
-        }
-    if expected_parameter_count:
-        matched_candidates = [candidate for candidate in candidates if len(candidate.get("parameter_types", [])) == expected_parameter_count]
-        if len(matched_candidates) == 1:
-            candidate = matched_candidates[0]
-            return {
-                "matched": True,
-                "match_mode": "arity",
-                "expected_signature": str(call.get("signature") or method_name),
-                "matched_signature": candidate.get("signature"),
-                "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-                "matched_method_detail": candidate,
-            }
-        for candidate in candidates:
-            if len(candidate.get("parameter_types", [])) == expected_parameter_count:
-                break
-        return {
-            "matched": False,
-            "match_mode": "arity",
-            "expected_signature": str(call.get("signature") or method_name),
-            "matched_signature": None,
-            "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-            "matched_method_detail": None,
-        }
-    if len(candidates) == 1:
-        candidate = candidates[0]
-        return {
-            "matched": True,
-            "match_mode": "name",
-            "expected_signature": str(call.get("signature") or method_name),
-            "matched_signature": candidate.get("signature"),
-            "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-            "matched_method_detail": candidate,
-        }
-    return {
-        "matched": False,
-        "match_mode": "name",
-        "expected_signature": str(call.get("signature") or method_name),
-        "matched_signature": None,
-        "candidate_signatures": [item.get("signature") for item in candidates if item.get("signature")],
-        "matched_method_detail": None,
-    }
+    return _match_method_call(call, entry)
 
 
 
 
 def merge_module_entry(existing: dict[str, object], node: dict[str, object]) -> dict[str, object]:
-    merged = dict(existing)
-    for field in ("public_methods", "declared_public_methods", "inherited_public_methods", "fields", "annotations", "sources"):
-        merged[field] = sorted(set(merged.get(field, [])) | set(node.get(field, [])))
-    method_details = {
-        json.dumps(item, sort_keys=True, ensure_ascii=False): item
-        for item in merged.get("method_details", [])
-        if isinstance(item, dict)
-    }
-    for item in node.get("method_details", []):
-        if isinstance(item, dict):
-            method_details[json.dumps(item, sort_keys=True, ensure_ascii=False)] = item
-    if method_details:
-        merged["method_details"] = [method_details[key] for key in sorted(method_details)]
-    resource_keys = set(merged.get("resource_keys", []))
-    if isinstance(merged.get("resource_key"), str):
-        resource_keys.add(str(merged["resource_key"]))
-    if isinstance(node.get("resource_key"), str):
-        resource_keys.add(str(node["resource_key"]))
-    merged["resource_keys"] = sorted(resource_keys)
-    if not merged.get("fqn") and node.get("fqn"):
-        merged["fqn"] = node.get("fqn")
-    if not merged.get("source_kind") and node.get("source_kind"):
-        merged["source_kind"] = node.get("source_kind")
-    if not merged.get("component_id") and node.get("component_id"):
-        merged["component_id"] = node.get("component_id")
-    if not merged.get("scan_reliability") and isinstance(node.get("scan_reliability"), dict):
-        merged["scan_reliability"] = dict(node.get("scan_reliability"))
-    return merged
+    return _merge_module_entry(existing, node)
 
 
 def build_module_entry_aliases(node: dict[str, object]) -> list[str]:
-    aliases: list[str] = []
-    for key in ("resource_key", "fqn", "simple_name", "class_name", "display_name", "name"):
-        value = node.get(key)
-        if not isinstance(value, str) or not value:
-            continue
-        aliases.append(value)
-        aliases.append(value.split(".")[-1])
-        if "::" in value:
-            aliases.append(value.split("::")[-1])
-            aliases.append(value.split("::")[-1].split(".")[-1])
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for item in aliases:
-        if item and item not in seen:
-            seen.add(item)
-            deduped.append(item)
-    return deduped
+    return _build_module_entry_aliases(node)
 
 
 def extract_module_class_entries(
@@ -757,79 +484,19 @@ def extract_module_class_entries(
     *,
     affected_components: list[str] | None = None,
 ) -> dict[str, list[dict[str, object]]]:
-    if not module_map_path.exists():
-        return {}
-
-    data = json.loads(module_map_path.read_text(encoding="utf-8"))
-    entries: dict[str, list[dict[str, object]]] = {}
-    canonical_entries: dict[str, dict[str, object]] = {}
-    affected_component_set = {item for item in (affected_components or []) if item}
-
-    def collect(node: object) -> None:
-        if isinstance(node, dict):
-            class_name = node.get("class_name") or node.get("simple_name") or node.get("name")
-            if isinstance(class_name, str):
-                component_id = node.get("component_id")
-                if affected_component_set and isinstance(component_id, str) and component_id and component_id not in affected_component_set:
-                    pass
-                else:
-                    canonical_key = str(node.get("resource_key") or node.get("fqn") or class_name)
-                    existing = canonical_entries.get(canonical_key)
-                    canonical = merge_module_entry(existing, dict(node)) if isinstance(existing, dict) else dict(node)
-                    canonical_entries[canonical_key] = canonical
-            for value in node.values():
-                collect(value)
-        elif isinstance(node, list):
-            for item in node:
-                collect(item)
-
-    collect(data)
-    for canonical in canonical_entries.values():
-        for alias in build_module_entry_aliases(canonical):
-            entries.setdefault(alias, []).append(canonical)
-    return entries
+    return _extract_module_class_entries(module_map_path, affected_components=affected_components)
 
 
 def resolve_module_class_entry(entries: dict[str, list[dict[str, object]]], class_name: str) -> dict[str, object] | None:
-    candidates = entries.get(class_name) or entries.get(class_name.split(".")[-1]) or []
-    if not candidates:
-        return None
-    exact_fqn = [item for item in candidates if str(item.get("fqn") or "") == class_name]
-    if len(exact_fqn) == 1:
-        return exact_fqn[0]
-    exact_resource_key = [item for item in candidates if str(item.get("resource_key") or "") == class_name]
-    if len(exact_resource_key) == 1:
-        return exact_resource_key[0]
-    java_candidates = [item for item in candidates if str(item.get("source_kind") or "").startswith("java")]
-    if len(java_candidates) == 1 and len(candidates) == 1:
-        return java_candidates[0]
-    if len(candidates) == 1:
-        return candidates[0]
-    return None
+    return _resolve_module_class_entry(entries, class_name)
 
 
 def module_class_candidates(entries: dict[str, list[dict[str, object]]], class_name: str) -> list[dict[str, object]]:
-    return entries.get(class_name) or entries.get(class_name.split(".")[-1]) or []
+    return _module_class_candidates(entries, class_name)
 
 
 def read_module_map_quality(module_map_path: Path) -> dict[str, object]:
-    if not module_map_path.exists():
-        return {"confidence": "missing", "unsupported_features": []}
-    try:
-        data = json.loads(module_map_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {"confidence": "invalid", "unsupported_features": []}
-    if not isinstance(data, dict):
-        return {"confidence": "invalid", "unsupported_features": []}
-    unsupported_features = data.get("unsupported_features")
-    if not isinstance(unsupported_features, list):
-        unsupported_features = []
-    return {
-        "scanner": data.get("scanner"),
-        "confidence": data.get("confidence"),
-        "unsupported_features": unsupported_features,
-        "scan_quality": data.get("scan_quality") if isinstance(data.get("scan_quality"), dict) else {},
-    }
+    return _read_module_map_quality(module_map_path)
 
 
 def validate_gate5_baseline_freshness(
@@ -865,6 +532,24 @@ def analyze_implementation_traceability(
     *,
     affected_components: list[str] | None = None,
 ) -> dict[str, object]:
+    adapter = default_gate_adapter_registry().select_for_implementation_traceability(module_map_path)
+    if adapter is not None:
+        return adapter.analyze_implementation_traceability(
+            design_path,
+            module_map_path,
+            affected_components=affected_components,
+            context=GateTraceabilityContext(
+                extract_referenced_classes=extract_referenced_classes,
+                extract_referenced_method_calls=extract_referenced_method_calls,
+                read_module_map_quality=read_module_map_quality,
+                extract_module_class_entries=lambda path, components: extract_module_class_entries(path, affected_components=components),
+                resolve_module_class_entry=resolve_module_class_entry,
+                module_class_candidates=module_class_candidates,
+                match_method_call=match_method_call,
+                summarize_method_framework_evidence=summarize_method_framework_evidence,
+            ),
+        )
+
     design_text = design_path.read_text(encoding="utf-8")
     referenced_classes = extract_referenced_classes(design_text)
     referenced_methods = extract_referenced_method_calls(design_text)
@@ -1233,6 +918,17 @@ def attempt_junit_platform_execution(
 
 
 def attempt_test_execution(test_file: Path, mappings: list[dict[str, object]]) -> dict[str, object]:
+    adapter = default_gate_adapter_registry().select_for_test_file(test_file)
+    if adapter is None:
+        return {"status": "SKIPPED", "mode": "unknown", "reason": f"暂不支持的测试文件类型: {test_file.suffix}"}
+    return adapter.attempt_test_execution(
+        test_file,
+        mappings,
+        GateAdapterContext(repo_root=ROOT, m2_repo=M2_REPO, trim_output=trim_output),
+    )
+
+
+def attempt_test_execution_legacy(test_file: Path, mappings: list[dict[str, object]]) -> dict[str, object]:
     if test_file.suffix == ".py":
         python_exe = find_python_runner()
         if python_exe is None:

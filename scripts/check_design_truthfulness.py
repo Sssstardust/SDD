@@ -37,6 +37,14 @@ from baseline_paths import get_active_baseline_dir
 from bootstrap_utils import BOOTSTRAP_REPORT_NAME, BOOTSTRAP_REQUIRED_FILES
 from design_evidence import hash_file, hash_tree, resolve_design_pack_dir
 from feature_brief import extract_affected_components
+from gate_adapters import default_gate_adapter_registry
+from gate_adapters import (
+    build_schema_table_aliases as _build_schema_table_aliases,
+    extract_schema_table_entries as _extract_schema_table_entries,
+    merge_schema_table_entry as _merge_schema_table_entry,
+    resolve_schema_table_entry as _resolve_schema_table_entry,
+    schema_table_candidates as _schema_table_candidates,
+)
 from gate_report import write_gate_section
 from traceability_summaries import (
     summarize_controller_endpoint_mapping as _summarize_controller_endpoint_mapping,
@@ -282,7 +290,15 @@ def summarize_design_class_reliability(
     *,
     affected_components: set[str],
 ) -> dict[str, object]:
-    return _summarize_design_class_reliability(
+    adapter = default_gate_adapter_registry().select_for_module_map(module_map)
+    if adapter is None:
+        return _summarize_design_class_reliability(
+            module_map,
+            participant_classes,
+            affected_components=affected_components,
+            matches_affected_components=matches_affected_components,
+        )
+    return adapter.summarize_design_class_reliability(
         module_map,
         participant_classes,
         affected_components=affected_components,
@@ -296,7 +312,15 @@ def summarize_design_class_resolution(
     *,
     affected_components: set[str],
 ) -> dict[str, object]:
-    return _summarize_design_class_resolution(
+    adapter = default_gate_adapter_registry().select_for_module_map(module_map)
+    if adapter is None:
+        return _summarize_design_class_resolution(
+            module_map,
+            participant_classes,
+            affected_components=affected_components,
+            matches_affected_components=matches_affected_components,
+        )
+    return adapter.summarize_design_class_resolution(
         module_map,
         participant_classes,
         affected_components=affected_components,
@@ -327,34 +351,10 @@ def normalize_http_method(value: object) -> str:
 
 
 def extract_controller_endpoints_from_module_map(module_map: object) -> list[dict[str, str]]:
-    if not isinstance(module_map, dict):
+    adapter = default_gate_adapter_registry().select_for_module_map(module_map)
+    if adapter is None:
         return []
-    endpoints: list[dict[str, str]] = []
-    for item in module_map.get("classes", []):
-        if not isinstance(item, dict):
-            continue
-        class_name = str(item.get("simple_name") or item.get("class_name") or "")
-        component_id = str(item.get("component_id") or "")
-        resource_key = str(item.get("resource_key") or item.get("fqn") or class_name)
-        for endpoint in item.get("endpoints", []):
-            if not isinstance(endpoint, dict):
-                continue
-            path = normalize_endpoint_path(endpoint.get("path"))
-            method = normalize_http_method(endpoint.get("method"))
-            if not path or not method:
-                continue
-            endpoints.append(
-                {
-                    "path": path,
-                    "method": method,
-                    "operation_id": str(endpoint.get("operation_id") or endpoint.get("method_name") or ""),
-                    "method_name": str(endpoint.get("method_name") or ""),
-                    "class_name": class_name,
-                    "component_id": component_id,
-                    "resource_key": resource_key,
-                }
-            )
-    return endpoints
+    return adapter.extract_controller_endpoints(module_map)
 
 
 
@@ -494,82 +494,23 @@ def find_real_index_operation_conflicts(
 
 
 def merge_schema_table_entry(existing: dict[str, object] | None, table: dict[str, object]) -> dict[str, object]:
-    if not isinstance(existing, dict):
-        merged = dict(table)
-        if isinstance(merged.get("resource_key"), str):
-            merged["resource_keys"] = [str(merged["resource_key"])]
-        return merged
-
-    merged = dict(existing)
-    for field in ("columns", "declared_columns", "sql_columns", "indexed_columns", "sources"):
-        merged[field] = sorted(set(merged.get(field, [])) | set(table.get(field, [])))
-    column_details = list(merged.get("column_details", []))
-    for detail in table.get("column_details", []):
-        if isinstance(detail, dict) and detail not in column_details:
-            column_details.append(detail)
-    merged["column_details"] = column_details
-    resource_keys = set(merged.get("resource_keys", []))
-    if isinstance(merged.get("resource_key"), str):
-        resource_keys.add(str(merged["resource_key"]))
-    if isinstance(table.get("resource_key"), str):
-        resource_keys.add(str(table["resource_key"]))
-    merged["resource_keys"] = sorted(resource_keys)
-    for key in ("component_id", "db_type", "connection_name", "schema_name", "resource_key"):
-        if not merged.get(key) and table.get(key):
-            merged[key] = table.get(key)
-    return merged
+    return _merge_schema_table_entry(existing, table)
 
 
 def build_schema_table_aliases(table: dict[str, object]) -> list[str]:
-    aliases: list[str] = []
-    table_name = table.get("table_name")
-    resource_key = table.get("resource_key")
-    if isinstance(table_name, str) and table_name:
-        aliases.append(table_name)
-        aliases.append(table_name.lower())
-    if isinstance(resource_key, str) and resource_key:
-        aliases.append(resource_key)
-        tail = resource_key.split("::")[-1]
-        aliases.append(tail)
-        aliases.append(tail.lower())
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for alias in aliases:
-        if alias and alias not in seen:
-            seen.add(alias)
-            deduped.append(alias)
-    return deduped
+    return _build_schema_table_aliases(table)
 
 
 def extract_schema_table_entries(schema_context: object, affected_components: set[str]) -> dict[str, list[dict[str, object]]]:
-    if not isinstance(schema_context, dict):
-        return {}
-    aliases: dict[str, list[dict[str, object]]] = {}
-    canonical_entries: dict[str, dict[str, object]] = {}
-    for table in schema_context.get("tables", []):
-        if not isinstance(table, dict):
-            continue
-        if not isinstance(table.get("table_name"), str):
-            continue
-        if not matches_affected_components(table, affected_components):
-            continue
-        canonical_key = str(table.get("resource_key") or table.get("table_name") or "")
-        canonical_entries[canonical_key] = merge_schema_table_entry(canonical_entries.get(canonical_key), dict(table))
-    for entry in canonical_entries.values():
-        for alias in build_schema_table_aliases(entry):
-            aliases.setdefault(alias, []).append(entry)
-    return aliases
+    return _extract_schema_table_entries(schema_context, affected_components, matches_affected_components)
 
 
 def resolve_schema_table_entry(entries: dict[str, list[dict[str, object]]], table_name: str) -> dict[str, object] | None:
-    candidates = entries.get(table_name) or entries.get(table_name.lower()) or []
-    if len(candidates) == 1:
-        return candidates[0]
-    return None
+    return _resolve_schema_table_entry(entries, table_name)
 
 
 def schema_table_candidates(entries: dict[str, list[dict[str, object]]], table_name: str) -> list[dict[str, object]]:
-    return entries.get(table_name) or entries.get(table_name.lower()) or []
+    return _schema_table_candidates(entries, table_name)
 
 
 def summarize_schema_table_resolution(
@@ -578,7 +519,17 @@ def summarize_schema_table_resolution(
     *,
     affected_components: set[str],
 ) -> dict[str, object]:
-    return _summarize_schema_table_resolution(
+    adapter = default_gate_adapter_registry().select_for_module_map(schema_context)
+    if adapter is None:
+        return _summarize_schema_table_resolution(
+            schema_context,
+            table_names,
+            affected_components=affected_components,
+            extract_schema_table_entries=extract_schema_table_entries,
+            resolve_schema_table_entry=resolve_schema_table_entry,
+            schema_table_candidates=schema_table_candidates,
+        )
+    return adapter.summarize_schema_table_resolution(
         schema_context,
         table_names,
         affected_components=affected_components,

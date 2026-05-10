@@ -176,6 +176,7 @@ def parse_sql(
 
 def merge_tables(items: list[dict[str, dict[str, object]]]) -> list[dict[str, object]]:
     merged: dict[str, dict[str, object]] = {}
+    component_ids: set[str] = set()
 
     for item in items:
         for table_name, data in item.items():
@@ -195,6 +196,9 @@ def merge_tables(items: list[dict[str, dict[str, object]]]) -> list[dict[str, ob
                     "sources": list(data.get("sources", [])),
                     "column_details": list(data.get("column_details", [])),
                 }
+                component_id = str(data.get("component_id") or "").strip()
+                if component_id:
+                    component_ids.add(component_id)
                 continue
 
             existing = merged[merge_key]
@@ -213,8 +217,12 @@ def merge_tables(items: list[dict[str, dict[str, object]]]) -> list[dict[str, ob
                 if isinstance(detail, dict)
                 and detail not in existing.get("column_details", [])
             ]
+            component_id = str(data.get("component_id") or "").strip()
+            if component_id:
+                component_ids.add(component_id)
 
-    return sorted(merged.values(), key=lambda item: str(item["table_name"]).lower())
+    result = sorted(merged.values(), key=lambda item: str(item["table_name"]).lower())
+    return result
 
 
 def source_signature(payload: dict[str, object]) -> str:
@@ -233,6 +241,7 @@ def source_signature(payload: dict[str, object]) -> str:
             for item in table_items
             if isinstance(item, dict)
         ],
+        "component_ids": payload.get("component_ids", []),
     }
     content = json.dumps(relevant, ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -493,6 +502,13 @@ def main() -> int:
         "schema_roots": [str(path.resolve()) for path in schema_roots_resolved],
         "tables": merge_tables(table_items),
     }
+    payload["component_ids"] = sorted(
+        {
+            str(item.get("component_id") or "").strip()
+            for item in payload["tables"]
+            if isinstance(item, dict) and str(item.get("component_id") or "").strip()
+        }
+    )
     attach_evidence_metadata(payload)
     write_schema_payload(schema_context_path, payload, phase="refresh-schema-context:local")
     write_schema_audit(

@@ -14,7 +14,7 @@ from attached_project import DEFAULT_ATTACHMENT_PATH
 from concurrency import atomic_write_text, path_lock
 from project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
 from ops_log import read_latest_op
-from state_view import affected_component_execution_badge, attached_execution_admission_badge, gate5_admission_summary_badge, real_test_admission_badge, strict_flag, workspace_summary_lines
+from state_view import affected_component_execution_badge, attached_execution_admission_badge, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, strict_flag, workspace_summary_lines
 
 
 STAGE_PRIORITY = {
@@ -73,6 +73,10 @@ def implementation_attention_summary(state: dict[str, object]) -> dict[str, obje
     gate5_admission_result = None
     if isinstance(gate5_admission_summary, dict) and gate5_admission_summary:
         gate5_admission_result = str(gate5_admission_summary.get("result") or "").strip() or None
+    gate3_ai_review = state.get("gate3_ai_review")
+    gate3_ai_result = None
+    if isinstance(gate3_ai_review, dict) and gate3_ai_review:
+        gate3_ai_result = str(gate3_ai_review.get("result") or "").strip() or None
     component_admission = state.get("affected_component_execution_admission")
     component_admission_result = None
     component_issue_count = 0
@@ -92,6 +96,7 @@ def implementation_attention_summary(state: dict[str, object]) -> dict[str, obje
         "attached_admission_result": attached_admission_result,
         "attached_failed_count": attached_failed_count,
         "gate5_admission_result": gate5_admission_result,
+        "gate3_ai_result": gate3_ai_result,
         "component_admission_result": component_admission_result,
         "component_issue_count": component_issue_count,
         "signal_count": signal_count,
@@ -153,6 +158,9 @@ def enrich_candidate_reason(state: dict[str, object]) -> dict[str, object]:
         summary_result = attention.get("gate5_admission_result")
         if summary_result and summary_result not in {"PASS", "SKIPPED"}:
             enriched["reason"] = f"{str(enriched.get('reason') or '').strip()}; gate5 admission={summary_result}".strip("; ")
+        gate3_ai_result = attention.get("gate3_ai_result")
+        if gate3_ai_result and gate3_ai_result not in {"PASS", "SKIPPED"}:
+            enriched["reason"] = f"{str(enriched.get('reason') or '').strip()}; gate3 ai={gate3_ai_result}".strip("; ")
     return enriched
 
 
@@ -258,6 +266,7 @@ def render_markdown(
                 f"- Risk tier: `{candidate.get('risk_tier')}`",
                 f"- Strict: `{strict_flag(candidate)}`",
                 f"- Implementation result: `{candidate.get('implementation_result')}`",
+                f"- Gate3 AI: `{gate3_ai_review_badge(candidate)}`",
                 f"- Gate5 Admission: `{gate5_admission_summary_badge(candidate)}`",
                 f"- Real Test Admission: `{real_test_admission_badge(candidate)}`",
                 f"- Attached Execution: `{attached_execution_admission_badge(candidate)}`",
@@ -272,8 +281,8 @@ def render_markdown(
         [
             "## Candidates",
             "",
-            "| Feature | Stage | Source | Risk | Strict | impl | Gate5 Admission | Real Test Admission | Attached Execution | Component Execution | Framework Evidence | Missing | Blockers | Next |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Feature | Stage | Source | Risk | Strict | impl | Gate3 AI | Gate5 Admission | Real Test Admission | Attached Execution | Component Execution | Framework Evidence | Missing | Blockers | Next |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for state in states:
@@ -283,6 +292,7 @@ def render_markdown(
         risk = str(state.get("risk_tier", "N/A"))
         strict_mode = strict_flag(state)
         implementation_result = str(state.get("implementation_result", "N/A"))
+        gate3_ai = gate3_ai_review_badge(state).replace("|", "\\|")
         gate5_admission = gate5_admission_summary_badge(state).replace("|", "\\|")
         real_test_admission = real_test_admission_badge(state).replace("|", "\\|")
         attached_execution_admission = attached_execution_admission_badge(state).replace("|", "\\|")
@@ -293,7 +303,7 @@ def render_markdown(
         blockers = len(state.get("blockers", [])) if isinstance(state.get("blockers"), list) else 0
         next_command = str(state.get("next_command", "N/A")).replace("|", "\\|")
         lines.append(
-            f"| {feature_name} | {stage} | {source} | {risk} | {strict_mode} | {implementation_result} | {gate5_admission} | {real_test_admission} | {attached_execution_admission} | {component_execution_admission} | {evidence} | {missing} | {blockers} | `{next_command}` |"
+            f"| {feature_name} | {stage} | {source} | {risk} | {strict_mode} | {implementation_result} | {gate3_ai} | {gate5_admission} | {real_test_admission} | {attached_execution_admission} | {component_execution_admission} | {evidence} | {missing} | {blockers} | `{next_command}` |"
         )
     lines.append("")
     return "\n".join(lines)
@@ -321,6 +331,16 @@ def main() -> int:
     candidate = choose_candidate(states)
     project_context = payload["project"]
     workspace = payload["workspace"]
+    payload["project_highlights"] = {
+        "recommended_feature": candidate.get("feature_name") if isinstance(candidate, dict) else None,
+        "gate3_ai_warn_count": sum(
+            1
+            for state in states
+            if isinstance(state.get("gate3_ai_review"), dict)
+            and state.get("gate3_ai_review", {}).get("result") == "WARN"
+        ),
+        "gate5_fail_count": sum(1 for state in states if state.get("gate5_result") == "FAIL"),
+    }
     payload["candidate"] = candidate
 
     json_path = output_dir / "project-next.json"

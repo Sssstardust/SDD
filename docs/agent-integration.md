@@ -214,6 +214,42 @@ be polled with `get_pipeline_task` and read back with `read_pipeline_task_result
 
 当前建议优先让 agent 走 `sdd-pipeline` MCP；MCP 内部再调用 `run_pipeline.py`。只有在宿主环境明确禁止 Node 子进程执行时，才回退为终端直调。
 
+消费层字段说明可参考：
+
+- [Report Field Guide](report-field-guide.md)
+
+### Gate 3 AI Review
+
+Gate 3 现在支持一个可降级的外部 AI 审查入口：
+
+- 环境变量：`SDD_GATE3_AI_REVIEW_COMMAND`
+- 配置文件：`D:\project\SDD\.spec\gate3-ai-review.json`
+
+命令通过 `stdin` 接收 JSON，上报设计文本、规则结果和 `semantic_checks`，`stdout` 返回：
+
+```json
+{
+  "ai_review": {
+    "result": "WARN",
+    "mode": "external-provider",
+    "confidence": "high",
+    "rationale": "External provider reviewed the design",
+    "evidence_refs": ["design-v1.md#review"],
+    "violations": [
+      {
+        "severity": "warn",
+        "scope": "review",
+        "rationale": "External provider request",
+        "confidence": "high",
+        "evidence_refs": ["design-v1.md#review"]
+      }
+    ]
+  }
+}
+```
+
+未配置、超时、provider 失败或返回非法 JSON 时，Gate 3 会把 `ai_review.result` 降级为 `SKIPPED`，不会阻断主流程。
+
 ### 宿主环境边界
 
 `sdd-pipeline` 当前属于“轻封装”模式，本身不重写 Pipeline 逻辑，而是把 `run_pipeline.py` 包装成 MCP 工具。因此：

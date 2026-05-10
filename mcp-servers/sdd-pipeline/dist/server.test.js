@@ -54,6 +54,31 @@ strict_1.default.deepEqual((0, server_1.implementationSummaryFromReport)(null), 
     implementation_framework_evidence: {},
     implementation_match_highlights: [],
 });
+strict_1.default.equal(typeof {
+    gate3_ai_review: {
+        result: "WARN",
+        mode: "rule-modeled-review",
+    },
+}.gate3_ai_review.result, "string");
+strict_1.default.equal(typeof {
+    candidate: {
+        gate3_ai_review: {
+            result: "WARN",
+        },
+    },
+}.candidate.gate3_ai_review.result, "string");
+strict_1.default.equal(typeof {
+    gate_summary: {
+        gate3_ai: {
+            WARN: 1,
+        },
+    },
+}.gate_summary.gate3_ai.WARN, "number");
+strict_1.default.equal(typeof {
+    project_highlights: {
+        gate5_fail_count: 1,
+    },
+}.project_highlights.gate5_fail_count, "number");
 strict_1.default.equal("strict_recommended" in {
     strict_recommended: true,
     strict_next_step: true,

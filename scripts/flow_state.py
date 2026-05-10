@@ -63,6 +63,8 @@ STATE_KEYS = (
     "attached_execution_admission",
     "affected_component_execution_admission",
     "gate5_admission_summary",
+    "gate3_rule_evaluation",
+    "gate3_ai_review",
     "design_class_resolution_brief",
     "schema_table_resolution_brief",
     "design_resource_claim_summary",
@@ -245,6 +247,12 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
             gate5_admission_summary = verify.get("gate5_admission_summary")
             if isinstance(gate5_admission_summary, dict):
                 state["gate5_admission_summary"] = gate5_admission_summary
+            gate3_rule_evaluation = gate_report.get("gate3", {}).get("rule_evaluation") if isinstance(gate_report.get("gate3"), dict) else None
+            if isinstance(gate3_rule_evaluation, dict):
+                state["gate3_rule_evaluation"] = gate3_rule_evaluation
+            gate3_ai_review = gate_report.get("gate3", {}).get("ai_review") if isinstance(gate_report.get("gate3"), dict) else None
+            if isinstance(gate3_ai_review, dict):
+                state["gate3_ai_review"] = gate3_ai_review
             execution = verify.get("execution")
             if isinstance(execution, dict) and execution.get("status") == "FAIL":
                 state["blockers"].append("gate5: execution phase failed")

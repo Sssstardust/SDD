@@ -44,6 +44,20 @@ def build_project_level_payload(
     payload["stage_counts"] = dict(Counter(str(state.get("current_stage", "unknown")) for state in states))
     payload["strict_recommended_count"] = sum(1 for state in states if state.get("strict_recommended"))
     payload["strict_next_step_count"] = sum(1 for state in states if state.get("strict_next_step"))
+    payload["gate_summary"] = {
+        "gate2": {status: sum(1 for state in states if state.get("gate2_result") == status) for status in ("PASS", "WARN", "FAIL")},
+        "gate3": {status: sum(1 for state in states if state.get("gate3_result") == status) for status in ("PASS", "WARN", "FAIL")},
+        "gate3_ai": {
+            status: sum(
+                1
+                for state in states
+                if isinstance(state.get("gate3_ai_review"), dict)
+                and state.get("gate3_ai_review", {}).get("result") == status
+            )
+            for status in ("WARN", "SKIPPED")
+        },
+        "gate5": {status: sum(1 for state in states if state.get("gate5_result") == status) for status in ("PASS", "WARN", "FAIL")},
+    }
     return payload
 
 

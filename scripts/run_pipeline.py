@@ -553,6 +553,17 @@ def refresh_baseline_governance() -> int:
     return run_external_command([sys.executable, str(script)])
 
 
+def check_baseline_keys(attachment_file: str | None = None, profile: str | None = None) -> int:
+    script = ROOT / "scripts" / "check_baseline_key_partition.py"
+    baseline_dir = get_active_baseline_dir(
+        attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+        profile=profile,
+        create=True,
+        migrate_legacy=True,
+    )
+    return run_external_command([sys.executable, str(script), "--baseline-dir", str(baseline_dir)])
+
+
 def validate_reports(feature_dir: str, stage: str = "all") -> int:
     script = ROOT / "scripts" / "validate_reports.py"
     return run_external_command([sys.executable, str(script), feature_dir, "--stage", stage])
@@ -1051,6 +1062,7 @@ def run_refresh_baseline(
             refresh_module_map=refresh_module_map,
             refresh_schema_context=refresh_schema_context,
             refresh_baseline_governance=refresh_baseline_governance,
+            check_baseline_keys=check_baseline_keys,
             attachment_file=attachment_file,
             profile=profile,
             refresh_strategy=refresh_strategy,

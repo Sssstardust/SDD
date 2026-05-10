@@ -40,6 +40,8 @@ def base_state(feature_dir: Path) -> dict[str, object]:
         "attached_execution_admission": {},
         "affected_component_execution_admission": {},
         "gate5_admission_summary": {},
+        "gate3_rule_evaluation": {},
+        "gate3_ai_review": {},
         "design_class_resolution_brief": {},
         "schema_table_resolution_brief": {},
         "design_resource_claim_summary": {},
@@ -81,6 +83,10 @@ def normalize_feature_state_payload(feature_dir: Path, raw_state: object, state_
         state["affected_component_execution_admission"] = {}
     if not isinstance(state.get("gate5_admission_summary"), dict):
         state["gate5_admission_summary"] = {}
+    if not isinstance(state.get("gate3_rule_evaluation"), dict):
+        state["gate3_rule_evaluation"] = {}
+    if not isinstance(state.get("gate3_ai_review"), dict):
+        state["gate3_ai_review"] = {}
     if not isinstance(state.get("design_class_resolution_brief"), dict):
         state["design_class_resolution_brief"] = {}
     if not isinstance(state.get("schema_table_resolution_brief"), dict):

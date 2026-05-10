@@ -172,6 +172,23 @@ def validate_release_gate(report_path: Path, errors: list[str]) -> None:
     validate_by_schema(data, load_schema("release-gate-report.schema.json"), "release-gate-report.json", errors)
 
 
+def validate_baseline_key_partition(report_dir: Path, errors: list[str]) -> None:
+    script = ROOT / "scripts" / "check_baseline_key_partition.py"
+    if not script.exists():
+        errors.append(f"missing baseline key partition validator: {script}")
+        return
+    from subprocess import run
+
+    result = run(
+        ["python", str(script), "--baseline-dir", str(report_dir)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        errors.append(f"baseline key partition validation failed: {result.stdout.strip() or result.stderr.strip()}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -217,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
         validate_verify(reports_dir / "verify-report.json", workspace_root, errors, risk_high=risk_high)
         validate_release_gate(reports_dir / "release-gate-report.json", errors)
         validate_gate_report(reports_dir / "gate-report.json", errors, "implementation")
+        validate_baseline_key_partition(reports_dir, errors)
 
     if errors:
         print("[FAIL] reports 结构校验失败")

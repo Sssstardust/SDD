@@ -580,6 +580,13 @@ def descriptions_to_schema_context(
         "source": source,
         "scenario": "ready" if tables else "new-table",
         "tables": sorted(tables, key=lambda item: str(item["table_name"])),
+        "component_ids": sorted(
+            {
+                str(item.get("component_id") or "").strip()
+                for item in tables
+                if str(item.get("component_id") or "").strip()
+            }
+        ),
     }
     if discovery_report is not None:
         payload["discovery"] = discovery_report

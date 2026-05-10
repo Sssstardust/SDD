@@ -101,6 +101,21 @@ def gate5_admission_summary_badge(state: dict[str, object]) -> str:
     return " ".join(parts)
 
 
+def gate3_ai_review_badge(state: dict[str, object]) -> str:
+    review = state.get("gate3_ai_review")
+    if not isinstance(review, dict) or not review:
+        return "N/A"
+    result = str(review.get("result") or "N/A")
+    mode = str(review.get("mode") or "").strip()
+    confidence = str(review.get("confidence") or "").strip()
+    parts = [result]
+    if mode:
+        parts.append(mode)
+    if confidence:
+        parts.append(confidence)
+    return " ".join(parts)
+
+
 def resource_claim_badges(state: dict[str, object]) -> str:
     claim_brief = state.get("design_resource_claim_brief")
     if not isinstance(claim_brief, dict):

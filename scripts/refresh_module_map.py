@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,25 @@ def build_module_resource_key(item: dict[str, object], component_id: str | None)
     source_file = str(item.get("source_file") or item.get("source_kind") or "unknown")
     simple_name = str(item.get("simple_name") or item.get("class_name") or "Anonymous")
     return f"{namespace}::{source_file}::{simple_name}"
+
+
+def source_signature(payload: dict[str, object]) -> str:
+    relevant = {
+        "source": payload.get("source"),
+        "attachment": payload.get("attachment"),
+        "component_ids": payload.get("component_ids", []),
+        "classes": [
+            {
+                "resource_key": item.get("resource_key"),
+                "component_id": item.get("component_id"),
+                "source_file": item.get("source_file"),
+            }
+            for item in payload.get("classes", [])
+            if isinstance(item, dict)
+        ],
+    }
+    content = json.dumps(relevant, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def annotate_module_map_payload(payload: dict[str, object], scan_settings: dict[str, object]) -> dict[str, object]:
@@ -140,7 +160,12 @@ def main() -> int:
     payload.setdefault("confidence", "medium")
     payload.setdefault("unsupported_features", ["lombok-generated-methods", "mybatis-xml-mapping", "reflection", "framework-proxy"])
     payload.setdefault("ttl", "P1D")
-    payload["source_signature"] = source_signature(scan_settings)
+    payload["source_signature"] = source_signature({
+        "source": scan_settings.get("source"),
+        "attachment": scan_settings,
+        "component_ids": payload.get("component_ids", []),
+        "classes": payload.get("classes", []),
+    })
     payload["attachment"] = scan_settings
     with path_lock(output_path, phase="refresh-module-map"):
         atomic_write_text(output_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

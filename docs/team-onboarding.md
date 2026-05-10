@@ -121,6 +121,7 @@ python scripts/validate_fixture_matrix.py
 内置样例说明见：
 
 - [../examples/fixtures/README.md](../examples/fixtures/README.md)
+- [Report Field Guide](report-field-guide.md)
 
 其中高风险和离线快照样例也已内置，可直接参考：
 
