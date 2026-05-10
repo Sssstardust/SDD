@@ -1,0 +1,57 @@
+[
+  {
+    "intent_id": "pricing-list-control-design-v1",
+    "feature": "pricing-list-control",
+    "design_version": "design-v1.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T09:49:21.286109+00:00",
+    "paths": [
+      "/api/v1/tob/pricings",
+      "/api/v1/tob/pricings/{pricingId}/review",
+      "/api/v1/tob/pricings/{pricingId}"
+    ],
+    "tables": [],
+    "superseded_by": null
+  },
+  {
+    "intent_id": "payment-review-control-design-v1",
+    "feature": "payment-review-control",
+    "design_version": "design-v1.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T10:07:33.298144+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "superseded_by": null
+  },
+  {
+    "intent_id": "validation-full-20260417190616-design-v2",
+    "feature": "validation-full-20260417190616",
+    "design_version": "design-v2.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T11:39:08.530428+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "superseded_by": null
+  },
+  {
+    "intent_id": "task-board-design-v1",
+    "feature": "task-board",
+    "design_version": "design-v1.md",
+    "status": "ACTIVE",
+    "approved_at": "2026-04-28T09:50:12.445878+00:00",
+    "paths": [
+      "/api/v1/tasks",
+      "/api/v1/tasks/{id}"
+    ],
+    "tables": [],
+    "superseded_by": null
+  }
+]

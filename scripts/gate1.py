@@ -16,7 +16,9 @@ from pathlib import Path
 from ambiguity_tracker import sync_ambiguity_tracker
 from concurrency import atomic_write_text
 from design_evidence import freeze_design_pack, hash_file, hash_tree
-from gate_report import build_violations, write_gate_section
+from gate_report import write_gate_section
+from gates.gate1_checker import collect_open_ambiguity_errors, summarize_command_results, validate_required_artifacts
+from gates.gate1_reporter import build_gate1_payload
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
@@ -75,10 +77,14 @@ def gate1(feature_dir: Path) -> dict[str, object]:
     command_results: list[dict[str, object]] = []
     ambiguity_tracker_path: str | None = None
 
-    if not feature_brief.exists():
-        errors.append(f"missing feature-brief.md: {feature_brief}")
-    if not design_path.exists():
-        errors.append(f"missing design document: {design_path}")
+    errors.extend(
+        validate_required_artifacts(
+            feature_brief_exists=feature_brief.exists(),
+            design_exists=design_path.exists(),
+            feature_brief_path=str(feature_brief),
+            design_path=str(design_path),
+        )
+    )
 
     feature_name = feature_dir.name
     if feature_brief.exists():
@@ -95,8 +101,7 @@ def gate1(feature_dir: Path) -> dict[str, object]:
                 warnings.append(
                     f"ambiguity tracker contains {resolved_count} resolved and {waived_count} waived items"
                 )
-            for item in open_items:
-                errors.append(f"open ambiguity {item.get('id')}: {item.get('text')}")
+            errors.extend(collect_open_ambiguity_errors({"items": open_items}))
 
     if not errors:
         command_results.append(
@@ -112,33 +117,27 @@ def gate1(feature_dir: Path) -> dict[str, object]:
             )
         )
 
-    for command_result in command_results:
-        label = str(command_result["label"])
-        if int(command_result["returncode"]) == 0:
-            checks.append(label)
-            continue
-        output = str(command_result.get("output") or "").strip()
-        errors.append(f"{label} failed: {output or 'no output'}")
+    command_checks, command_errors = summarize_command_results(command_results)
+    checks.extend(command_checks)
+    errors.extend(command_errors)
 
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     result = "PASS" if not errors else "FAIL"
     snapshot_dir = freeze_design_pack(feature_dir, reports_dir) if result == "PASS" else None
-    payload = {
-        "result": result,
-        "checks": checks,
-        "warnings": warnings,
-        "errors": errors,
-        "commands": command_results,
-        "ambiguity_tracker": ambiguity_tracker_path,
-        "design_pack_snapshot": str(snapshot_dir) if snapshot_dir else None,
-        "evidence": {
+    payload = build_gate1_payload(
+        checks=checks,
+        warnings=warnings,
+        errors=errors,
+        commands=command_results,
+        ambiguity_tracker=ambiguity_tracker_path,
+        design_pack_snapshot=str(snapshot_dir) if snapshot_dir else None,
+        evidence={
             "design_hash": hash_file(design_path),
             "design_pack_hash": hash_tree(snapshot_dir or (feature_dir / "design-pack")),
             "evidence_level": "L3",
             "confidence": "medium",
         },
-    }
-    payload["violations"] = build_violations("gate1", payload)
+    )
     gate_report_path = write_gate_section(
         reports_dir,
         gate_name="gate1",
@@ -151,7 +150,6 @@ def gate1(feature_dir: Path) -> dict[str, object]:
         "feature_name": feature_name,
         "design_version": design_path.name,
         **payload,
-        "violations": payload.get("violations", []),
         "gate_report": str(gate_report_path),
     }
     atomic_write_text(

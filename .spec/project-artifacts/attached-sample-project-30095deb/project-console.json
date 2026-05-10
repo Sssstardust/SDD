@@ -1,0 +1,136 @@
+{
+  "feature_count": 2,
+  "stage_counts": {
+    "release-ready": 2
+  },
+  "candidate": null,
+  "latest_execution": {
+    "at": "2026-04-20T06:48:26.731366+00:00",
+    "op_type": "continue-project-flow",
+    "payload": {
+      "result": "no_candidate"
+    }
+  },
+  "recent_ops": [
+    {
+      "at": "2026-04-20T08:19:51.365785+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T08:48:59.441328+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T08:48:59.456476+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T08:54:15.416539+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T08:54:15.637891+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T09:07:34.884844+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T09:15:21.657404+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-20T09:15:26.628514+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    },
+    {
+      "at": "2026-04-24T06:32:12.913751+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "fail",
+        "failed_step": "refresh-project-state"
+      }
+    },
+    {
+      "at": "2026-04-24T06:32:49.283614+00:00",
+      "op_type": "project-console-cycle",
+      "payload": {
+        "result": "ok"
+      }
+    }
+  ],
+  "workspace_hygiene": {
+    "issue_count": 1,
+    "issues": [
+      {
+        "type": "temp-directory",
+        "severity": "info",
+        "path": "D:\\project\\SDD\\.tmp_test_workspace",
+        "message": "检测到临时目录，建议按需清理或归档"
+      }
+    ]
+  },
+  "features": [
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\pilot-order-create",
+      "feature_name": "pricing-list-control",
+      "current_stage": "release-ready",
+      "risk_tier": "low",
+      "design_version": "design-v1.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\pilot-order-create\\reports\\v1",
+      "approval_status": null,
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "release_gate_result": "PASS",
+      "next_command": "python scripts/run_pipeline.py release-gate D:\\project\\SDD\\specs\\pilot-order-create",
+      "reason": "当前 feature 已完成实现验证与上线前治理检查",
+      "missing_artifacts": [],
+      "blockers": []
+    },
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\pilot-payment-review",
+      "feature_name": "payment-review-control",
+      "current_stage": "release-ready",
+      "risk_tier": "high",
+      "design_version": "design-v1.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "release_gate_result": "PASS",
+      "next_command": "python scripts/run_pipeline.py release-gate D:\\project\\SDD\\specs\\pilot-payment-review",
+      "reason": "当前 feature 已完成实现验证与上线前治理检查",
+      "missing_artifacts": [],
+      "blockers": []
+    }
+  ]
+}

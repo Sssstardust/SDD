@@ -19,6 +19,11 @@ const PACKAGE = JSON.parse(
 
 const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
+    name: "health_check",
+    description: "Return the SDD pipeline MCP health status.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
     name: "list_pipeline_commands",
     description: "List the SDD pipeline tools exposed by this MCP server.",
     inputSchema: { type: "object", properties: {} },
@@ -524,6 +529,20 @@ function latestArtifactFile(fileName: string): string | null {
 }
 
 export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
+  if (name === "health_check") {
+    const interfacePath = path.join(ROOT, ".spec", "sdd-interface.json");
+    const interfacePayload = readJsonFile(interfacePath);
+    return {
+      status: interfacePayload ? "ok" : "degraded",
+      reason: interfacePayload ? "sdd interface contract is readable" : "missing .spec/sdd-interface.json",
+      interface_path: interfacePath,
+      interface_version:
+        interfacePayload && typeof interfacePayload.sdd_interface_version === "string"
+          ? interfacePayload.sdd_interface_version
+          : null,
+    };
+  }
+
   if (name === "list_pipeline_commands") {
     return {
       count: TOOL_DEFINITIONS.length,

@@ -24,6 +24,14 @@ const DB_TYPES = ['mysql', 'postgres', 'mongodb', 'redis', 'oracle', 'sqlite'] a
 // 工具定义
 const tools: Tool[] = [
   {
+    name: 'health_check',
+    description: '返回 PolyQuery MCP Server 健康状态',
+    inputSchema: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
     name: 'query_database',
     description: '执行数据库查询。SQL数据库传SQL语句，MongoDB传JSON查询，Redis传命令字符串',
     inputSchema: {
@@ -140,6 +148,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const startTime = Date.now();
 
     switch (name) {
+      case 'health_check': {
+        const configured = listConfiguredDatabases();
+        const hasAnyConfigured = Object.values(configured).some((item: any) => item?.configured === true);
+        result = {
+          success: true,
+          status: hasAnyConfigured ? 'ok' : 'degraded',
+          reason: hasAnyConfigured ? 'at least one datasource is configured' : 'no datasource is configured'
+        };
+        break;
+      }
+
       case 'query_database': {
         const adapter = getAdapter(args.db_type as string, args.connection_name as string | undefined);
         const data = await adapter.executeQuery(

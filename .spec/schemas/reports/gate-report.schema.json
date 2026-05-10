@@ -1,0 +1,85 @@
+{
+  "type": "object",
+  "required": [
+    "feature_name",
+    "design_version",
+    "updated_at"
+  ],
+  "properties": {
+    "feature_name": { "type": "string" },
+    "design_version": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "gate2": {
+      "type": "object",
+      "required": ["result", "checks", "warnings", "errors"],
+      "properties": {
+        "result": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
+        "checks": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "gate3": {
+      "type": "object",
+      "required": ["result", "checks", "warnings", "errors"],
+      "properties": {
+        "result": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
+        "checks": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "gate4": {
+      "type": "object",
+      "required": ["result", "test_file", "test_file_preserved", "mapping_count", "report_file"],
+      "properties": {
+        "result": { "type": "string", "enum": ["PASS", "FAIL"] },
+        "test_file": { "type": "string" },
+        "test_file_preserved": { "type": "boolean" },
+        "mapping_count": { "type": "number" },
+        "report_file": { "type": "string" },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "gate5": {
+      "type": "object",
+      "required": ["result", "test_file", "coverage_result", "execution", "uncovered_p0", "uncovered_p1", "report_file"],
+      "properties": {
+        "result": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
+        "test_file": { "type": "string" },
+        "coverage_result": { "type": "string", "enum": ["PASS", "WARN", "FAIL"] },
+        "execution": {
+          "type": "object",
+          "required": ["status", "mode"],
+          "properties": {
+            "status": { "type": "string", "enum": ["PASS", "FAIL", "SKIPPED"] },
+            "mode": { "type": "string" },
+            "reason": { "type": "string" },
+            "command": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "returncode": { "type": "number" },
+            "stdout_tail": { "type": "string" },
+            "stderr_tail": { "type": "string" }
+          }
+        },
+        "uncovered_p0": { "type": "array", "items": { "type": "string" } },
+        "uncovered_p1": { "type": "array", "items": { "type": "string" } },
+        "report_file": { "type": "string" }
+      }
+    },
+    "release_gate": {
+      "type": "object",
+      "required": ["result", "checks", "warnings", "errors", "report_file"],
+      "properties": {
+        "result": { "type": "string", "enum": ["PASS", "FAIL"] },
+        "checks": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "errors": { "type": "array", "items": { "type": "string" } },
+        "report_file": { "type": "string" }
+      }
+    }
+  }
+}

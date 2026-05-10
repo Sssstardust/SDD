@@ -13,7 +13,6 @@ config/polyquery.json
 **/.mypy_cache/
 mcp-servers/project-explorer/dist/
 
-.spec
 specs
 docs
 document

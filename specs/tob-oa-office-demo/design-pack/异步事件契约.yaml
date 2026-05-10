@@ -1,9 +1,0 @@
-event: TobOaOfficeDemoEvent
-topic: TOPIC_TOB_OA_OFFICE_DEMO
-producer: TobOaOfficeDemoService
-consumer: TobOaOfficeDemoConsumer
-payload:
-  type: object
-retry:
-  max_attempts: 3
-dlq: DLQ_TOB_OA_OFFICE_DEMO

@@ -43,6 +43,44 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def load_schema(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_payload_by_schema(instance: object, schema: dict, *, label: str) -> None:
+    schema_type = schema.get("type")
+    if schema_type == "object":
+        if not isinstance(instance, dict):
+            raise ValueError(f"{label} must be an object")
+        required = schema.get("required", [])
+        if isinstance(required, list):
+            for key in required:
+                if key not in instance:
+                    raise ValueError(f"{label} missing required field: {key}")
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict):
+            for key, child_schema in properties.items():
+                if key in instance and isinstance(child_schema, dict):
+                    validate_payload_by_schema(instance[key], child_schema, label=f"{label}.{key}")
+        return
+    if schema_type == "array":
+        if not isinstance(instance, list):
+            raise ValueError(f"{label} must be an array")
+        child = schema.get("items")
+        if isinstance(child, dict):
+            for index, item in enumerate(instance):
+                validate_payload_by_schema(item, child, label=f"{label}[{index}]")
+        return
+    if schema_type == "string":
+        if not isinstance(instance, str):
+            raise ValueError(f"{label} must be a string")
+        return
+    if schema_type == "boolean":
+        if not isinstance(instance, bool):
+            raise ValueError(f"{label} must be a boolean")
+        return
+
+
 def design_version_number(path: Path) -> int:
     match = re.search(r"design-v(\d+)\.md$", path.name)
     return int(match.group(1)) if match else 1
@@ -627,6 +665,20 @@ def generate_with_ai(
 
 def main() -> int:
     args = parse_args()
+    input_payload = {
+        "workspace": args.workspace,
+        "output": args.output,
+        "feedback": args.feedback,
+        "resume": args.resume,
+        "force": args.force,
+        "no_ai": args.no_ai,
+        "ai_only": args.ai_only,
+    }
+    validate_payload_by_schema(
+        input_payload,
+        load_schema(SKILL_DIR / "input.schema.json"),
+        label="sdd-generation.input",
+    )
     workspace = Path(args.workspace).resolve()
     output_path = Path(args.output).resolve()
     design_pack_dir = workspace / "design-pack"
@@ -739,6 +791,20 @@ def main() -> int:
                 print(f"  - scenario: {context['scenario']}")
                 if feedback_path:
                     print(f"  - feedback: {feedback_path}")
+                output_payload = {
+                    "status": "ok",
+                    "workspace": str(workspace),
+                    "design": str(output_path),
+                    "design_pack": str(design_pack_dir),
+                    "scenario": str(context["scenario"]),
+                    "capability_tags": list(context["capability_tags"]),
+                    "feedback": str(feedback_path) if feedback_path else None,
+                }
+                validate_payload_by_schema(
+                    output_payload,
+                    load_schema(SKILL_DIR / "output.schema.json"),
+                    label="sdd-generation.output",
+                )
                 return 0
 
             feedback_items = [item for item in gate_feedback if item.get("severity") == "ERROR"] or gate_feedback

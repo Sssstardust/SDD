@@ -1,0 +1,38 @@
+[
+  {
+    "feature": "pricing-list-control",
+    "design_version": "design-v1.md",
+    "implemented_at": "2026-04-17T09:58:49.893546+00:00",
+    "paths": [
+      "/api/v1/tob/pricings",
+      "/api/v1/tob/pricings/{pricingId}/review",
+      "/api/v1/tob/pricings/{pricingId}"
+    ],
+    "tables": [],
+    "source_intent_id": "pricing-list-control-design-v1"
+  },
+  {
+    "feature": "payment-review-control",
+    "design_version": "design-v1.md",
+    "implemented_at": "2026-04-17T10:10:41.583105+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "source_intent_id": "payment-review-control-design-v1"
+  },
+  {
+    "feature": "validation-full-20260417190616",
+    "design_version": "design-v2.md",
+    "implemented_at": "2026-04-17T11:39:08.595761+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "source_intent_id": "validation-full-20260417190616-design-v2"
+  }
+]

@@ -67,16 +67,28 @@ import os
 import subprocess
 import sys
 import time
+from inspect import signature
 from pathlib import Path
 
+from application.gate_cache_runtime import write_gate_cache_entry
+from application.pipeline_dispatch import dispatch_command as app_dispatch_command
+from application.pipeline_cli import collect_artifacts_for_command
+from application.pipeline_execution import build_subprocess_env, run_captured_command, run_external_command as app_run_external_command, run_steps
+from application.project_runtime import (
+    detect_next_flow_step as app_detect_next_flow_step,
+    run_continue_flow as app_run_continue_flow,
+    run_continue_project_flow as app_run_continue_project_flow,
+    run_feature_cycle as app_run_feature_cycle,
+    run_project_cycle as app_run_project_cycle,
+)
 from attached_project import DEFAULT_ATTACHMENT_PATH
 from concurrency import atomic_write_text, feature_lock
-from flow_state import inspect_feature_state
-from json_io import read_json
+from domain.pipeline import PipelineRunContext
+from application.flow_state import inspect_feature_state
 from ops_log import append_project_op
 from polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
 from project_artifact_paths import get_active_project_artifacts_dir
-from pipeline_result import build_result, emit_result
+from application.pipeline_result import build_result, emit_result
 from pipeline_orchestration import append_post_flow_steps, build_design_gate_steps, build_feature_cycle_steps, build_implementation_gate_steps, build_refresh_baseline_steps
 from project_flow_runner import capture_project_cycle_candidates, dispatch_feature_next_command, load_project_next_candidate, project_next_json_path, run_project_console_refresh_steps
 from versioning import detect_latest_design_path, get_primary_design_root, reports_dir_for_design, resolve_feature_dir
@@ -86,25 +98,6 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC_TEMPLATES = ROOT / "document" / "template"
 JSON_MODE = False
 EXECUTION_TRACE: list[dict[str, object]] = []
-
-
-def build_subprocess_env() -> dict[str, str]:
-    env = os.environ.copy()
-    env.setdefault("PYTHONIOENCODING", "utf-8")
-    env.setdefault("PYTHONUTF8", "1")
-    return env
-
-
-def run_captured_command(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        env=build_subprocess_env(),
-    )
 
 
 def set_json_mode(enabled: bool) -> None:
@@ -139,10 +132,32 @@ def run_traced_captured_command(command: list[str]) -> subprocess.CompletedProce
 
 
 def run_external_command(command: list[str]) -> int:
-    if JSON_MODE:
-        return run_traced_captured_command(command).returncode
-    result = subprocess.run(command, check=False, env=build_subprocess_env())
-    return result.returncode
+    return app_run_external_command(command, json_mode=JSON_MODE, traced_runner=run_traced_captured_command)
+
+
+def _run_steps_compat(steps: list[tuple[str, callable]], *, console_print_fn=console_print) -> int:
+    if "console_print" in signature(run_steps).parameters:
+        return run_steps(steps, console_print=console_print_fn)
+    return run_steps(steps)
+
+
+def build_pipeline_run_context(
+    *,
+    command: str,
+    feature_dir: str | Path | None = None,
+    strict: bool = False,
+    attachment_file: str | Path | None = None,
+    profile: str | None = None,
+) -> PipelineRunContext:
+    normalized_feature_dir = resolve_feature_dir(str(feature_dir)) if feature_dir else None
+    normalized_attachment = Path(attachment_file) if attachment_file else None
+    return PipelineRunContext(
+        command=command,
+        feature_dir=normalized_feature_dir,
+        strict=strict,
+        attachment_file=normalized_attachment,
+        profile=profile,
+    )
 
 
 def extract_issue_lines(raw_text: str, marker: str) -> list[str]:
@@ -328,11 +343,13 @@ def check_design_pack(feature_brief_path: str) -> int:
 
 
 def gate1(feature_dir: str) -> int:
+    _context = build_pipeline_run_context(command="gate1", feature_dir=feature_dir)
     script = ROOT / "scripts" / "gate1.py"
     return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def gate2(feature_dir: str, strict: bool = False) -> int:
+    _context = build_pipeline_run_context(command="gate2", feature_dir=feature_dir, strict=strict)
     script = ROOT / "scripts" / "check_design_truthfulness.py"
     cmd = [sys.executable, str(script), feature_dir]
     if strict:
@@ -341,6 +358,7 @@ def gate2(feature_dir: str, strict: bool = False) -> int:
 
 
 def gate3(feature_dir: str) -> int:
+    _context = build_pipeline_run_context(command="gate3", feature_dir=feature_dir)
     script = ROOT / "scripts" / "check_arch_semantics.py"
     return run_external_command([sys.executable, str(script), feature_dir])
 
@@ -387,6 +405,7 @@ def gate4(feature_dir: str) -> int:
 
 
 def gate5(feature_dir: str, require_attached_execution: bool = False, strict: bool = False) -> int:
+    _context = build_pipeline_run_context(command="gate5", feature_dir=feature_dir, strict=strict)
     script = ROOT / "scripts" / "check_design_test_coverage.py"
     cmd = [sys.executable, str(script), feature_dir]
     if require_attached_execution:
@@ -397,6 +416,7 @@ def gate5(feature_dir: str, require_attached_execution: bool = False, strict: bo
 
 
 def release_gate(feature_dir: str, strict: bool = False) -> int:
+    _context = build_pipeline_run_context(command="release-gate", feature_dir=feature_dir, strict=strict)
     script = ROOT / "scripts" / "release_gate.py"
     cmd = [sys.executable, str(script), feature_dir]
     if strict:
@@ -716,16 +736,6 @@ def resolve_schema_refresh_strategy(
     return {}
 
 
-def run_steps(steps: list[tuple[str, callable]]) -> int:
-    for label, step in steps:
-        console_print(f"[RUN] {label}")
-        code = step()
-        if code != 0:
-            console_print(f"[STOP] {label} failed with exit code {code}")
-            return code
-    return 0
-
-
 def run_design_gates(
     feature_dir: str,
     strict: bool = False,
@@ -747,7 +757,9 @@ def run_design_gates(
             build_approval_summary=build_approval_summary,
             attachment_file=attachment_file,
             profile=profile,
-        )
+        ),
+        console_print=console_print,
+        on_step_completed=lambda label: write_gate_cache_entry(feature_dir, label),
     )
 
 
@@ -758,7 +770,8 @@ def run_prepare_design_cycle(feature_dir: str) -> int:
             ("verify", lambda: verify(feature_brief)),
             ("generate-design", lambda: generate_design(feature_dir, force=True)),
             ("init-approval", lambda: init_approval(feature_dir)),
-        ]
+        ],
+        console_print=console_print,
     )
 
 
@@ -791,10 +804,12 @@ def run_design_cycle(
             feature_dir=feature_dir,
             refresh_feature_state=refresh_feature_state,
             run_project_console_cycle=run_project_console_cycle,
-            attachment_file=attachment_file,
-            profile=profile,
-        )
-    )
+              attachment_file=attachment_file,
+              profile=profile,
+          ),
+          console_print=console_print,
+          on_step_completed=lambda label: write_gate_cache_entry(feature_dir, label),
+      )
 
 
 def run_implementation_gates(feature_dir: str, strict: bool = False) -> int:
@@ -807,7 +822,9 @@ def run_implementation_gates(feature_dir: str, strict: bool = False) -> int:
             update_design_index=update_design_index,
             sync_baseline=sync_baseline,
             validate_reports=validate_reports,
-        )
+        ),
+        console_print=console_print,
+        on_step_completed=lambda label: write_gate_cache_entry(feature_dir, label),
     )
 
 
@@ -828,19 +845,18 @@ def run_approved_implementation_cycle(
             run_project_console_cycle=run_project_console_cycle,
             attachment_file=attachment_file,
             profile=profile,
-        )
+        ),
+        console_print=console_print,
     )
 
 
 def detect_next_flow_step(feature_dir: str) -> tuple[str, callable]:
-    normalized_feature_dir = resolve_feature_dir(feature_dir)
-    state = inspect_feature_state(normalized_feature_dir, prefer_persisted=False)
-    next_command = str(state.get("next_command") or "")
-    strict = next_command_requires_strict(next_command)
-    dispatched = dispatch_feature_next_command(
-        next_command=next_command,
-        feature_dir=str(normalized_feature_dir),
-        strict=strict,
+    return app_detect_next_flow_step(
+        feature_dir,
+        inspect_feature_state=inspect_feature_state,
+        resolve_feature_dir=resolve_feature_dir,
+        next_command_requires_strict=next_command_requires_strict,
+        dispatch_feature_next_command=dispatch_feature_next_command,
         init_feature=init_feature,
         bootstrap=bootstrap,
         run_design_cycle=run_design_cycle,
@@ -849,28 +865,24 @@ def detect_next_flow_step(feature_dir: str) -> tuple[str, callable]:
         release_gate=release_gate,
         run_full_flow=run_full_flow,
     )
-    if dispatched is None:
-        return ("full-flow", lambda: run_full_flow(str(normalized_feature_dir), strict=strict))
-    return dispatched
 
 
 def run_continue_flow(feature_dir: str) -> int:
-    label, action = detect_next_flow_step(feature_dir)
-    return run_steps(
-        [
-            (label, action),
-            ("flow-status", lambda: refresh_feature_state(feature_dir)),
-        ]
+    return app_run_continue_flow(
+        feature_dir,
+        detect_next_flow_step_fn=detect_next_flow_step,
+        refresh_feature_state=refresh_feature_state,
+        console_print=console_print,
     )
 
 
 def run_feature_cycle(feature_dir: str) -> int:
-    return run_steps(
-        build_feature_cycle_steps(
-            feature_dir=feature_dir,
-            continue_action=lambda: run_continue_flow(feature_dir),
-            refresh_feature_state=refresh_feature_state,
-        )
+    return app_run_feature_cycle(
+        feature_dir,
+        build_feature_cycle_steps=build_feature_cycle_steps,
+        run_continue_flow_fn=run_continue_flow,
+        refresh_feature_state=refresh_feature_state,
+        console_print=console_print,
     )
 
 
@@ -878,83 +890,27 @@ def run_continue_project_flow(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
-    script = ROOT / "scripts" / "build_project_next.py"
-    command = [sys.executable, str(script)]
-    if attachment_file:
-        command.extend(["--attachment-file", attachment_file])
-    if profile:
-        command.extend(["--profile", profile])
-    result = run_traced_captured_command(command)
-    if result.returncode != 0:
-        if not JSON_MODE:
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print(result.stderr)
-        return result.returncode
-
-    project_next_path = project_next_json_path(attachment_file=attachment_file, profile=profile)
-    if not project_next_path.exists():
-        console_print("[ERROR] project-next.json 未生成")
-        return 1
-
-    candidate, payload = load_project_next_candidate(attachment_file=attachment_file, profile=profile)
-    if not isinstance(payload, dict):
-        console_print("[ERROR] project-next.json 结构非法")
-        return 1
-
-    if not isinstance(candidate, dict):
-        append_project_op("continue-project-flow", {"result": "no_candidate"})
-        console_print("[OK] 当前没有需要自动推进的 feature")
-        return 0
-
-    next_command = str(candidate.get("next_command") or "")
-    feature_name = str(candidate.get("feature_name") or "")
-    feature_dir = str(candidate.get("feature_dir") or "")
-    from_stage = str(candidate.get("current_stage") or "")
-    reason = str(candidate.get("reason") or "")
-    strict = next_command_requires_strict(next_command)
-    if not next_command:
-        console_print("[ERROR] 候选 feature 缺少 next_command")
-        return 1
-
-    console_print(f"[OK] 选择推进 feature: {feature_name}")
-    console_print(f"  - command: {next_command}")
-    summary = {
-        "feature": feature_name,
-        "feature_dir": feature_dir,
-        "from_stage": from_stage,
-        "reason": reason,
-        "command": next_command,
-    }
-
-    dispatched = dispatch_feature_next_command(
-        next_command=next_command,
-        feature_dir=feature_dir,
-        strict=strict,
-        init_feature=init_feature,
-        bootstrap=bootstrap,
+    return app_run_continue_project_flow(
+        attachment_file=attachment_file,
+        profile=profile,
+        root=ROOT,
+        run_traced_captured_command=run_traced_captured_command,
+        json_mode=JSON_MODE,
+        console_print=console_print,
+        append_project_op=append_project_op,
+        project_next_json_path=project_next_json_path,
+        load_project_next_candidate=load_project_next_candidate,
+        next_command_requires_strict=next_command_requires_strict,
+        dispatch_feature_next_command=dispatch_feature_next_command,
+        inspect_feature_state=inspect_feature_state,
         run_design_cycle=run_design_cycle,
-        build_approval_summary=build_approval_summary,
         run_approved_implementation_cycle=run_approved_implementation_cycle,
         release_gate=release_gate,
         run_full_flow=run_full_flow,
-        attachment_file=attachment_file,
-        profile=profile,
+        init_feature=init_feature,
+        bootstrap=bootstrap,
+        build_approval_summary=build_approval_summary,
     )
-    if dispatched is None:
-        console_print("[ERROR] 无法解析 project-next 推荐命令")
-        return 1
-    _label, action = dispatched
-    code = action()
-
-    after_state = inspect_feature_state(Path(feature_dir), prefer_persisted=False)
-    summary["result"] = "ok" if code == 0 else "fail"
-    summary["exit_code"] = code
-    summary["after_stage"] = after_state.get("current_stage")
-    summary["after_reason"] = after_state.get("reason")
-    append_project_op("continue-project-flow", summary)
-    return code
 
 
 def run_project_console_cycle(
@@ -978,32 +934,14 @@ def run_project_cycle(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
-    before = run_project_console_cycle(attachment_file=attachment_file, profile=profile)
-    if before != 0:
-        append_project_op("project-cycle", {"result": "fail", "failed_step": "project-console-cycle(before)"})
-        return before
-
-    before_snapshot = capture_project_cycle_candidates(attachment_file=attachment_file, profile=profile)
-
-    continue_code = run_continue_project_flow(attachment_file=attachment_file, profile=profile)
-
-    after = run_project_console_cycle(attachment_file=attachment_file, profile=profile)
-    if after != 0:
-        append_project_op("project-cycle", {"result": "fail", "failed_step": "project-console-cycle(after)"})
-        return after
-
-    after_snapshot = capture_project_cycle_candidates(attachment_file=attachment_file, profile=profile)
-
-    append_project_op(
-        "project-cycle",
-        {
-            "result": "ok" if continue_code == 0 else "fail",
-            "continue_code": continue_code,
-            "before_candidate": before_snapshot.get("candidate"),
-            "after_candidate": after_snapshot.get("candidate"),
-        },
+    return app_run_project_cycle(
+        attachment_file=attachment_file,
+        profile=profile,
+        run_project_console_cycle=run_project_console_cycle,
+        capture_project_cycle_candidates=capture_project_cycle_candidates,
+        run_continue_project_flow_fn=run_continue_project_flow,
+        append_project_op=append_project_op,
     )
-    return continue_code
 
 
 def run_full_flow(
@@ -1041,7 +979,8 @@ def run_full_flow(
             run_project_console_cycle=run_project_console_cycle,
             attachment_file=attachment_file,
             profile=profile,
-        )
+        ),
+        console_print=console_print,
     )
 
 
@@ -1057,7 +996,7 @@ def run_refresh_baseline(
     if is_strict_enabled(strict) and not refresh_strategy:
         console_print("[WARN] strict 模式下未检测到 polyquery 配置或 snapshot，refresh-schema-context 将沿用本地快照策略")
 
-    return run_steps(
+    return _run_steps_compat(
         build_refresh_baseline_steps(
             refresh_module_map=refresh_module_map,
             refresh_schema_context=refresh_schema_context,
@@ -1066,61 +1005,9 @@ def run_refresh_baseline(
             attachment_file=attachment_file,
             profile=profile,
             refresh_strategy=refresh_strategy,
-        )
+        ),
+        console_print_fn=console_print,
     )
-
-
-def latest_report_artifact(feature_dir: str, filename: str) -> str | None:
-    feature_dir_path = resolve_feature_dir(feature_dir)
-    design_path = detect_latest_design_path(feature_dir_path)
-    if not design_path.exists():
-        return None
-    report_path = reports_dir_for_design(feature_dir_path, design_path) / filename
-    return str(report_path) if report_path.exists() else None
-
-
-def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, object]:
-    artifacts: dict[str, object] = {}
-    cmd = getattr(args, "cmd", "")
-    attachment_file = getattr(args, "attachment_file", None)
-    profile = getattr(args, "profile", None)
-    resolve_kwargs = {}
-    if attachment_file:
-        resolve_kwargs["attachment_path"] = Path(attachment_file)
-    if profile:
-        resolve_kwargs["profile"] = profile
-    if cmd == "flow-status":
-        flow_status_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "flow-status.json"
-        project_state_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "project-state.json"
-        if project_state_path.exists():
-            artifacts["project_state_path"] = str(project_state_path)
-        if flow_status_path.exists():
-            artifacts["flow_status_path"] = str(flow_status_path)
-    elif cmd == "generate-task-slices":
-        task_slices_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "tasks" / "task-slices.generated.json"
-        if task_slices_path.exists():
-            artifacts["task_slices_path"] = str(task_slices_path)
-    elif cmd == "gate5":
-        verify_report_path = latest_report_artifact(args.feature_dir, "verify-report.json")
-        if verify_report_path:
-            artifacts["verify_report_path"] = verify_report_path
-    elif cmd in {"release-gate", "pre-release-check", "go-live-check"}:
-        release_gate_report_path = latest_report_artifact(args.feature_dir, "release-gate-report.json")
-        if release_gate_report_path:
-            artifacts["release_gate_report_path"] = release_gate_report_path
-    elif cmd in {"project-next", "project-console-cycle", "project-cycle", "continue-project-flow"}:
-        artifacts_dir = get_active_project_artifacts_dir(
-            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
-            profile=profile,
-            create=True,
-        )
-        project_next_path = artifacts_dir / "project-next.json"
-        project_console_path = artifacts_dir / "project-console.json"
-        if project_next_path.exists():
-            artifacts["project_next_path"] = str(project_next_path)
-        if project_console_path.exists():
-            artifacts["project_console_path"] = str(project_console_path)
-    return artifacts
 
 
 def build_json_payload(args: argparse.Namespace, exit_code: int, duration_ms: int) -> dict[str, object]:
@@ -1143,59 +1030,38 @@ def build_json_payload(args: argparse.Namespace, exit_code: int, duration_ms: in
     )
 
 
-def dispatch_command(args: argparse.Namespace) -> int:
-    if args.cmd == "generate-feature-brief":
-        return generate_feature_brief(args.source_file, args.feature_name, args.force)
-    if args.cmd == "init-feature":
-        return init_feature(args.feature_name)
-    if args.cmd in {"bootstrap", "greenfield-init", "scaffold"}:
-        return bootstrap(args.feature_dir, args.force)
-    if args.cmd == "verify":
-        return verify(args.feature_brief)
-    if args.cmd == "init-design":
-        return init_design(args.feature_dir)
-    if args.cmd == "generate-design":
-        return generate_design(args.feature_dir, args.feedback, args.force, args.resume)
-    if args.cmd == "check-design":
-        return check_design(args.design_file)
-    if args.cmd == "init-design-pack":
-        return init_design_pack(args.feature_brief)
-    if args.cmd == "check-design-pack":
-        return check_design_pack(args.feature_brief)
-    if args.cmd == "gate1":
-        return gate1(args.feature_dir)
-    if args.cmd == "gate2":
-        return gate2(args.feature_dir, args.strict)
-    if args.cmd == "gate3":
-        return gate3(args.feature_dir)
-    if args.cmd == "init-approval":
-        return init_approval(args.feature_dir)
-    if args.cmd == "approve-design":
-        return approve_design(args.feature_dir, args.approved_by, args.comments, args.status)
-    if args.cmd == "check-approval":
-        return check_approval(args.feature_dir)
-    if args.cmd == "update-design-index":
-        return update_design_index(args.feature_dir)
-    if args.cmd == "generate-task-slices":
-        return generate_task_slices(args.feature_dir)
-    if args.cmd == "gate4":
-        return gate4(args.feature_dir)
-    if args.cmd == "gate5":
-        return gate5(args.feature_dir, args.require_attached_execution, args.strict)
-    if args.cmd in {"release-gate", "pre-release-check", "go-live-check"}:
-        return release_gate(args.feature_dir, args.strict)
-    if args.cmd == "check-arch-standards-sync":
-        return check_arch_standards_sync()
-    if args.cmd == "cancel-design":
-        return cancel_design(args.feature_dir, args.reason)
-    if args.cmd == "archive-design":
-        return archive_design(args.feature_name, args.intent_id, args.status, args.reason)
-    if args.cmd == "sync-baseline":
-        return sync_baseline(args.feature_dir, args.design_version)
-    if args.cmd == "refresh-module-map":
-        return refresh_module_map(args.attachment_file, args.profile)
-    if args.cmd == "attach-project":
-        return attach_project(
+def build_command_handlers() -> dict[str, callable]:
+    return {
+        "generate-feature-brief": lambda args: generate_feature_brief(args.source_file, args.feature_name, args.force),
+        "init-feature": lambda args: init_feature(args.feature_name),
+        "bootstrap": lambda args: bootstrap(args.feature_dir, args.force),
+        "greenfield-init": lambda args: bootstrap(args.feature_dir, args.force),
+        "scaffold": lambda args: bootstrap(args.feature_dir, args.force),
+        "verify": lambda args: verify(args.feature_brief),
+        "init-design": lambda args: init_design(args.feature_dir),
+        "generate-design": lambda args: generate_design(args.feature_dir, args.feedback, args.force, args.resume),
+        "check-design": lambda args: check_design(args.design_file),
+        "init-design-pack": lambda args: init_design_pack(args.feature_brief),
+        "check-design-pack": lambda args: check_design_pack(args.feature_brief),
+        "gate1": lambda args: gate1(args.feature_dir),
+        "gate2": lambda args: gate2(args.feature_dir, args.strict),
+        "gate3": lambda args: gate3(args.feature_dir),
+        "init-approval": lambda args: init_approval(args.feature_dir),
+        "approve-design": lambda args: approve_design(args.feature_dir, args.approved_by, args.comments, args.status),
+        "check-approval": lambda args: check_approval(args.feature_dir),
+        "update-design-index": lambda args: update_design_index(args.feature_dir),
+        "generate-task-slices": lambda args: generate_task_slices(args.feature_dir),
+        "gate4": lambda args: gate4(args.feature_dir),
+        "gate5": lambda args: gate5(args.feature_dir, args.require_attached_execution, args.strict),
+        "release-gate": lambda args: release_gate(args.feature_dir, args.strict),
+        "pre-release-check": lambda args: release_gate(args.feature_dir, args.strict),
+        "go-live-check": lambda args: release_gate(args.feature_dir, args.strict),
+        "check-arch-standards-sync": lambda args: check_arch_standards_sync(),
+        "cancel-design": lambda args: cancel_design(args.feature_dir, args.reason),
+        "archive-design": lambda args: archive_design(args.feature_name, args.intent_id, args.status, args.reason),
+        "sync-baseline": lambda args: sync_baseline(args.feature_dir, args.design_version),
+        "refresh-module-map": lambda args: refresh_module_map(args.attachment_file, args.profile),
+        "attach-project": lambda args: attach_project(
             args.project_root,
             show=False,
             clear=args.clear,
@@ -1207,11 +1073,9 @@ def dispatch_command(args: argparse.Namespace) -> int:
             project_id=args.project_id,
             list_profiles=args.list_profiles,
             activate_profile=args.activate_profile,
-        )
-    if args.cmd == "show-attachment":
-        return attach_project(show=True, profile=args.profile)
-    if args.cmd in {"onboard-project", "bootstrap-attached-project"}:
-        return onboard_project(
+        ),
+        "show-attachment": lambda args: attach_project(show=True, profile=args.profile),
+        "onboard-project": lambda args: onboard_project(
             args.project_root,
             name=args.name,
             design_roots=args.design_root,
@@ -1219,9 +1083,17 @@ def dispatch_command(args: argparse.Namespace) -> int:
             components_file=args.components_file,
             profile=args.profile,
             project_id=args.project_id,
-        )
-    if args.cmd == "refresh-schema-context":
-        return refresh_schema_context(
+        ),
+        "bootstrap-attached-project": lambda args: onboard_project(
+            args.project_root,
+            name=args.name,
+            design_roots=args.design_root,
+            schema_roots=args.schema_root,
+            components_file=args.components_file,
+            profile=args.profile,
+            project_id=args.project_id,
+        ),
+        "refresh-schema-context": lambda args: refresh_schema_context(
             from_polyquery=args.from_polyquery,
             polyquery_config=args.polyquery_config,
             polyquery_snapshot=args.polyquery_snapshot,
@@ -1229,66 +1101,46 @@ def dispatch_command(args: argparse.Namespace) -> int:
             polyquery_fallback=args.polyquery_fallback,
             attachment_file=args.attachment_file,
             profile=args.profile,
-        )
-    if args.cmd == "refresh-baseline-governance":
-        return refresh_baseline_governance()
-    if args.cmd == "refresh-baseline":
-        return run_refresh_baseline(
+        ),
+        "refresh-baseline-governance": lambda args: refresh_baseline_governance(),
+        "refresh-baseline": lambda args: run_refresh_baseline(
             strict=getattr(args, "strict", False),
             feature_dir=getattr(args, "feature_dir", None),
             attachment_file=args.attachment_file,
             profile=args.profile,
-        )
-    if args.cmd == "refresh-project-state":
-        return refresh_project_state(args.feature, args.attachment_file, args.profile)
-    if args.cmd == "validate-reports":
-        return validate_reports(args.feature_dir, args.stage)
-    if args.cmd == "validate-all-reports":
-        return validate_all_reports(args.stage, args.require_verify, args.attachment_file, args.profile)
-    if args.cmd == "build-approval-summary":
-        return build_approval_summary(args.feature_dir)
-    if args.cmd == "approved-implementation-cycle":
-        return run_approved_implementation_cycle(
+        ),
+        "refresh-project-state": lambda args: refresh_project_state(args.feature, args.attachment_file, args.profile),
+        "validate-reports": lambda args: validate_reports(args.feature_dir, args.stage),
+        "validate-all-reports": lambda args: validate_all_reports(args.stage, args.require_verify, args.attachment_file, args.profile),
+        "build-approval-summary": lambda args: build_approval_summary(args.feature_dir),
+        "approved-implementation-cycle": lambda args: run_approved_implementation_cycle(
             args.feature_dir,
             args.strict,
             getattr(args, "attachment_file", None),
             getattr(args, "profile", None),
-        )
-    if args.cmd == "continue-flow":
-        return run_continue_flow(args.feature_dir)
-    if args.cmd == "flow-status":
-        return build_flow_status(args.feature_dir, args.attachment_file, args.profile)
-    if args.cmd == "feature-cycle":
-        return run_feature_cycle(args.feature_dir)
-    if args.cmd == "flow-overview":
-        return build_flow_overview(args.attachment_file, args.profile)
-    if args.cmd == "project-next":
-        return build_project_next(args.attachment_file, args.profile)
-    if args.cmd == "project-console":
-        return build_project_console(args.attachment_file, args.profile)
-    if args.cmd == "project-console-cycle":
-        return run_project_console_cycle(args.attachment_file, args.profile)
-    if args.cmd == "continue-project-flow":
-        return run_continue_project_flow(args.attachment_file, args.profile)
-    if args.cmd == "project-cycle":
-        return run_project_cycle(args.attachment_file, args.profile)
-    if args.cmd == "tooling-hygiene":
-        return build_tooling_hygiene()
-    if args.cmd == "workspace-hygiene":
-        return build_workspace_hygiene()
-    if args.cmd == "upgrade-design-tests":
-        return upgrade_design_tests(args.feature, args.attachment_file, args.profile)
-    if args.cmd == "prepare-design-cycle":
-        return run_prepare_design_cycle(args.feature_dir)
-    if args.cmd == "design-cycle":
-        return run_design_cycle(args.feature_dir, args.strict, args.attachment_file, args.profile)
-    if args.cmd == "design-gates":
-        return run_design_gates(args.feature_dir, args.strict, args.attachment_file, args.profile)
-    if args.cmd == "implementation-gates":
-        return run_implementation_gates(args.feature_dir, args.strict)
-    if args.cmd == "full-flow":
-        return run_full_flow(args.feature_dir, args.strict, args.attachment_file, args.profile)
-    return 1
+        ),
+        "continue-flow": lambda args: run_continue_flow(args.feature_dir),
+        "flow-status": lambda args: build_flow_status(args.feature_dir, args.attachment_file, args.profile),
+        "feature-cycle": lambda args: run_feature_cycle(args.feature_dir),
+        "flow-overview": lambda args: build_flow_overview(args.attachment_file, args.profile),
+        "project-next": lambda args: build_project_next(args.attachment_file, args.profile),
+        "project-console": lambda args: build_project_console(args.attachment_file, args.profile),
+        "project-console-cycle": lambda args: run_project_console_cycle(args.attachment_file, args.profile),
+        "continue-project-flow": lambda args: run_continue_project_flow(args.attachment_file, args.profile),
+        "project-cycle": lambda args: run_project_cycle(args.attachment_file, args.profile),
+        "tooling-hygiene": lambda args: build_tooling_hygiene(),
+        "workspace-hygiene": lambda args: build_workspace_hygiene(),
+        "upgrade-design-tests": lambda args: upgrade_design_tests(args.feature, args.attachment_file, args.profile),
+        "prepare-design-cycle": lambda args: run_prepare_design_cycle(args.feature_dir),
+        "design-cycle": lambda args: run_design_cycle(args.feature_dir, args.strict, args.attachment_file, args.profile),
+        "design-gates": lambda args: run_design_gates(args.feature_dir, args.strict, args.attachment_file, args.profile),
+        "implementation-gates": lambda args: run_implementation_gates(args.feature_dir, args.strict),
+        "full-flow": lambda args: run_full_flow(args.feature_dir, args.strict, args.attachment_file, args.profile),
+    }
+
+
+def dispatch_command(args: argparse.Namespace) -> int:
+    return app_dispatch_command(args, build_command_handlers())
 
 
 def main(argv: list[str] | None = None) -> int:

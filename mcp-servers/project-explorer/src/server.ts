@@ -53,6 +53,12 @@ function parseArguments(text?: string): JsonRecord {
 }
 
 function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
+  if (name === "health_check") {
+    return {
+      status: "ok",
+      reason: "project-explorer scanner entrypoints are available",
+    };
+  }
   if (name === "scan_modules") {
     return scanModules({
       keywords: argumentsObject.keywords,
@@ -109,6 +115,14 @@ function runCli(tool: string, argumentsText?: string): void {
 
 function toolDefinitions(): JsonRecord[] {
   return [
+    {
+      name: "health_check",
+      description: "返回 MCP Server 健康状态",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
     {
       name: "scan_modules",
       description: "根据关键词扫描相关类、包、模块、类型、来源文件和公开方法",

@@ -1,0 +1,14 @@
+{
+  "name": "attached-sample-project",
+  "project_root": "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project",
+  "scan_roots": [
+    "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\main\\java",
+    "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\test\\java"
+  ],
+  "design_roots": [
+    "D:\\project\\SDD\\specs"
+  ],
+  "schema_roots": [
+    "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\main\\resources"
+  ]
+}

@@ -12,12 +12,12 @@ from collections import Counter
 from html import escape
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
 from build_project_next import choose_candidate
-from concurrency import atomic_write_text, path_lock
-from json_io import read_json
-from project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
-from state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
+from infrastructure.concurrency import atomic_write_text, path_lock
+from infrastructure.json_io import read_json
+from application.project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
+from application.state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
 
 
 def render_markdown(

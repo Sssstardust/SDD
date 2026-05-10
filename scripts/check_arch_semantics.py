@@ -19,6 +19,8 @@ import os
 from pathlib import Path
 
 from gate_report import write_gate_section
+from gates.gate3_checker import build_rule_modeled_ai_review, evaluate_rule_result
+from gates.gate3_reporter import build_gate3_payload
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
@@ -481,38 +483,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
                 }
             )
 
-    rule_result = "PASS"
-    if errors:
-        rule_result = "FAIL"
-    elif warnings:
-        rule_result = "WARN"
-
-    ai_review = {
-        "result": "WARN" if ai_review_violations else "SKIPPED",
-        "mode": "rule-modeled-review" if ai_review_violations else "not-configured",
-        "confidence": "medium" if ai_review_violations else None,
-        "rationale": "Semantic review hints were emitted from configured review rules" if ai_review_violations else "AI semantic review is not configured in the current Gate 3 implementation",
-        "evidence_refs": sorted(
-            {
-                str(item)
-                for violation in ai_review_violations
-                if isinstance(violation, dict)
-                for item in violation.get("evidence_refs", [])
-                if isinstance(item, str)
-            }
-        ),
-        "violations": [
-                {
-                    "severity": str(violation.get("severity") or "warn"),
-                    "scope": str(violation.get("scope") or "design"),
-                    "rationale": str(violation.get("rationale") or ""),
-                    "confidence": str(violation.get("confidence") or "medium"),
-                    "evidence_refs": [str(item) for item in violation.get("evidence_refs", []) if isinstance(item, str)],
-                }
-            for violation in ai_review_violations
-            if isinstance(violation, dict)
-        ],
-    }
+    rule_result = evaluate_rule_result(warnings=warnings, errors=errors)
+    ai_review = build_rule_modeled_ai_review(ai_review_violations)
 
     ai_review_provider_command = load_gate3_ai_review_command()
     if ai_review_provider_command:
@@ -537,19 +509,14 @@ def main_for_args(argv: list[str] | None = None) -> int:
         gate_name="gate3",
         feature_name=feature_name,
         design_version=design_path.name,
-        payload={
-            "result": result,
-            "rule_evaluation": {
-                "result": rule_result,
-                "checks": checks,
-                "warnings": warnings,
-                "errors": errors,
-            },
-            "ai_review": ai_review,
-            "checks": checks,
-            "warnings": warnings,
-            "errors": errors,
-        },
+        payload=build_gate3_payload(
+            result=result,
+            rule_result=rule_result,
+            checks=checks,
+            warnings=warnings,
+            errors=errors,
+            ai_review=ai_review,
+        ),
     )
 
     if result == "FAIL":

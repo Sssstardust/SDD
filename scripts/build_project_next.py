@@ -10,11 +10,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
-from concurrency import atomic_write_text, path_lock
-from project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
-from ops_log import read_latest_op
-from state_view import affected_component_execution_badge, attached_execution_admission_badge, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, strict_flag, workspace_summary_lines
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
+from infrastructure.concurrency import atomic_write_text, path_lock
+from application.project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
+from infrastructure.ops_log import read_latest_op
+from application.state_view import affected_component_execution_badge, attached_execution_admission_badge, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, strict_flag, workspace_summary_lines
 
 
 STAGE_PRIORITY = {

@@ -1,0 +1,11 @@
+{
+  "issue_count": 1,
+  "issues": [
+    {
+      "type": "temp-directory",
+      "severity": "info",
+      "path": "D:\\project\\SDD\\.tmp_test_workspace",
+      "message": "检测到临时目录，建议按需清理或归档"
+    }
+  ]
+}

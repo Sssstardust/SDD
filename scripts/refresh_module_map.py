@@ -14,14 +14,14 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from attached_project import (
+from domain.attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     component_id_for_path,
     resolve_module_map_scan_settings,
     source_signature,
 )
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, path_lock
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, path_lock
 
 
 ROOT = Path(__file__).resolve().parent.parent

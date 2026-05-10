@@ -78,6 +78,15 @@ powershell -ExecutionPolicy Bypass -File scripts/doctor.ps1
 }
 ```
 
+当前四个 MCP server 都已支持 `health_check`：
+
+- `sdd-project-explorer.health_check`
+- `sdd-arch-standard.health_check`
+- `sdd-pipeline.health_check`
+- `polyquery.health_check`
+
+建议接入后先调用它们，区分“工具暂时不可用”与“真实数据缺失”。
+
 如果团队成员本地路径不同，把 `D:\\project\\SDD` 替换为自己的 SDD 仓库路径。
 
 ## Codex
@@ -217,6 +226,7 @@ be polled with `get_pipeline_task` and read back with `read_pipeline_task_result
 消费层字段说明可参考：
 
 - [Report Field Guide](report-field-guide.md)
+- [Skill Data Flow](skill-data-flow.md)
 
 ### Gate 3 AI Review
 

@@ -14,7 +14,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from baseline_extractors import (
+from infrastructure.baseline_extractors import (
     build_design_resource_claims_for_pack,
     extract_mermaid_participants,
     extract_created_tables,
@@ -25,19 +25,22 @@ from baseline_extractors import (
     extract_tables_from_data_model,
     summarize_resource_claims,
 )
-from attached_project import DEFAULT_ATTACHMENT_PATH
-from baseline_validators import (
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
+from infrastructure.baseline_validators import (
     parse_datetime,
     parse_ttl,
     validate_attached_project_signature,
     validate_baseline_freshness,
     validate_schema_context_signature,
 )
-from baseline_paths import get_active_baseline_dir
+from infrastructure.baseline_paths import get_active_baseline_dir
 from bootstrap_utils import BOOTSTRAP_REPORT_NAME, BOOTSTRAP_REQUIRED_FILES
-from design_evidence import hash_file, hash_tree, resolve_design_pack_dir
-from feature_brief import extract_affected_components
+from infrastructure.design_evidence import hash_file, hash_tree, resolve_design_pack_dir
+from domain.baseline import ModuleMapDocument, SchemaContextDocument
+from application.feature_brief import extract_affected_components
 from gate_adapters import default_gate_adapter_registry
+from gates.gate2_checker import build_missing_req_error, summarize_req_coverage
+from gates.gate2_reporter import build_gate2_payload
 from gate_adapters import (
     build_schema_table_aliases as _build_schema_table_aliases,
     extract_schema_table_entries as _extract_schema_table_entries,
@@ -45,14 +48,14 @@ from gate_adapters import (
     resolve_schema_table_entry as _resolve_schema_table_entry,
     schema_table_candidates as _schema_table_candidates,
 )
-from gate_report import write_gate_section
-from traceability_summaries import (
+from infrastructure.gate_report import write_gate_section
+from application.traceability_summaries import (
     summarize_controller_endpoint_mapping as _summarize_controller_endpoint_mapping,
     summarize_design_class_reliability as _summarize_design_class_reliability,
     summarize_design_class_resolution as _summarize_design_class_resolution,
     summarize_schema_table_resolution as _summarize_schema_table_resolution,
 )
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 GREENFIELD_BOOTSTRAP_KEYWORDS = {
@@ -234,14 +237,15 @@ def validate_schema_context_source(
     schema_context = read_json_file(schema_context_path, {})
     if not isinstance(schema_context, dict):
         return warnings, errors, {"source": None, "fallback_from": None}
+    schema_context_doc = SchemaContextDocument.from_payload(schema_context)
 
-    source = schema_context.get("source")
-    fallback_from = schema_context.get("fallback_from")
+    source = schema_context_doc.source
+    fallback_from = schema_context_doc.fallback_from
     metadata = {
         "source": source,
         "fallback_from": fallback_from,
-        "confidence": schema_context.get("confidence"),
-        "evidence_level": schema_context.get("evidence_level"),
+        "confidence": schema_context_doc.confidence,
+        "evidence_level": schema_context_doc.evidence_level,
     }
     if source == "local-fallback":
         message = "schema-context 使用 local-fallback，事实源不是实时数据库元数据"
@@ -262,13 +266,14 @@ def validate_module_map_quality(
     module_map = read_json_file(module_map_path, {})
     if not isinstance(module_map, dict):
         return warnings, errors, {"scanner": None, "unsupported_features": []}
+    module_map_doc = ModuleMapDocument.from_payload(module_map)
 
-    confidence = str(module_map.get("confidence") or "").lower()
+    confidence = module_map_doc.confidence.lower()
     unsupported_features = module_map.get("unsupported_features")
     if not isinstance(unsupported_features, list):
         unsupported_features = []
     metadata = {
-        "scanner": module_map.get("scanner"),
+        "scanner": module_map_doc.scanner,
         "unsupported_features": unsupported_features,
         "scan_quality": module_map.get("scan_quality") if isinstance(module_map.get("scan_quality"), dict) else {},
     }
@@ -1088,26 +1093,12 @@ def check_brownfield_baseline_truthfulness(
 def write_gate2_report(feature_dir: Path, feature_name: str, report: dict[str, object]) -> Path:
     design_path = detect_latest_design_path(feature_dir)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
-    result = "PASS" if report.get("status") == "OK" else "FAIL"
     return write_gate_section(
         reports_dir,
         gate_name="gate2",
         feature_name=feature_name,
         design_version=design_path.name,
-        payload={
-            "result": result,
-            "checks": report.get("checks", []),
-            "warnings": report.get("warnings", []),
-            "errors": report.get("errors", []),
-            "evidence": report.get("evidence", {}),
-            "design_resource_claim_summary": report.get("design_resource_claim_summary", {}),
-            "design_resource_claim_highlights": (
-                report.get("design_resource_claim_summary", {}).get("highlights", {})
-                if isinstance(report.get("design_resource_claim_summary"), dict)
-                else {}
-            ),
-            "truthfulness_report": report,
-        },
+        payload=build_gate2_payload(report),
     )
 
 
@@ -1178,7 +1169,7 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
 
     req_ids = extract_req_ids(brief_content)
     if not req_ids:
-        errors.append("No REQ-IDs found in feature-brief.md")
+        errors.append(build_missing_req_error())
         report = {
             "feature": feature_dir.name,
             "project_mode": project_mode,
@@ -1198,7 +1189,7 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
     file_issues = coverage_result["file_issues"]
     errors.extend(str(item) for item in coverage_result["errors"])
 
-    missing_reqs = [req for req, files in coverage.items() if not files]  # type: ignore[union-attr]
+    missing_reqs = summarize_req_coverage(coverage) if isinstance(coverage, dict) else []
     if not missing_reqs:
         checks.append("所有 REQ-ID 均已被 design-pack 覆盖")
 

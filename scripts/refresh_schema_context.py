@@ -14,10 +14,10 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH, build_attachment_payload, component_id_for_path, load_attachment_config
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, path_lock
-from ops_log import append_project_op
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH, build_attachment_payload, component_id_for_path, load_attachment_config
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, path_lock
+from infrastructure.ops_log import append_project_op
 from polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
 from polyquery_adapter import (
     PolyQueryError,
@@ -26,7 +26,7 @@ from polyquery_adapter import (
     fetch_schema_context_from_polyquery_discovery,
     load_polyquery_snapshot,
 )
-from versioning import resolve_feature_dir
+from infrastructure.versioning import resolve_feature_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 

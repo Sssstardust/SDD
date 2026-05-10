@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 
-import { implementationSummaryFromReport, shouldRunAsyncByDefault, wantsAsync } from "./server";
+import { implementationSummaryFromReport, shouldRunAsyncByDefault, toolDispatch, wantsAsync } from "./server";
 
 const DEFAULT_ASYNC_TOOLS = [
   "refresh_baseline",
@@ -113,5 +113,9 @@ assert.equal(
   },
   true,
 );
+
+const health = toolDispatch("health_check", {});
+assert.equal(typeof health.status, "string");
+assert.equal("interface_path" in health, true);
 
 process.stdout.write("sdd-pipeline server tests passed\n");

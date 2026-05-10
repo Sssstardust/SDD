@@ -1,0 +1,41 @@
+{
+  "feature_count": 2,
+  "features": [
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\pilot-order-create",
+      "feature_name": "pricing-list-control",
+      "current_stage": "release-ready",
+      "risk_tier": "low",
+      "design_version": "design-v1.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\pilot-order-create\\reports\\v1",
+      "approval_status": null,
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "release_gate_result": "PASS",
+      "next_command": "python scripts/run_pipeline.py release-gate D:\\project\\SDD\\specs\\pilot-order-create",
+      "reason": "当前 feature 已完成实现验证与上线前治理检查",
+      "missing_artifacts": [],
+      "blockers": []
+    },
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\pilot-payment-review",
+      "feature_name": "payment-review-control",
+      "current_stage": "release-ready",
+      "risk_tier": "high",
+      "design_version": "design-v1.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "release_gate_result": "PASS",
+      "next_command": "python scripts/run_pipeline.py release-gate D:\\project\\SDD\\specs\\pilot-payment-review",
+      "reason": "当前 feature 已完成实现验证与上线前治理检查",
+      "missing_artifacts": [],
+      "blockers": []
+    }
+  ]
+}

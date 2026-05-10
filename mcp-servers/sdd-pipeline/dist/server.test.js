@@ -83,4 +83,7 @@ strict_1.default.equal("strict_recommended" in {
     strict_recommended: true,
     strict_next_step: true,
 }, true);
+const health = (0, server_1.toolDispatch)("health_check", {});
+strict_1.default.equal(typeof health.status, "string");
+strict_1.default.equal("interface_path" in health, true);
 process.stdout.write("sdd-pipeline server tests passed\n");

@@ -128,6 +128,10 @@ python scripts/validate_fixture_matrix.py
 - `payment-idempotent-full`
 - `polyquery-snapshot-offline`
 
+Skill 间数据流说明：
+
+- [Skill Data Flow](skill-data-flow.md)
+
 ---
 
 ## 建议

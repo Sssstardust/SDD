@@ -18,16 +18,16 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from baseline_extractors import build_design_resource_claims_for_pack, summarize_resource_claims
-from baseline_paths import get_active_baseline_dir
+from infrastructure.baseline_extractors import build_design_resource_claims_for_pack, summarize_resource_claims
+from infrastructure.baseline_paths import get_active_baseline_dir
 from check_design_pack import has_rollback_statement, split_sql_migration_blocks
-from concurrency import atomic_write_text, feature_lock
-from design_evidence import resolve_design_pack_dir
-from feature_brief import extract_affected_components
-from gate5_admissions import summarize_gate5_admissions_from_report
-from gate_report import write_gate_section
-from sdd_yaml import get_list, get_scalar, load_first_yaml_mapping
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.design_evidence import resolve_design_pack_dir
+from application.feature_brief import extract_affected_components
+from application.gate5_admissions import summarize_gate5_admissions_from_report
+from infrastructure.gate_report import write_gate_section
+from infrastructure.sdd_yaml import get_list, get_scalar, load_first_yaml_mapping
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 TEXT_SUFFIXES = {".md", ".sql", ".yaml", ".yml", ".json", ".txt"}

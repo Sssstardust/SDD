@@ -33,6 +33,7 @@ from versioning import detect_latest_design_path, reports_dir_for_design, resolv
 
 
 ROOT = Path(__file__).resolve().parent.parent
+DESIGN_INDEX_DIR_NAME = "sdd-index-design"
 
 
 def claim_matches(new_claim: dict[str, str], existing_claim: dict[str, str]) -> bool:
@@ -59,12 +60,38 @@ def ensure_baseline(baseline_dir: Path | None = None) -> tuple[Path, Path]:
     effective_baseline_dir = baseline_dir or get_active_baseline_dir(create=True, migrate_legacy=True)
     effective_baseline_dir.mkdir(parents=True, exist_ok=True)
     design_index = effective_baseline_dir / "sdd-index-design.json"
+    design_index_dir = effective_baseline_dir / DESIGN_INDEX_DIR_NAME
     real_index = effective_baseline_dir / "sdd-index-real.json"
     if not design_index.exists():
         atomic_write_text(design_index, "[]", encoding="utf-8")
+    design_index_dir.mkdir(parents=True, exist_ok=True)
     if not real_index.exists():
         atomic_write_text(real_index, "[]", encoding="utf-8")
     return design_index, real_index
+
+
+def write_design_index_feature_sidecars(index_data: list[dict[str, object]], baseline_dir: Path) -> None:
+    design_index_dir = baseline_dir / DESIGN_INDEX_DIR_NAME
+    design_index_dir.mkdir(parents=True, exist_ok=True)
+
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for item in index_data:
+        if not isinstance(item, dict):
+            continue
+        feature_name = str(item.get("feature") or "").strip()
+        if not feature_name:
+            continue
+        grouped.setdefault(feature_name, []).append(item)
+
+    existing_files = {path for path in design_index_dir.glob("*.json") if path.is_file()}
+    desired_files: set[Path] = set()
+    for feature_name, items in grouped.items():
+        target = design_index_dir / f"{feature_name}.json"
+        desired_files.add(target)
+        atomic_write_text(target, json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    for stale_file in sorted(existing_files - desired_files):
+        stale_file.unlink(missing_ok=True)
 
 
 def extract_yaml_blocks(text: str) -> list[str]:
@@ -259,6 +286,7 @@ def update_design_index(feature_dir: Path, baseline_dir: Path | None = None) -> 
             }
         )
         atomic_write_text(design_index_path, json.dumps(index_data, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_design_index_feature_sidecars(index_data, effective_baseline_dir)
 
     return {
         "result": "OK",

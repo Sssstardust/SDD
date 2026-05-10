@@ -10,12 +10,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
-from concurrency import atomic_write_text, feature_lock
-from flow_state import compute_feature_state, write_project_state
-from json_io import write_json
-from state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, resolution_preview, resource_claim_badges
-from versioning import resolve_feature_dir
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.gate_cache import DESIGN_GATE_NAMES, IMPLEMENTATION_GATE_NAMES, design_gate_input_hash, implementation_gate_input_hash, load_gate_result_from_report, read_design_gate_cache_from_state, update_design_gate_cache
+from application.flow_state import compute_feature_state, write_project_state
+from infrastructure.json_io import write_json
+from application.state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate3_ai_review_badge, gate5_admission_summary_badge, gate_cache_badge, real_test_admission_badge, resolution_preview, resource_claim_badges
+from infrastructure.versioning import resolve_feature_dir
 
 
 def render_markdown(state: dict[str, object]) -> str:
@@ -37,6 +38,7 @@ def render_markdown(state: dict[str, object]) -> str:
         f"- `gate5`: `{state.get('gate5_result', 'N/A')}`",
         f"- `implementation`: `{state.get('implementation_result', 'N/A')}`",
         f"- `release_gate`: `{state.get('release_gate_result', 'N/A')}`",
+        f"- `gate_cache`: `{gate_cache_badge(state)}`",
         "",
         "## Implementation Signals",
         "",
@@ -107,6 +109,22 @@ def main() -> int:
 
     with feature_lock(feature_dir, phase="build-flow-status"):
         state = compute_feature_state(feature_dir)
+        existing_cache = read_design_gate_cache_from_state(state)
+        gate_cache = dict(existing_cache)
+        for gate_name in (*DESIGN_GATE_NAMES, *IMPLEMENTATION_GATE_NAMES):
+            result, report_path = load_gate_result_from_report(feature_dir, gate_name)
+            if not result or not report_path:
+                continue
+            gate_cache = update_design_gate_cache(
+                gate_cache,
+                gate_name=gate_name,
+                status=result,
+                input_hash=design_gate_input_hash(feature_dir, gate_name)
+                if gate_name in DESIGN_GATE_NAMES
+                else implementation_gate_input_hash(feature_dir, gate_name),
+                report_path=report_path,
+            )
+        state["gate_cache"] = gate_cache
         project_state_json_path = write_project_state(feature_dir, state)
         flow_status_json_path = feature_dir / "flow-status.json"
         flow_status_md_path = feature_dir / "flow-status.md"

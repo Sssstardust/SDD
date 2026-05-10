@@ -179,4 +179,5 @@ baseline 分桶目录：
 - [团队接入入口](docs/team-onboarding.md)
 - [Agent 接入说明](docs/agent-integration.md)
 - [附着模式说明](docs/attached-project-mode.md)
+- [Skill 数据流](docs/skill-data-flow.md)
 - [示例附着项目](examples/fixtures/attached-sample-project/README.md)

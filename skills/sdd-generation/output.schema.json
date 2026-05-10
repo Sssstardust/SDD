@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/skills/sdd-generation/output.schema.json",
+  "title": "SDD Generation Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "workspace", "design", "design_pack", "scenario", "capability_tags"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "escalate", "error"]
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "design": {
+      "type": "string",
+      "minLength": 1
+    },
+    "design_pack": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scenario": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capability_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "feedback": {
+      "type": ["string", "null"]
+    }
+  }
+}

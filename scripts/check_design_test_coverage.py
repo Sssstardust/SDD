@@ -17,19 +17,20 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config
-from baseline_validators import (
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config
+from infrastructure.baseline_validators import (
     parse_datetime,
     parse_ttl,
     validate_attached_project_signature,
     validate_baseline_freshness,
     validate_schema_context_signature,
 )
-from baseline_extractors import build_design_resource_claims_for_pack, extract_mermaid_participants, summarize_resource_claims
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, feature_lock
-from design_evidence import evidence_level_for_schema_context, hash_file, resolve_design_pack_dir
-from feature_brief import extract_affected_components, extract_risk_tier
+from infrastructure.baseline_extractors import build_design_resource_claims_for_pack, extract_mermaid_participants, summarize_resource_claims
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.design_evidence import evidence_level_for_schema_context, hash_file, resolve_design_pack_dir
+from domain.baseline import ModuleMapDocument, SchemaContextDocument
+from application.feature_brief import extract_affected_components, extract_risk_tier
 from gate_adapters import (
     GateAdapterContext,
     GateTraceabilityContext,
@@ -45,13 +46,14 @@ from gate_adapters import (
     read_module_map_quality as _read_module_map_quality,
     resolve_module_class_entry as _resolve_module_class_entry,
 )
-from gate5_admissions import summarize_gate5_admissions
-from gate_report import write_gate_section
-from traceability_summaries import (
+from application.gate5_admissions import summarize_gate5_admissions
+from infrastructure.gate_report import write_gate_section
+from gates.gate5_reporter import build_gate5_section_payload
+from application.traceability_summaries import (
     build_implementation_traceability_report_fields as _build_implementation_traceability_report_fields,
     summarize_method_framework_evidence as _summarize_method_framework_evidence,
 )
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -496,7 +498,13 @@ def module_class_candidates(entries: dict[str, list[dict[str, object]]], class_n
 
 
 def read_module_map_quality(module_map_path: Path) -> dict[str, object]:
-    return _read_module_map_quality(module_map_path)
+    quality = _read_module_map_quality(module_map_path)
+    module_map_payload = quality.get("module_map")
+    if isinstance(module_map_payload, dict):
+        module_map_doc = ModuleMapDocument.from_payload(module_map_payload)
+        quality.setdefault("scanner", module_map_doc.scanner)
+        quality.setdefault("confidence", module_map_doc.confidence)
+    return quality
 
 
 def validate_gate5_baseline_freshness(
@@ -1391,6 +1399,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
             loaded_schema_context = json.loads(schema_context_path.read_text(encoding="utf-8"))
             if isinstance(loaded_schema_context, dict):
                 schema_context = loaded_schema_context
+                schema_context_doc = SchemaContextDocument.from_payload(loaded_schema_context)
+                schema_context.setdefault("component_ids", list(schema_context_doc.component_ids))
         except (OSError, json.JSONDecodeError):
             schema_context = {}
     design_resource_claims = build_design_resource_claims_for_pack(
@@ -1443,33 +1453,32 @@ def main_for_args(argv: list[str] | None = None) -> int:
         gate_name="gate5",
         feature_name=report["feature_name"],
         design_version=report["design_version"],
-        payload={
-            "result": result,
-            "test_file": str(test_file),
-            "risk_tier": risk_tier,
-            "coverage_result": verify_report["coverage_result"],
-            "execution": execution,
-            "attached_execution": attached_execution,
-            "attached_execution_required": attached_execution_required,
-            "attached_execution_requirement_reason": attached_execution_requirement_reason,
-            "attached_execution_admission": attached_execution_admission,
-            "affected_component_execution_admission": affected_component_execution_admission,
-            "uncovered_p0": uncovered_p0,
-            "uncovered_p1": uncovered_p1,
-            "design_resource_claim_summary": design_resource_claim_summary,
-            "design_resource_claim_highlights": design_resource_claim_summary.get("highlights", {}),
-            "implementation_result": implementation_traceability["result"],
-            **implementation_report_fields,
-            "implementation_traceability": implementation_traceability,
-            "real_test_req_coverage_result": real_test_req_coverage["result"],
-            "real_test_req_admission": real_test_req_admission,
-            "gate5_admission_summary": gate5_admission_summary,
-            "strict": strict_mode,
-            "warnings": baseline_warnings + placeholder_warnings,
-            "errors": baseline_errors,
-            "evidence": evidence,
-            "report_file": str(verify_path),
-        },
+        payload=build_gate5_section_payload(
+            result=result,
+            test_file=str(test_file),
+            risk_tier=risk_tier,
+            coverage_result=verify_report["coverage_result"],
+            execution=execution,
+            attached_execution=attached_execution,
+            attached_execution_required=attached_execution_required,
+            attached_execution_requirement_reason=attached_execution_requirement_reason,
+            attached_execution_admission=attached_execution_admission,
+            affected_component_execution_admission=affected_component_execution_admission,
+            uncovered_p0=uncovered_p0,
+            uncovered_p1=uncovered_p1,
+            design_resource_claim_summary=design_resource_claim_summary,
+            implementation_result=implementation_traceability["result"],
+            implementation_report_fields=implementation_report_fields,
+            implementation_traceability=implementation_traceability,
+            real_test_req_coverage_result=real_test_req_coverage["result"],
+            real_test_req_admission=real_test_req_admission,
+            gate5_admission_summary=gate5_admission_summary,
+            strict=strict_mode,
+            warnings=baseline_warnings + placeholder_warnings,
+            errors=baseline_errors,
+            evidence=evidence,
+            report_file=str(verify_path),
+        ),
     )
 
     if result == "FAIL":

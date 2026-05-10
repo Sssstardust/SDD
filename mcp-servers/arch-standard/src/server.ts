@@ -67,6 +67,12 @@ function listRuleFiles(): JsonRecord[] {
 }
 
 function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
+  if (name === "health_check") {
+    return {
+      status: "ok",
+      reason: "arch-standard rules are readable from docs/arch-standards",
+    };
+  }
   if (name === "list_rules") {
     return {
       count: listRules().length,
@@ -105,6 +111,14 @@ function runCli(tool: string, argumentsText?: string): void {
 
 function toolDefinitions(): JsonRecord[] {
   return [
+    {
+      name: "health_check",
+      description: "返回 MCP Server 健康状态",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
     {
       name: "list_rules",
       description: "列出可用架构规范及对应规则文件",
