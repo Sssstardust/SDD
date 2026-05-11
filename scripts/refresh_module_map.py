@@ -18,7 +18,7 @@ from domain.attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     component_id_for_path,
     resolve_module_map_scan_settings,
-    source_signature,
+    source_signature as attachment_source_signature,
 )
 from infrastructure.baseline_paths import get_active_baseline_dir
 from infrastructure.concurrency import atomic_write_text, path_lock
@@ -37,7 +37,7 @@ def build_module_resource_key(item: dict[str, object], component_id: str | None)
     return f"{namespace}::{source_file}::{simple_name}"
 
 
-def source_signature(payload: dict[str, object]) -> str:
+def payload_signature(payload: dict[str, object]) -> str:
     relevant = {
         "source": payload.get("source"),
         "attachment": payload.get("attachment"),
@@ -101,6 +101,8 @@ def load_node_payload(force_refresh: bool, scan_roots: list[str] | None = None, 
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         cwd=str(ROOT),
     )
     if result.returncode != 0:
@@ -160,12 +162,13 @@ def main() -> int:
     payload.setdefault("confidence", "medium")
     payload.setdefault("unsupported_features", ["lombok-generated-methods", "mybatis-xml-mapping", "reflection", "framework-proxy"])
     payload.setdefault("ttl", "P1D")
-    payload["source_signature"] = source_signature({
+    payload["payload_signature"] = payload_signature({
         "source": scan_settings.get("source"),
         "attachment": scan_settings,
         "component_ids": payload.get("component_ids", []),
         "classes": payload.get("classes", []),
     })
+    payload["source_signature"] = attachment_source_signature(scan_settings)
     payload["attachment"] = scan_settings
     with path_lock(output_path, phase="refresh-module-map"):
         atomic_write_text(output_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

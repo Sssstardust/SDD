@@ -1,6 +1,7 @@
 {
-  "generated_at": "2026-04-24T06:32:48.705726+00:00",
+  "generated_at": "2026-05-10T18:56:12.280176+00:00",
   "source": "attachment",
+  "fallback_from": null,
   "design_roots": [
     "D:\\project\\SDD\\specs"
   ],
@@ -9,7 +10,90 @@
   ],
   "tables": [
     {
+      "table_name": "t_admin_management_brief",
+      "component_id": "md",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "md::local::default::default::t_admin_management_brief",
+      "columns": [
+        "created_at",
+        "id",
+        "status",
+        "updated_at"
+      ],
+      "declared_columns": [
+        "created_at",
+        "id",
+        "status",
+        "updated_at"
+      ],
+      "sql_columns": [],
+      "indexed_columns": [],
+      "sources": [
+        "specs/admin-management/design-pack/数据模型.md"
+      ],
+      "column_details": []
+    },
+    {
+      "table_name": "t_admin_management_req",
+      "component_id": "md",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "md::local::default::default::t_admin_management_req",
+      "columns": [
+        "created_at",
+        "id",
+        "status",
+        "updated_at"
+      ],
+      "declared_columns": [
+        "created_at",
+        "id",
+        "status",
+        "updated_at"
+      ],
+      "sql_columns": [],
+      "indexed_columns": [],
+      "sources": [
+        "specs/admin-management/design-pack/数据模型.md"
+      ],
+      "column_details": []
+    },
+    {
+      "table_name": "t_admin_management_support",
+      "component_id": "md",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "md::local::default::default::t_admin_management_support",
+      "columns": [
+        "created_at",
+        "id",
+        "status",
+        "updated_at"
+      ],
+      "declared_columns": [
+        "created_at",
+        "id",
+        "status",
+        "updated_at"
+      ],
+      "sql_columns": [],
+      "indexed_columns": [],
+      "sources": [
+        "specs/admin-management/design-pack/数据模型.md"
+      ],
+      "column_details": []
+    },
+    {
       "table_name": "t_order_pricing_relation",
+      "component_id": "md",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "md::local::default::default::t_order_pricing_relation",
       "columns": [
         "effective_time",
         "pricing_id",
@@ -26,6 +110,29 @@
         "product_line_code",
         "status"
       ],
+      "sql_columns": [],
+      "indexed_columns": [],
+      "sources": [
+        "specs/task-board/design-pack/数据模型.md"
+      ],
+      "column_details": []
+    },
+    {
+      "table_name": "t_order_pricing_relation",
+      "component_id": "V1__pricing_list_control.sql",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "V1__pricing_list_control.sql::local::default::default::t_order_pricing_relation",
+      "columns": [
+        "effective_time",
+        "pricing_id",
+        "pricing_name",
+        "pricing_type",
+        "product_line_code",
+        "status"
+      ],
+      "declared_columns": [],
       "sql_columns": [
         "effective_time",
         "pricing_id",
@@ -36,12 +143,17 @@
       ],
       "indexed_columns": [],
       "sources": [
-        "examples/fixtures/attached-sample-project/src/main/resources/db/migration/V1__pricing_list_control.sql",
-        "specs/pilot-order-create/design-pack/数据模型.md"
-      ]
+        "examples/fixtures/attached-sample-project/src/main/resources/db/migration/V1__pricing_list_control.sql"
+      ],
+      "column_details": []
     },
     {
       "table_name": "t_tob_pricing_item",
+      "component_id": "md",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "md::local::default::default::t_tob_pricing_item",
       "columns": [
         "effective_time",
         "pricing_id",
@@ -58,6 +170,29 @@
         "product_line_code",
         "status"
       ],
+      "sql_columns": [],
+      "indexed_columns": [],
+      "sources": [
+        "specs/task-board/design-pack/数据模型.md"
+      ],
+      "column_details": []
+    },
+    {
+      "table_name": "t_tob_pricing_item",
+      "component_id": "V1__pricing_list_control.sql",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "V1__pricing_list_control.sql::local::default::default::t_tob_pricing_item",
+      "columns": [
+        "effective_time",
+        "pricing_id",
+        "pricing_name",
+        "pricing_type",
+        "product_line_code",
+        "status"
+      ],
+      "declared_columns": [],
       "sql_columns": [
         "effective_time",
         "pricing_id",
@@ -68,12 +203,17 @@
       ],
       "indexed_columns": [],
       "sources": [
-        "examples/fixtures/attached-sample-project/src/main/resources/db/migration/V1__pricing_list_control.sql",
-        "specs/pilot-order-create/design-pack/数据模型.md"
-      ]
+        "examples/fixtures/attached-sample-project/src/main/resources/db/migration/V1__pricing_list_control.sql"
+      ],
+      "column_details": []
     },
     {
       "table_name": "t_tob_pricing_plan",
+      "component_id": "md",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "md::local::default::default::t_tob_pricing_plan",
       "columns": [
         "effective_time",
         "pricing_id",
@@ -90,6 +230,29 @@
         "product_line_code",
         "status"
       ],
+      "sql_columns": [],
+      "indexed_columns": [],
+      "sources": [
+        "specs/task-board/design-pack/数据模型.md"
+      ],
+      "column_details": []
+    },
+    {
+      "table_name": "t_tob_pricing_plan",
+      "component_id": "V1__pricing_list_control.sql",
+      "db_type": "local",
+      "connection_name": "default",
+      "schema_name": "default",
+      "resource_key": "V1__pricing_list_control.sql::local::default::default::t_tob_pricing_plan",
+      "columns": [
+        "effective_time",
+        "pricing_id",
+        "pricing_name",
+        "pricing_type",
+        "product_line_code",
+        "status"
+      ],
+      "declared_columns": [],
       "sql_columns": [
         "effective_time",
         "pricing_id",
@@ -104,9 +267,17 @@
         "status"
       ],
       "sources": [
-        "examples/fixtures/attached-sample-project/src/main/resources/db/migration/V1__pricing_list_control.sql",
-        "specs/pilot-order-create/design-pack/数据模型.md"
-      ]
+        "examples/fixtures/attached-sample-project/src/main/resources/db/migration/V1__pricing_list_control.sql"
+      ],
+      "column_details": []
     }
-  ]
+  ],
+  "component_ids": [
+    "V1__pricing_list_control.sql",
+    "md"
+  ],
+  "evidence_level": "L2",
+  "confidence": "medium",
+  "ttl": "P1D",
+  "source_signature": "89df78f976e298a91ee307244268c963be3804acc22b8be1e0ddb38a04cb30e4"
 }

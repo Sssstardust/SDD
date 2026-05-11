@@ -18,3 +18,7 @@ docs
 document
 examples
 tests
+
+src
+
+.tmp*

@@ -1,0 +1,16 @@
+[
+  {
+    "intent_id": "payment-review-control-design-v1",
+    "feature": "payment-review-control",
+    "design_version": "design-v1.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T10:07:33.298144+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "superseded_by": null
+  }
+]

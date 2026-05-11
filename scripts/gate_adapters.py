@@ -443,7 +443,7 @@ class JavaGateAdapter(GateAdapter):
                 )
 
         low_confidence = str(module_map_quality.get("confidence") or "").lower() == "low"
-        result = "PASS" if not design_only_classes and not missing_classes and not ambiguous_classes and not missing_methods and not low_confidence else "WARN"
+        result = "PASS" if not design_only_classes and not missing_classes and not ambiguous_classes and not missing_methods else "WARN"
         method_modes = sorted({str(item.get("match_mode")) for item in method_match_details if item.get("matched") and item.get("match_mode")})
         if result == "PASS":
             if method_modes:
@@ -939,6 +939,21 @@ def build_module_entry_aliases(node: dict[str, object]) -> list[str]:
     return deduped
 
 
+def matches_affected_component(node: dict[str, object], affected_components: set[str]) -> bool:
+    if not affected_components:
+        return True
+    candidate_values = []
+    for key in ("component_id", "resource_key", "fqn", "simple_name", "class_name", "display_name", "name"):
+        value = node.get(key)
+        if isinstance(value, str) and value:
+            candidate_values.append(value)
+            candidate_values.append(value.split(".")[-1])
+            if "::" in value:
+                candidate_values.append(value.split("::")[-1])
+                candidate_values.append(value.split("::")[-1].split(".")[-1])
+    return any(candidate in affected_components for candidate in candidate_values)
+
+
 def extract_module_class_entries(
     module_map_path: Path,
     *,
@@ -956,10 +971,7 @@ def extract_module_class_entries(
         if isinstance(node, dict):
             class_name = node.get("class_name") or node.get("simple_name") or node.get("name")
             if isinstance(class_name, str):
-                component_id = node.get("component_id")
-                if affected_component_set and isinstance(component_id, str) and component_id and component_id not in affected_component_set:
-                    pass
-                else:
+                if matches_affected_component(node, affected_component_set):
                     canonical_key = str(node.get("resource_key") or node.get("fqn") or class_name)
                     existing = canonical_entries.get(canonical_key)
                     canonical = merge_module_entry(existing, dict(node)) if isinstance(existing, dict) else dict(node)

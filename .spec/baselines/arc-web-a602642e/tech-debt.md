@@ -1,7 +1,7 @@
 # 技术债基线
 
-- generated_at: 2026-05-10T18:56:12.490020+00:00
-- source_specs_dir: D:/project/SDD/specs
+- generated_at: 2026-05-10T20:03:00.573173+00:00
+- source_specs_dir: D:/project/PDC2/pdc_src/pdc-arc-root/arc-web/specs
 
 ## 1. 采集口径
 

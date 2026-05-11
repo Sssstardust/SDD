@@ -6,8 +6,11 @@
     "controller": {
       "suffixes": ["Controller"]
     },
+    "listener": {
+      "suffixes": ["Listener"]
+    },
     "service": {
-      "suffixes": ["Service"]
+      "suffixes": ["Service", "ServiceImpl"]
     },
     "repository": {
       "suffixes": ["Repository"]
@@ -20,27 +23,32 @@
     {
       "from": "ui",
       "allowed_to": ["controller"],
-      "error": "UI 不应直接调用 {dst_name}"
+      "error": "UI 涓嶅簲鐩存帴璋冪敤 {dst_name}"
     },
     {
       "from": "controller",
       "allowed_to": ["service", "state_machine"],
-      "error": "Controller 不应直接调用 {dst_name}"
+      "error": "Controller 涓嶅簲鐩存帴璋冪敤 {dst_name}"
+    },
+    {
+      "from": "listener",
+      "allowed_to": ["service"],
+      "error": "Listener 涓嶅簲鐩存帴璋冪敤 {dst_name}"
     },
     {
       "from": "repository",
       "allowed_to": [],
-      "error": "Repository 不应作为主动调用方: {src_name} -> {dst_name}"
+      "error": "Repository 涓嶅簲浣滀负涓诲姩璋冪敤鏂? {src_name} -> {dst_name}"
     },
     {
       "from": "service",
       "forbidden_to": ["ui"],
-      "error": "Service 不应直接依赖 UI: {src_name} -> {dst_name}"
+      "error": "Service 涓嶅簲鐩存帴渚濊禆 UI: {src_name} -> {dst_name}"
     },
     {
       "from": "state_machine",
       "forbidden_to": ["ui", "controller"],
-      "error": "StateMachine 不应直接依赖上层: {src_name} -> {dst_name}"
+      "error": "StateMachine 涓嶅簲鐩存帴渚濊禆涓婂眰: {src_name} -> {dst_name}"
     }
   ]
 }

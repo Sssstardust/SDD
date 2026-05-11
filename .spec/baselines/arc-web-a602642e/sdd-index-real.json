@@ -1,0 +1,133 @@
+[
+  {
+    "feature": "pricing-list-control",
+    "design_version": "design-v1.md",
+    "implemented_at": "2026-04-17T09:58:49.893546+00:00",
+    "paths": [
+      "/api/v1/tob/pricings",
+      "/api/v1/tob/pricings/{pricingId}/review",
+      "/api/v1/tob/pricings/{pricingId}"
+    ],
+    "tables": [],
+    "source_intent_id": "pricing-list-control-design-v1"
+  },
+  {
+    "feature": "payment-review-control",
+    "design_version": "design-v1.md",
+    "implemented_at": "2026-04-17T10:10:41.583105+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "source_intent_id": "payment-review-control-design-v1"
+  },
+  {
+    "feature": "validation-full-20260417190616",
+    "design_version": "design-v2.md",
+    "implemented_at": "2026-04-17T11:39:08.595761+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "source_intent_id": "validation-full-20260417190616-design-v2"
+  },
+  {
+    "feature": "tariff-audit-sync-task-center-optimization",
+    "design_version": "design-v1.md",
+    "implemented_at": "2026-05-10T20:03:00.544682+00:00",
+    "paths": [
+      "/flexibleTariff/syncTask/detail",
+      "/flexibleTariff/syncTask/list",
+      "/flexibleTariff/syncTask/retry",
+      "/flexibleTariff/syncTask/status"
+    ],
+    "operations": [
+      {
+        "path": "/flexibleTariff/syncTask/list",
+        "method": "POST",
+        "operation_id": "listSyncTasks"
+      },
+      {
+        "path": "/flexibleTariff/syncTask/detail",
+        "method": "POST",
+        "operation_id": "getSyncTaskDetail"
+      },
+      {
+        "path": "/flexibleTariff/syncTask/retry",
+        "method": "POST",
+        "operation_id": "retrySyncTask"
+      },
+      {
+        "path": "/flexibleTariff/syncTask/status",
+        "method": "POST",
+        "operation_id": "getSyncTaskStatus"
+      }
+    ],
+    "tables": [],
+    "resource_claims": [
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/detail",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/detail"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/list",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/list"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/retry",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/retry"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/status",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/status"
+      }
+    ],
+    "source_intent_id": "tariff-audit-sync-task-center-optimization-design-v1",
+    "design_hash": "7ec7b9ae0175e23f61573697fdf4063a29f6596ff5c43ad18668c7d44fadb43e",
+    "design_pack_hash": "977cce31ab491782ab0925c1bb209679e046ac30b2352dd984f72043a92d8ea2",
+    "module_map_hash": "d3d41be2e0ee4ff05fb3e0ea0a2546ae68cc4ce72a9cec1130ab38a7a13b8191",
+    "schema_context_hash": "7cbe729001ead387f3458f7fdf79be586830d8089b2b6ddcfb2e120e3bc78781",
+    "verified_report": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center-optimization\\reports\\v1\\verify-report.json",
+    "verified_at": "2026-05-10T19:53:29.680497+00:00",
+    "evidence": {
+      "design": {
+        "source": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center-optimization\\design-v1.md",
+        "hash": "7ec7b9ae0175e23f61573697fdf4063a29f6596ff5c43ad18668c7d44fadb43e",
+        "evidence_level": "L3",
+        "confidence": "medium"
+      },
+      "design_pack": {
+        "source": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center-optimization\\reports\\v1\\design-pack.snapshot",
+        "hash": "977cce31ab491782ab0925c1bb209679e046ac30b2352dd984f72043a92d8ea2",
+        "evidence_level": "L3",
+        "confidence": "medium"
+      },
+      "module_map": {
+        "source": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\module-map.json",
+        "hash": "d3d41be2e0ee4ff05fb3e0ea0a2546ae68cc4ce72a9cec1130ab38a7a13b8191",
+        "evidence_level": "L2",
+        "confidence": "medium"
+      },
+      "schema_context": {
+        "source": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "hash": "7cbe729001ead387f3458f7fdf79be586830d8089b2b6ddcfb2e120e3bc78781",
+        "evidence_level": "L2",
+        "confidence": "medium"
+      },
+      "verify_report": {
+        "source": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center-optimization\\reports\\v1\\verify-report.json",
+        "hash": "2a9459d765f1ea0cf31c808da57ba57423c4709df544ec08d96ca82f5d490bb9",
+        "evidence_level": "L1",
+        "confidence": "high"
+      }
+    }
+  }
+]

@@ -83,6 +83,7 @@ from application.project_runtime import (
 )
 from attached_project import DEFAULT_ATTACHMENT_PATH
 from concurrency import atomic_write_text, feature_lock
+from infrastructure.baseline_paths import get_active_baseline_dir
 from domain.pipeline import PipelineRunContext
 from application.flow_state import inspect_feature_state
 from ops_log import append_project_op

@@ -1,339 +1,299 @@
 {
-  "generated_at": "2026-04-24T06:19:42.799Z",
+  "generated_at": "2026-05-10T18:51:54.271Z",
+  "scanner": "java-lexical-v2",
+  "evidence_level": "L2",
+  "confidence": "medium",
+  "unsupported_features": [],
+  "scan_quality": {
+    "parser": "lightweight-lexical-java",
+    "status": "partial",
+    "warnings": [],
+    "limitations": [
+      "no-symbol-resolution",
+      "partial-lombok-generated-method-expansion",
+      "partial-mybatis-xml-binding-resolution",
+      "no-framework-proxy-resolution"
+    ],
+    "method_inference": [
+      "lombok-getter",
+      "lombok-setter",
+      "lombok-data"
+    ]
+  },
   "source_stats": {
-    "java-main": 12
+    "design": 6
   },
   "duplicate_strategy": "disambiguate",
   "scan_roots": [
-    "examples/fixtures/attached-sample-project/src/main/java"
+    "src/test/java"
   ],
   "design_roots": [
     "specs"
   ],
   "classes": [
     {
-      "class_name": "OrderUsageService",
-      "simple_name": "OrderUsageService",
-      "fqn": "com.example.pricinglistcontrol.service.OrderUsageService",
-      "package": "com.example.pricinglistcontrol.service",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/OrderUsageService.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "checkOrderRelation(...)",
-        "checkOrderRelation(String pricingId)"
-      ],
-      "dependencies": [],
-      "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/OrderUsageService.java",
-        "specs/pilot-order-create/design-v1.md"
-      ],
-      "display_name": "OrderUsageService"
-    },
-    {
       "class_name": "PaymentOrderRepository",
       "simple_name": "PaymentOrderRepository",
-      "fqn": "com.example.paymentreviewcontrol.repository.PaymentOrderRepository",
-      "package": "com.example.paymentreviewcontrol.repository",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentOrderRepository.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PaymentOrderRepository()",
-        "findById(String paymentId)",
-        "findByStatus(String status)",
-        "save(Map<String, Object> order)"
-      ],
-      "dependencies": [
-        "ArrayList",
-        "HashMap",
-        "List",
-        "Map"
-      ],
+      "fqn": null,
+      "package": null,
+      "module": "pilot-payment-review",
+      "type": "participant",
+      "source_file": "specs/pilot-payment-review/design-v1.md",
+      "source_kind": "design",
+      "public_methods": [],
+      "declared_public_methods": [],
+      "inherited_public_methods": [],
+      "fields": [],
+      "annotations": [],
+      "extends": [],
+      "implements": [],
+      "endpoints": [],
+      "dependencies": [],
       "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentOrderRepository.java",
         "specs/pilot-payment-review/design-v1.md"
       ],
-      "display_name": "PaymentOrderRepository"
+      "method_details": [],
+      "field_details": [],
+      "display_name": "PaymentOrderRepository",
+      "scan_reliability": {
+        "class_confidence": "low",
+        "method_confidence": "medium",
+        "evidence_sources": [
+          "design-snapshot"
+        ],
+        "inferred_methods": 0,
+        "inherited_methods": 0,
+        "mybatis_bound_methods": 0,
+        "jpa_entity": false,
+        "warnings": []
+      },
+      "component_id": "design-v1.md",
+      "resource_key": "design-v1.md::specs/pilot-payment-review/design-v1.md::PaymentOrderRepository"
     },
     {
       "class_name": "PaymentReviewController",
       "simple_name": "PaymentReviewController",
-      "fqn": "com.example.paymentreviewcontrol.controller.PaymentReviewController",
-      "package": "com.example.paymentreviewcontrol.controller",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/controller/PaymentReviewController.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PaymentReviewController(PaymentReviewService paymentReviewService)",
-        "approve(String paymentId, String reviewer)",
-        "listPending(String reviewer)",
-        "reject(String paymentId, String reviewer, String reason)"
-      ],
+      "fqn": null,
+      "package": null,
+      "module": "pilot-payment-review",
+      "type": "participant",
+      "source_file": "specs/pilot-payment-review/design-v1.md",
+      "source_kind": "design",
+      "public_methods": [],
+      "declared_public_methods": [],
+      "inherited_public_methods": [],
+      "fields": [],
+      "annotations": [],
+      "extends": [],
+      "implements": [],
+      "endpoints": [],
       "dependencies": [
-        "List",
-        "Map",
         "PaymentReviewService"
       ],
       "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/controller/PaymentReviewController.java",
         "specs/pilot-payment-review/design-v1.md"
       ],
-      "display_name": "PaymentReviewController"
+      "method_details": [],
+      "field_details": [],
+      "display_name": "PaymentReviewController",
+      "scan_reliability": {
+        "class_confidence": "low",
+        "method_confidence": "medium",
+        "evidence_sources": [
+          "design-snapshot"
+        ],
+        "inferred_methods": 0,
+        "inherited_methods": 0,
+        "mybatis_bound_methods": 0,
+        "jpa_entity": false,
+        "warnings": []
+      },
+      "component_id": "design-v1.md",
+      "resource_key": "design-v1.md::specs/pilot-payment-review/design-v1.md::PaymentReviewController"
     },
     {
       "class_name": "PaymentReviewRecordRepository",
       "simple_name": "PaymentReviewRecordRepository",
-      "fqn": "com.example.paymentreviewcontrol.repository.PaymentReviewRecordRepository",
-      "package": "com.example.paymentreviewcontrol.repository",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentReviewRecordRepository.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "appendRecord(String paymentId, String reviewer, String result, String reason)",
-        "listRecords()"
-      ],
-      "dependencies": [
-        "ArrayList",
-        "HashMap",
-        "List",
-        "Map"
-      ],
+      "fqn": null,
+      "package": null,
+      "module": "pilot-payment-review",
+      "type": "participant",
+      "source_file": "specs/pilot-payment-review/design-v1.md",
+      "source_kind": "design",
+      "public_methods": [],
+      "declared_public_methods": [],
+      "inherited_public_methods": [],
+      "fields": [],
+      "annotations": [],
+      "extends": [],
+      "implements": [],
+      "endpoints": [],
+      "dependencies": [],
       "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/repository/PaymentReviewRecordRepository.java",
         "specs/pilot-payment-review/design-v1.md"
       ],
-      "display_name": "PaymentReviewRecordRepository"
+      "method_details": [],
+      "field_details": [],
+      "display_name": "PaymentReviewRecordRepository",
+      "scan_reliability": {
+        "class_confidence": "low",
+        "method_confidence": "medium",
+        "evidence_sources": [
+          "design-snapshot"
+        ],
+        "inferred_methods": 0,
+        "inherited_methods": 0,
+        "mybatis_bound_methods": 0,
+        "jpa_entity": false,
+        "warnings": []
+      },
+      "component_id": "design-v1.md",
+      "resource_key": "design-v1.md::specs/pilot-payment-review/design-v1.md::PaymentReviewRecordRepository"
     },
     {
       "class_name": "PaymentReviewService",
       "simple_name": "PaymentReviewService",
-      "fqn": "com.example.paymentreviewcontrol.service.PaymentReviewService",
-      "package": "com.example.paymentreviewcontrol.service",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/service/PaymentReviewService.java",
-      "source_kind": "java-main",
+      "fqn": null,
+      "package": null,
+      "module": "pilot-payment-review",
+      "type": "participant",
+      "source_file": "specs/pilot-payment-review/design-v1.md",
+      "source_kind": "design",
       "public_methods": [
-        "PaymentReviewService(PaymentOrderRepository paymentOrderRepository,\n        PaymentReviewRecordRepository paymentReviewRecordRepository,\n        PaymentStateMachine paymentStateMachine)",
         "approve(...)",
-        "approve(String paymentId, String reviewer)",
         "listPendingPayments(...)",
-        "listPendingPayments(String reviewer)",
-        "reject(...)",
-        "reject(String paymentId, String reviewer, String reason)"
+        "reject(...)"
       ],
+      "declared_public_methods": [
+        "approve(...)",
+        "listPendingPayments(...)",
+        "reject(...)"
+      ],
+      "inherited_public_methods": [],
+      "fields": [],
+      "annotations": [],
+      "extends": [],
+      "implements": [],
+      "endpoints": [],
       "dependencies": [
-        "List",
-        "Map",
         "PaymentOrderRepository",
         "PaymentReviewRecordRepository",
         "PaymentStateMachine"
       ],
       "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/service/PaymentReviewService.java",
         "specs/pilot-payment-review/design-v1.md"
       ],
-      "display_name": "PaymentReviewService"
+      "method_details": [],
+      "field_details": [],
+      "display_name": "PaymentReviewService",
+      "scan_reliability": {
+        "class_confidence": "low",
+        "method_confidence": "medium",
+        "evidence_sources": [
+          "design-snapshot"
+        ],
+        "inferred_methods": 0,
+        "inherited_methods": 0,
+        "mybatis_bound_methods": 0,
+        "jpa_entity": false,
+        "warnings": []
+      },
+      "component_id": "design-v1.md",
+      "resource_key": "design-v1.md::specs/pilot-payment-review/design-v1.md::PaymentReviewService"
     },
     {
       "class_name": "PaymentReviewUI",
       "simple_name": "PaymentReviewUI",
-      "fqn": "com.example.paymentreviewcontrol.ui.PaymentReviewUI",
-      "package": "com.example.paymentreviewcontrol.ui",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/ui/PaymentReviewUI.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PaymentReviewUI(PaymentReviewController paymentReviewController)",
-        "approvePayment(String paymentId, String reviewer)",
-        "rejectPayment(String paymentId, String reviewer, String reason)",
-        "showPendingPayments(String reviewer)"
-      ],
+      "fqn": null,
+      "package": null,
+      "module": "pilot-payment-review",
+      "type": "participant",
+      "source_file": "specs/pilot-payment-review/design-v1.md",
+      "source_kind": "design",
+      "public_methods": [],
+      "declared_public_methods": [],
+      "inherited_public_methods": [],
+      "fields": [],
+      "annotations": [],
+      "extends": [],
+      "implements": [],
+      "endpoints": [],
       "dependencies": [
-        "List",
-        "Map",
         "PaymentReviewController"
       ],
       "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/ui/PaymentReviewUI.java",
         "specs/pilot-payment-review/design-v1.md"
       ],
-      "display_name": "PaymentReviewUI"
+      "method_details": [],
+      "field_details": [],
+      "display_name": "PaymentReviewUI",
+      "scan_reliability": {
+        "class_confidence": "low",
+        "method_confidence": "medium",
+        "evidence_sources": [
+          "design-snapshot"
+        ],
+        "inferred_methods": 0,
+        "inherited_methods": 0,
+        "mybatis_bound_methods": 0,
+        "jpa_entity": false,
+        "warnings": []
+      },
+      "component_id": "design-v1.md",
+      "resource_key": "design-v1.md::specs/pilot-payment-review/design-v1.md::PaymentReviewUI"
     },
     {
       "class_name": "PaymentStateMachine",
       "simple_name": "PaymentStateMachine",
-      "fqn": "com.example.paymentreviewcontrol.domain.PaymentStateMachine",
-      "package": "com.example.paymentreviewcontrol.domain",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/domain/PaymentStateMachine.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "transit(String currentStatus, String targetStatus)"
-      ],
+      "fqn": null,
+      "package": null,
+      "module": "pilot-payment-review",
+      "type": "participant",
+      "source_file": "specs/pilot-payment-review/design-v1.md",
+      "source_kind": "design",
+      "public_methods": [],
+      "declared_public_methods": [],
+      "inherited_public_methods": [],
+      "fields": [],
+      "annotations": [],
+      "extends": [],
+      "implements": [],
+      "endpoints": [],
       "dependencies": [],
       "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/paymentreviewcontrol/domain/PaymentStateMachine.java",
         "specs/pilot-payment-review/design-v1.md"
       ],
-      "display_name": "PaymentStateMachine"
-    },
-    {
-      "class_name": "PricingController",
-      "simple_name": "PricingController",
-      "fqn": "com.example.pricinglistcontrol.controller.PricingController",
-      "package": "com.example.pricinglistcontrol.controller",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/controller/PricingController.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PricingController(PricingPermissionService pricingPermissionService, PricingService pricingService)",
-        "getPricings(String userId, Map<String, String> query)",
-        "review(String pricingId, String reviewer)",
-        "update(String pricingId, Map<String, Object> payload)"
-      ],
-      "dependencies": [
-        "List",
-        "Map",
-        "PricingPermissionService",
-        "PricingService"
-      ],
-      "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/controller/PricingController.java",
-        "specs/pilot-order-create/design-v1.md"
-      ],
-      "display_name": "PricingController"
-    },
-    {
-      "class_name": "PricingPermissionService",
-      "simple_name": "PricingPermissionService",
-      "fqn": "com.example.pricinglistcontrol.service.PricingPermissionService",
-      "package": "com.example.pricinglistcontrol.service",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingPermissionService.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "filterVisibleProductLines(...)",
-        "filterVisibleProductLines(String userId)"
-      ],
-      "dependencies": [
-        "ArrayList",
-        "List"
-      ],
-      "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingPermissionService.java",
-        "specs/pilot-order-create/design-v1.md"
-      ],
-      "display_name": "PricingPermissionService"
-    },
-    {
-      "class_name": "PricingRepository",
-      "simple_name": "PricingRepository",
-      "fqn": "com.example.pricinglistcontrol.repository.PricingRepository",
-      "package": "com.example.pricinglistcontrol.repository",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/repository/PricingRepository.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PricingRepository()",
-        "findById(String pricingId)",
-        "query(String productLine, String status, String type)",
-        "save(Map<String, Object> plan)"
-      ],
-      "dependencies": [
-        "ArrayList",
-        "HashMap",
-        "List",
-        "Map"
-      ],
-      "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/repository/PricingRepository.java",
-        "specs/pilot-order-create/design-v1.md"
-      ],
-      "display_name": "PricingRepository"
-    },
-    {
-      "class_name": "PricingService",
-      "simple_name": "PricingService",
-      "fqn": "com.example.pricinglistcontrol.service.PricingService",
-      "package": "com.example.pricinglistcontrol.service",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingService.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PricingService(PricingRepository pricingRepository, OrderUsageService orderUsageService)",
-        "listPricings(...)",
-        "listPricings(Map<String, String> query, List<String> visibleProductLines)",
-        "reviewPricing(...)",
-        "reviewPricing(String pricingId, String reviewer)",
-        "updatePricing(...)",
-        "updatePricing(String pricingId, Map<String, Object> payload)"
-      ],
-      "dependencies": [
-        "ArrayList",
-        "HashMap",
-        "List",
-        "Map",
-        "OrderUsageService",
-        "PricingRepository"
-      ],
-      "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/service/PricingService.java",
-        "specs/pilot-order-create/design-v1.md"
-      ],
-      "display_name": "PricingService"
-    },
-    {
-      "class_name": "PricingUI",
-      "simple_name": "PricingUI",
-      "fqn": "com.example.pricinglistcontrol.ui.PricingUI",
-      "package": "com.example.pricinglistcontrol.ui",
-      "module": "attached-sample-project",
-      "type": "class",
-      "source_file": "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/ui/PricingUI.java",
-      "source_kind": "java-main",
-      "public_methods": [
-        "PricingUI(PricingController pricingController)",
-        "showPricingList(String userId, Map<String, String> query)",
-        "submitReview(String pricingId, String reviewer)",
-        "submitUpdate(String pricingId, Map<String, Object> payload)"
-      ],
-      "dependencies": [
-        "List",
-        "Map",
-        "PricingController"
-      ],
-      "source_files": [
-        "examples/fixtures/attached-sample-project/src/main/java/com/example/pricinglistcontrol/ui/PricingUI.java",
-        "specs/pilot-order-create/design-v1.md"
-      ],
-      "display_name": "PricingUI"
+      "method_details": [],
+      "field_details": [],
+      "display_name": "PaymentStateMachine",
+      "scan_reliability": {
+        "class_confidence": "low",
+        "method_confidence": "medium",
+        "evidence_sources": [
+          "design-snapshot"
+        ],
+        "inferred_methods": 0,
+        "inherited_methods": 0,
+        "mybatis_bound_methods": 0,
+        "jpa_entity": false,
+        "warnings": []
+      },
+      "component_id": "design-v1.md",
+      "resource_key": "design-v1.md::specs/pilot-payment-review/design-v1.md::PaymentStateMachine"
     }
   ],
+  "component_ids": [
+    "design-v1.md"
+  ],
+  "ttl": "P1D",
+  "source_signature": "d6c34bad1140ee52533a18db48057787d177d688871d6b4d0f3621132d670428",
   "attachment": {
-    "name": "attached-sample-project",
-    "project_root": "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project",
-    "scan_roots": [
-      "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\main\\java",
-      "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\test\\java"
-    ],
-    "design_roots": [
-      "D:\\project\\SDD\\specs"
-    ],
-    "schema_roots": [
-      "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\main\\resources"
-    ],
-    "source": "attachment"
+    "source": "attachment",
+    "attachment_path": "D:\\project\\SDD\\.spec\\attached-project.json",
+    "profile": null,
+    "scan_roots": [],
+    "design_roots": [],
+    "schema_roots": [],
+    "project_root": null
   }
 }

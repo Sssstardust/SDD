@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-05-10T20:02:47.126549+00:00",
+  "source": "attachment",
+  "fallback_from": null,
+  "design_roots": [
+    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs"
+  ],
+  "schema_roots": [
+    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\resources"
+  ],
+  "tables": [],
+  "component_ids": [],
+  "evidence_level": "L2",
+  "confidence": "medium",
+  "ttl": "P1D",
+  "source_signature": "b31d1109ca733662c93b7014bcd840d146068177af8674e8b3dbdf8572fef15c"
+}

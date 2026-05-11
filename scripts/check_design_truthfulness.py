@@ -294,20 +294,22 @@ def summarize_design_class_reliability(
     participant_classes: list[str],
     *,
     affected_components: set[str],
+    matches_affected_components=None,
 ) -> dict[str, object]:
+    effective_matcher = matches_affected_components or globals()["matches_affected_components"]
     adapter = default_gate_adapter_registry().select_for_module_map(module_map)
     if adapter is None:
         return _summarize_design_class_reliability(
             module_map,
             participant_classes,
             affected_components=affected_components,
-            matches_affected_components=matches_affected_components,
+            matches_affected_components=effective_matcher,
         )
     return adapter.summarize_design_class_reliability(
         module_map,
         participant_classes,
         affected_components=affected_components,
-        matches_affected_components=matches_affected_components,
+        matches_affected_components=effective_matcher,
     )
 
 
@@ -316,20 +318,22 @@ def summarize_design_class_resolution(
     participant_classes: list[str],
     *,
     affected_components: set[str],
+    matches_affected_components=None,
 ) -> dict[str, object]:
+    effective_matcher = matches_affected_components or globals()["matches_affected_components"]
     adapter = default_gate_adapter_registry().select_for_module_map(module_map)
     if adapter is None:
         return _summarize_design_class_resolution(
             module_map,
             participant_classes,
             affected_components=affected_components,
-            matches_affected_components=matches_affected_components,
+            matches_affected_components=effective_matcher,
         )
     return adapter.summarize_design_class_resolution(
         module_map,
         participant_classes,
         affected_components=affected_components,
-        matches_affected_components=matches_affected_components,
+        matches_affected_components=effective_matcher,
     )
 
 
@@ -523,24 +527,30 @@ def summarize_schema_table_resolution(
     table_names: list[str],
     *,
     affected_components: set[str],
+    extract_schema_table_entries=None,
+    resolve_schema_table_entry=None,
+    schema_table_candidates=None,
 ) -> dict[str, object]:
+    effective_extract_schema_table_entries = extract_schema_table_entries or globals()["extract_schema_table_entries"]
+    effective_resolve_schema_table_entry = resolve_schema_table_entry or globals()["resolve_schema_table_entry"]
+    effective_schema_table_candidates = schema_table_candidates or globals()["schema_table_candidates"]
     adapter = default_gate_adapter_registry().select_for_module_map(schema_context)
     if adapter is None:
         return _summarize_schema_table_resolution(
             schema_context,
             table_names,
             affected_components=affected_components,
-            extract_schema_table_entries=extract_schema_table_entries,
-            resolve_schema_table_entry=resolve_schema_table_entry,
-            schema_table_candidates=schema_table_candidates,
+            extract_schema_table_entries=effective_extract_schema_table_entries,
+            resolve_schema_table_entry=effective_resolve_schema_table_entry,
+            schema_table_candidates=effective_schema_table_candidates,
         )
     return adapter.summarize_schema_table_resolution(
         schema_context,
         table_names,
         affected_components=affected_components,
-        extract_schema_table_entries=extract_schema_table_entries,
-        resolve_schema_table_entry=resolve_schema_table_entry,
-        schema_table_candidates=schema_table_candidates,
+        extract_schema_table_entries=effective_extract_schema_table_entries,
+        resolve_schema_table_entry=effective_resolve_schema_table_entry,
+        schema_table_candidates=effective_schema_table_candidates,
     )
 
 
@@ -876,8 +886,8 @@ def check_brownfield_baseline_truthfulness(
         affected_components=affected_component_set,
         matches_affected_components=matches_affected_components,
     )
-    brownfield_evidence["module_map"]["class_resolution"] = class_resolution_summary
-    brownfield_evidence["module_map"]["class_reliability"] = class_reliability_summary
+    evidence["module_map"]["class_resolution"] = class_resolution_summary
+    evidence["module_map"]["class_reliability"] = class_reliability_summary
     if participants:
         resolved_classes = class_resolution_summary.get("resolved_classes", [])
         missing_classes = class_resolution_summary.get("missing_classes", [])

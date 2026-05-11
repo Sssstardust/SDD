@@ -1,8 +1,8 @@
 # Baseline Constitution
 
-- generated_at: 2026-05-10T18:56:12.488307+00:00
-- source_specs_dir: D:/project/SDD/specs
-- source_count: 2
+- generated_at: 2026-05-10T20:03:00.571709+00:00
+- source_specs_dir: D:/project/PDC2/pdc_src/pdc-arc-root/arc-web/specs
+- source_count: 1
 
 ## 1. 项目级硬约束
 
@@ -14,8 +14,7 @@
 
 ## 2. Greenfield 来源
 
-- admin-management: `D:/project/SDD/specs/admin-management/constitution.md`
-- task-board: `D:/project/SDD/specs/task-board/constitution.md`
+- tariff-audit-sync-task-center-optimization: `D:/project/PDC2/pdc_src/pdc-arc-root/arc-web/specs/tariff-audit-sync-task-center-optimization/constitution.md`
 
 ## 3. 维护说明
 

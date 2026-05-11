@@ -1,14 +1,109 @@
 {
-  "name": "attached-sample-project",
-  "project_root": "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project",
+  "name": "arc-web",
+  "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
   "scan_roots": [
-    "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\main\\java",
-    "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\test\\java"
+    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java",
+    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\test\\java"
   ],
   "design_roots": [
-    "D:\\project\\SDD\\specs"
+    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs"
   ],
   "schema_roots": [
-    "D:\\project\\SDD\\examples\\fixtures\\attached-sample-project\\src\\main\\resources"
-  ]
+    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\resources"
+  ],
+  "verification_commands": [
+    {
+      "name": "arc-web compile",
+      "command": [
+        "C:\\Python313\\python.exe",
+        "-c",
+        "from pathlib import Path; import sys; sys.exit(0 if Path(r'D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\pom.xml').exists() else 1)"
+      ],
+      "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root"
+    }
+  ],
+  "components": [
+    {
+      "component_id": "FlexibleTariffController",
+      "name": "FlexibleTariffController",
+      "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+      "verification_commands": [
+        {
+          "name": "check FlexibleTariffController",
+          "command": [
+            "C:\\Python313\\python.exe",
+            "-c",
+            "from pathlib import Path; import sys; sys.exit(0 if Path(r'D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java\\com\\aspire\\hlwjf\\pdc\\arc\\web\\controller\\FlexibleTariffController.java').exists() else 1)"
+          ],
+          "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web"
+        }
+      ]
+    },
+    {
+      "component_id": "TariffAuditPassedListener",
+      "name": "TariffAuditPassedListener",
+      "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+      "verification_commands": [
+        {
+          "name": "check TariffAuditPassedListener",
+          "command": [
+            "C:\\Python313\\python.exe",
+            "-c",
+            "from pathlib import Path; import sys; sys.exit(0 if Path(r'D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java\\com\\aspire\\hlwjf\\pdc\\arc\\web\\listener\\TariffAuditPassedListener.java').exists() else 1)"
+          ],
+          "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web"
+        }
+      ]
+    },
+    {
+      "component_id": "TariffMqSyncServiceImpl",
+      "name": "TariffMqSyncServiceImpl",
+      "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+      "verification_commands": [
+        {
+          "name": "check TariffMqSyncServiceImpl",
+          "command": [
+            "C:\\Python313\\python.exe",
+            "-c",
+            "from pathlib import Path; import sys; sys.exit(0 if Path(r'D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java\\com\\aspire\\hlwjf\\pdc\\arc\\web\\service\\impl\\TariffMqSyncServiceImpl.java').exists() else 1)"
+          ],
+          "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web"
+        }
+      ]
+    },
+    {
+      "component_id": "MqSyncServiceImpl",
+      "name": "MqSyncServiceImpl",
+      "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+      "verification_commands": [
+        {
+          "name": "check MqSyncServiceImpl",
+          "command": [
+            "C:\\Python313\\python.exe",
+            "-c",
+            "from pathlib import Path; import sys; sys.exit(0 if Path(r'D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java\\com\\aspire\\hlwjf\\pdc\\arc\\web\\service\\impl\\MqSyncServiceImpl.java').exists() else 1)"
+          ],
+          "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web"
+        }
+      ]
+    },
+    {
+      "component_id": "SyncTaskCenterServiceImpl",
+      "name": "SyncTaskCenterServiceImpl",
+      "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+      "verification_commands": [
+        {
+          "name": "check SyncTaskCenterServiceImpl",
+          "command": [
+            "C:\\Python313\\python.exe",
+            "-c",
+            "from pathlib import Path; import sys; sys.exit(0 if Path(r'D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java\\com\\aspire\\hlwjf\\pdc\\arc\\web\\service\\impl\\SyncTaskCenterServiceImpl.java').exists() else 1)"
+          ],
+          "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web"
+        }
+      ]
+    }
+  ],
+  "project_id": "arc-web-a602642e",
+  "profile": "arc-web"
 }

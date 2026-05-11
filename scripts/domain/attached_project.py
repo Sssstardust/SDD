@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from infrastructure.concurrency import atomic_write_text, path_lock
@@ -279,14 +280,31 @@ def resolve_module_map_scan_settings(
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     scan_roots: list[Path | str] | None = None,
     design_roots: list[Path | str] | None = None,
+    schema_roots: list[Path | str] | None = None,
     project_root: Path | str | None = None,
+    profile: str | None = None,
 ) -> dict[str, object]:
+    attachment = load_attachment_config(attachment_path, profile=profile) or {}
+    resolved_scan_roots = scan_roots
+    if resolved_scan_roots is None and isinstance(attachment.get("scan_roots"), list):
+        resolved_scan_roots = [Path(str(item)) for item in attachment.get("scan_roots", []) if isinstance(item, str) and item]
+    resolved_design_roots = design_roots
+    if resolved_design_roots is None and isinstance(attachment.get("design_roots"), list):
+        resolved_design_roots = [Path(str(item)) for item in attachment.get("design_roots", []) if isinstance(item, str) and item]
+    resolved_schema_roots = schema_roots
+    if resolved_schema_roots is None and isinstance(attachment.get("schema_roots"), list):
+        resolved_schema_roots = [Path(str(item)) for item in attachment.get("schema_roots", []) if isinstance(item, str) and item]
+    resolved_project_root = project_root
+    if resolved_project_root is None and isinstance(attachment.get("project_root"), str) and attachment.get("project_root"):
+        resolved_project_root = Path(str(attachment.get("project_root")))
     payload = {
         "source": "attachment",
         "attachment_path": str(attachment_path),
-        "scan_roots": [normalize_path(path) for path in (scan_roots or [])],
-        "design_roots": [normalize_path(path) for path in (design_roots or [])],
-        "project_root": normalize_path(project_root) if project_root is not None else None,
+        "profile": profile or attachment.get("profile"),
+        "scan_roots": [normalize_path(path) for path in (resolved_scan_roots or [])],
+        "design_roots": [normalize_path(path) for path in (resolved_design_roots or [])],
+        "schema_roots": [normalize_path(path) for path in (resolved_schema_roots or [])],
+        "project_root": normalize_path(resolved_project_root) if resolved_project_root is not None else None,
     }
     return payload
 
@@ -347,11 +365,76 @@ def load_attachment_config(path: Path = DEFAULT_ATTACHMENT_PATH, *, profile: str
     return payload
 
 
-def save_attachment_config(path: Path = DEFAULT_ATTACHMENT_PATH, payload: dict[str, object] | None = None) -> Path:
-    effective_path = path if path.is_absolute() else (ROOT / path).resolve()
-    data = dict(payload or {})
+def save_attachment_config(
+    payload_or_path: dict[str, object] | Path | None = None,
+    path: Path = DEFAULT_ATTACHMENT_PATH,
+    *,
+    payload: dict[str, object] | None = None,
+    profile: str | None = None,
+    project_id: str | None = None,
+) -> Path:
+    if isinstance(payload_or_path, dict) and payload is None:
+        data = dict(payload_or_path)
+        effective_path = path if path.is_absolute() else (ROOT / path).resolve()
+    else:
+        effective_path = payload_or_path if isinstance(payload_or_path, Path) else (path if path.is_absolute() else (ROOT / path).resolve())
+        data = dict(payload or {})
+    if profile is not None:
+        data["profile"] = profile
+    if project_id is not None:
+        data["project_id"] = project_id
     atomic_write_text(effective_path, json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return effective_path
+
+
+def load_attachment_seed(path: Path) -> dict[str, object]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def remove_attachment_profile(
+    path: Path = DEFAULT_ATTACHMENT_PATH,
+    *,
+    profile: str | None = None,
+    clear_all: bool = False,
+) -> None:
+    config_path = path if path.is_absolute() else (ROOT / path).resolve()
+    if not config_path.exists():
+        return
+    if clear_all:
+        config_path.unlink(missing_ok=True)
+        return
+    payload = load_attachment_config(config_path)
+    if not isinstance(payload, dict):
+        return
+    profiles = payload.get("profiles")
+    if not isinstance(profiles, list):
+        return
+    if profile is None:
+        return
+    payload["profiles"] = [item for item in profiles if not (isinstance(item, dict) and item.get("profile") == profile)]
+    save_attachment_config(config_path, payload)
+
+
+def set_active_attachment_profile(profile: str, path: Path = DEFAULT_ATTACHMENT_PATH) -> None:
+    config_path = path if path.is_absolute() else (ROOT / path).resolve()
+    payload = load_attachment_config(config_path)
+    if not isinstance(payload, dict):
+        raise ValueError("no attached project is configured")
+    profiles = payload.get("profiles")
+    if not isinstance(profiles, list):
+        raise ValueError(f"attachment profile not found: {profile}")
+    matched = False
+    for item in profiles:
+        if isinstance(item, dict):
+            item["active"] = item.get("profile") == profile
+            matched = matched or item["active"] is True
+    if not matched:
+        raise ValueError(f"attachment profile not found: {profile}")
+    save_attachment_config(config_path, payload)
 
 
 def list_attachment_profiles(path: Path = DEFAULT_ATTACHMENT_PATH) -> list[dict[str, object]]:

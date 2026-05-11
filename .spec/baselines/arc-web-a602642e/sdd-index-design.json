@@ -1,0 +1,118 @@
+[
+  {
+    "intent_id": "pricing-list-control-design-v1",
+    "feature": "pricing-list-control",
+    "design_version": "design-v1.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T09:49:21.286109+00:00",
+    "paths": [
+      "/api/v1/tob/pricings",
+      "/api/v1/tob/pricings/{pricingId}/review",
+      "/api/v1/tob/pricings/{pricingId}"
+    ],
+    "tables": [],
+    "superseded_by": null
+  },
+  {
+    "intent_id": "payment-review-control-design-v1",
+    "feature": "payment-review-control",
+    "design_version": "design-v1.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T10:07:33.298144+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "superseded_by": null
+  },
+  {
+    "intent_id": "validation-full-20260417190616-design-v2",
+    "feature": "validation-full-20260417190616",
+    "design_version": "design-v2.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-04-17T11:39:08.530428+00:00",
+    "paths": [
+      "/api/v1/payments/review/pending",
+      "/api/v1/payments/{paymentId}/approve",
+      "/api/v1/payments/{paymentId}/reject"
+    ],
+    "tables": [],
+    "superseded_by": null
+  },
+  {
+    "intent_id": "tariff-audit-sync-task-center-optimization-design-v1",
+    "feature": "tariff-audit-sync-task-center-optimization",
+    "design_version": "design-v1.md",
+    "status": "IMPLEMENTED",
+    "approved_at": "2026-05-10T19:53:30.047857+00:00",
+    "paths": [
+      "/flexibleTariff/syncTask/detail",
+      "/flexibleTariff/syncTask/list",
+      "/flexibleTariff/syncTask/retry",
+      "/flexibleTariff/syncTask/status"
+    ],
+    "operations": [
+      {
+        "path": "/flexibleTariff/syncTask/list",
+        "method": "POST",
+        "operation_id": "listSyncTasks"
+      },
+      {
+        "path": "/flexibleTariff/syncTask/detail",
+        "method": "POST",
+        "operation_id": "getSyncTaskDetail"
+      },
+      {
+        "path": "/flexibleTariff/syncTask/retry",
+        "method": "POST",
+        "operation_id": "retrySyncTask"
+      },
+      {
+        "path": "/flexibleTariff/syncTask/status",
+        "method": "POST",
+        "operation_id": "getSyncTaskStatus"
+      }
+    ],
+    "tables": [],
+    "events": [
+      "arc-web.tariff.audit.passed",
+      "tariff-audit-passed-sync-trigger"
+    ],
+    "resource_claims": [
+      {
+        "kind": "event",
+        "name": "arc-web.tariff.audit.passed",
+        "resource_key": "event::arc-web.tariff.audit.passed"
+      },
+      {
+        "kind": "event",
+        "name": "tariff-audit-passed-sync-trigger",
+        "resource_key": "event::tariff-audit-passed-sync-trigger"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/detail",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/detail"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/list",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/list"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/retry",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/retry"
+      },
+      {
+        "kind": "operation",
+        "name": "POST /flexibleTariff/syncTask/status",
+        "resource_key": "operation::POST /flexibleTariff/syncTask/status"
+      }
+    ],
+    "superseded_by": null,
+    "design_pack_source": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center-optimization\\reports\\v1\\design-pack.snapshot"
+  }
+]
