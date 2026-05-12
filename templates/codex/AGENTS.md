@@ -44,6 +44,23 @@ Use `sdd-project-explorer` before referencing existing classes, modules, or meth
 
 Use `sdd-arch-standard` before writing or reviewing architecture-sensitive design sections.
 
-Use `sdd-pipeline` as the preferred entry for attachment lookup, flow-status, task-slice generation, Gate 5, release-gate, and report validation. If the host environment blocks Node subprocess execution, fall back to direct `python scripts/run_pipeline.py ...` commands.
+Use `sdd-pipeline` as the preferred entry for attachment lookup, flow-status, task-slice generation, design-cycle orchestration, implementation gates, project-cycle orchestration, Gate 5, release-gate, report validation, and full-flow execution. If the host environment blocks Node subprocess execution, fall back to direct `python scripts/run_pipeline.py ...` commands.
+
+For direct registration, use the local MCP server path:
+
+```json
+{
+  "mcpServers": {
+    "sdd-pipeline": {
+      "command": "node",
+      "args": [
+        "D:\\project\\SDD\\mcp-servers\\sdd-pipeline\\dist\\server.js"
+      ]
+    }
+  }
+}
+```
+
+See `mcp-servers/sdd-pipeline/agent-config-example.md` for the full agent-facing tool shortlist.
 
 Never invent brownfield classes, tables, APIs, or state machines without evidence from project facts or explicit user confirmation.

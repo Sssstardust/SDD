@@ -566,6 +566,37 @@ def is_low_quality_design_markdown(content: str) -> bool:
     )
 
 
+def detect_brownfield_hallucinations(context: dict, design_markdown: str) -> list[str]:
+    if str(context.get("project_mode") or "brownfield") != "brownfield":
+        return []
+    facts = context.get("brownfield_facts")
+    if not isinstance(facts, dict):
+        return []
+
+    issues: list[str] = []
+    known_classes = {
+        *[str(item) for item in facts.get("listeners", []) if isinstance(item, str)],
+        *[str(item) for item in facts.get("services", []) if isinstance(item, str)],
+        *[str(item) for item in facts.get("mappers", []) if isinstance(item, str)],
+        *[str(item) for item in facts.get("controllers", []) if isinstance(item, str)],
+    }
+    known_tables = {str(item).lower() for item in facts.get("tables", []) if isinstance(item, str)}
+
+    class_candidates = sorted(set(re.findall(r"\b([A-Z][A-Za-z0-9]+(?:Controller|Service|Mapper|Listener))\b", design_markdown)))
+    for candidate in class_candidates:
+        if candidate not in known_classes:
+            issues.append(f"unknown brownfield runtime class: {candidate}")
+
+    table_candidates = sorted(
+        set(re.findall(r"\b(t_[a-z0-9_]+|[a-z][a-z0-9_]*_(?:batch|detail|task|log|table))\b", design_markdown.lower()))
+    )
+    for candidate in table_candidates:
+        if candidate not in known_tables and "[new]" not in design_markdown.lower():
+            issues.append(f"unknown brownfield table: {candidate}")
+
+    return issues
+
+
 def validate_outputs(workspace: Path, design_path: Path) -> tuple[bool, list[dict[str, str]]]:
     feature_brief = workspace / "feature-brief.md"
     commands = [
@@ -768,6 +799,17 @@ def main() -> int:
                 existing_pack,
                 args.resume,
             )
+
+        hallucination_issues = detect_brownfield_hallucinations(generation_context, design_markdown)
+        if hallucination_issues:
+            if ai_config:
+                print("[FAIL] brownfield facts mismatch detected")
+                for item in hallucination_issues:
+                    print(f"  - {item}")
+                feedback_items = [normalize_feedback_item("gate2", "ERROR", item) for item in hallucination_issues]
+                last_feedback_items = feedback_items
+                continue
+            raise RuntimeError("brownfield facts mismatch: " + "; ".join(hallucination_issues))
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(design_markdown, encoding="utf-8")

@@ -11,6 +11,7 @@ from domain.feature_brief import FeatureBrief
 from domain.flow_state import FlowStateSnapshot
 from infrastructure.json_io import read_json, write_json
 from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design
+from application.preflight import missing_feature_prerequisites
 from .flow_state_helpers import (
     base_state,
     build_class_resolution_brief,
@@ -124,6 +125,17 @@ def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = Tr
 def compute_feature_state(feature_dir: Path) -> dict[str, object]:
     state = base_state(feature_dir)
 
+    prerequisite_messages = missing_feature_prerequisites(
+        feature_dir,
+        require_feature_brief=False,
+        require_design=False,
+        require_approval=False,
+        require_task_slices_manifest=False,
+        require_task_slice_files=False,
+    )
+    if prerequisite_messages:
+        state["blockers"].extend(prerequisite_messages)
+
     feature_brief = feature_dir / "feature-brief.md"
     if not feature_brief.exists():
         state["missing_artifacts"] = ["feature-brief.md"]
@@ -216,6 +228,7 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
             state["approval_status"] = approval.get("status")
     elif state["risk_tier"] == "high":
         state["missing_artifacts"].append(str(approval_path))
+        state["blockers"].append(f"missing approval prerequisite: {approval_path}")
 
     verify_path = reports_dir / "verify-report.json"
     verify_result = None
@@ -278,10 +291,17 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
                     state["blockers"].append(f"gate5: affected-component execution={component_result}")
     else:
         state["missing_artifacts"].append(str(verify_path))
+        state["blockers"].append(f"missing implementation verification report: {verify_path}")
 
     gate4_path = reports_dir / "gate4-skeleton.json"
     if not gate4_path.exists():
         state["missing_artifacts"].append(str(gate4_path))
+        state["blockers"].append(f"missing gate4 skeleton report: {gate4_path}")
+
+    task_slices_manifest = feature_dir / "tasks" / "task-slices.generated.json"
+    if not task_slices_manifest.exists():
+        state["missing_artifacts"].append(str(task_slices_manifest))
+        state["blockers"].append(f"missing task slices manifest: {task_slices_manifest}")
 
     risk_high = state["risk_tier"] == "high"
 
@@ -351,4 +371,3 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
 
 def inspect_feature_state(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, object]:
     return build_feature_state_record(feature_dir, prefer_persisted=prefer_persisted)
-

@@ -9,6 +9,7 @@ args = ["D:\\project\\SDD\\mcp-servers\\project-explorer\\dist\\server.js"]
 command = "node"
 args = ["D:\\project\\SDD\\mcp-servers\\arch-standard\\dist\\server.js"]
 
+# SDD pipeline orchestrator for full-flow execution and project-cycle control.
 [mcp_servers.sdd-pipeline]
 command = "node"
 args = ["D:\\project\\SDD\\mcp-servers\\sdd-pipeline\\dist\\server.js"]

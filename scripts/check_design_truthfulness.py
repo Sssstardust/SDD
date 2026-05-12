@@ -100,6 +100,10 @@ def extract_req_ids(brief_content: str) -> list[str]:
     return sorted(set(req_ids))
 
 
+def get_baseline_real_index_path(baseline_dir: Path) -> Path:
+    return baseline_dir / "sdd-index-real.json"
+
+
 def check_bootstrap_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
     checks: list[str] = []
     errors: list[str] = []
@@ -371,6 +375,8 @@ def extract_controller_endpoints_from_module_map(module_map: object) -> list[dic
 def validate_openapi_controller_mapping(
     openapi_operations: list[dict[str, str]],
     module_map: object,
+    *,
+    project_mode: str = "brownfield",
 ) -> tuple[list[str], list[str]]:
     checks: list[str] = []
     errors: list[str] = []
@@ -378,20 +384,29 @@ def validate_openapi_controller_mapping(
         return checks, errors
     controller_endpoints = extract_controller_endpoints_from_module_map(module_map)
     if not controller_endpoints:
-        return checks, errors
-
-    mapping_summary = summarize_controller_endpoint_mapping(openapi_operations, controller_endpoints)
-    missing = mapping_summary.get("missing", [])
+        missing = [
+            f"{str(item.get('method') or '').upper()} {str(item.get('path') or '')}".strip()
+            for item in openapi_operations
+            if isinstance(item, dict)
+        ]
+        mapping_summary = {"missing": missing, "operation_mismatches": [], "ambiguous": []}
+    else:
+        mapping_summary = summarize_controller_endpoint_mapping(openapi_operations, controller_endpoints)
+        missing = mapping_summary.get("missing", [])
     operation_mismatches = mapping_summary.get("operation_mismatches", [])
     ambiguous = mapping_summary.get("ambiguous", [])
 
     if isinstance(missing, list) and missing:
-        errors.append("OpenAPI 接口未映射到真实 Controller: " + ", ".join(sorted(set(str(item) for item in missing))))
+        errors.append("OpenAPI ???????? Controller: " + ", ".join(sorted(set(str(item) for item in missing))))
+        if project_mode == "brownfield":
+            errors.append(
+                "[GATE2 HINT] brownfield ?????? path ? module-map ????????? endpoint? ??????????? project_mode ?? greenfield?"
+            )
     if isinstance(operation_mismatches, list) and operation_mismatches:
-        errors.append("OpenAPI operationId 与 Controller 方法不一致: " + ", ".join(sorted(set(str(item) for item in operation_mismatches))))
+        errors.append("OpenAPI operationId ? Controller ?????: " + ", ".join(sorted(set(str(item) for item in operation_mismatches))))
     if isinstance(ambiguous, list) and ambiguous:
         errors.append(
-            "OpenAPI 接口映射到多个 Controller 候选，无法稳定归因: "
+            "OpenAPI ??????? Controller ?????????: "
             + ", ".join(
                 f"{item.get('method')} {item.get('path')} -> [{', '.join(item.get('candidate_resource_keys', []))}]"
                 for item in ambiguous
@@ -399,9 +414,8 @@ def validate_openapi_controller_mapping(
             )
         )
     if not missing and not operation_mismatches and not ambiguous:
-        checks.append("OpenAPI path/method/operationId 均映射到真实 Controller")
+        checks.append("OpenAPI path/method/operationId ?????? Controller")
     return checks, errors
-
 
 def normalize_resource_path(path: Path) -> str:
     try:
@@ -552,6 +566,32 @@ def summarize_schema_table_resolution(
         resolve_schema_table_entry=effective_resolve_schema_table_entry,
         schema_table_candidates=effective_schema_table_candidates,
     )
+
+
+def detect_context_missing(feature_dir: Path, design_pack_dir: Path, baseline_dir: Path) -> dict[str, object]:
+    module_map_path = baseline_dir / "module-map.json"
+    schema_context_path = baseline_dir / "schema-context.json"
+    module_map = read_json_file(module_map_path, {})
+    schema_context = read_json_file(schema_context_path, {})
+
+    openapi_operations = extract_operations_from_openapi(design_pack_dir / "接口契约.openapi.yaml")
+    data_model_tables = extract_tables_from_data_model(design_pack_dir / "数据模型.md")
+    participants = extract_design_participants((feature_dir / "design-v1.md").read_text(encoding="utf-8", errors="ignore") if (feature_dir / "design-v1.md").exists() else "")
+
+    missing: list[str] = []
+    if participants and (not isinstance(module_map, dict) or not module_map.get("classes")):
+        missing.append("module-map")
+    if openapi_operations and (not isinstance(module_map, dict) or not module_map.get("classes")):
+        missing.append("openapi-controller-mapping")
+    if data_model_tables and (not isinstance(schema_context, dict) or not schema_context.get("tables")):
+        missing.append("schema-context")
+
+    return {
+        "status": "CONTEXT_MISSING" if missing else "OK",
+        "missing": sorted(set(missing)),
+        "module_map_path": str(module_map_path),
+        "schema_context_path": str(schema_context_path),
+    }
 
 
 
@@ -817,7 +857,7 @@ def check_brownfield_baseline_truthfulness(
     baseline_dir = get_active_baseline_dir(create=True, migrate_legacy=True)
     module_map_path = baseline_dir / "module-map.json"
     schema_context_path = baseline_dir / "schema-context.json"
-    real_index_path = baseline_dir / "sdd-index-real.json"
+    real_index_path = get_baseline_real_index_path(baseline_dir)
     evidence = {
         "module_map": baseline_file_evidence(module_map_path, default_level="L2", default_confidence="medium"),
         "schema_context": baseline_file_evidence(schema_context_path, default_level="L2", default_confidence="medium"),
@@ -921,7 +961,11 @@ def check_brownfield_baseline_truthfulness(
         warnings.append("未从设计文档中提取到 Mermaid participant 或 classDiagram 类名")
 
     openapi_operations = extract_operations_from_openapi(design_pack_dir / "接口契约.openapi.yaml")
-    controller_checks, controller_errors = validate_openapi_controller_mapping(openapi_operations, module_map)
+    controller_checks, controller_errors = validate_openapi_controller_mapping(
+        openapi_operations,
+        module_map,
+        project_mode="brownfield",
+    )
     checks.extend(controller_checks)
     errors.extend(controller_errors)
 
@@ -1140,6 +1184,7 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
         omit_generic_tables_for_exact=False,
     )
     design_resource_claim_summary = summarize_resource_claims(design_resource_claims)
+    context_check = detect_context_missing(feature_dir, design_pack_dir, baseline_dir)
     checks: list[str] = []
     warnings: list[str] = []
     errors: list[str] = []
@@ -1211,6 +1256,7 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
         "strict": strict_mode,
         "design_resource_claims": design_resource_claims,
         "design_resource_claim_summary": design_resource_claim_summary,
+        "context_check": context_check,
         "total_requirements": len(req_ids),
         "covered_requirements": len(req_ids) - len(missing_reqs),
         "missing_requirements": missing_reqs,

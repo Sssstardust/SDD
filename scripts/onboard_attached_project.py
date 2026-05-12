@@ -20,6 +20,7 @@ from attached_project import (
     build_attachment_payload,
     load_attachment_seed,
     save_attachment_config,
+    validate_components_for_risk_tier,
 )
 from baseline_paths import get_active_baseline_dir
 from project_artifact_paths import get_active_project_artifacts_dir
@@ -66,6 +67,11 @@ def run_onboarding(
         components=components,
         extra_fields=extra_fields,
     )
+    for warning in validate_components_for_risk_tier(
+        payload.get("components") if isinstance(payload.get("components"), list) else None,
+        str(payload.get("risk_tier") or "low"),
+    ):
+        print(warning)
     config_path = save_attachment_config(
         payload,
         attachment_file,

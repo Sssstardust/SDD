@@ -402,6 +402,40 @@ def filter_schema_context(tables: list[dict[str, Any]], tokens: list[str]) -> li
     return matched
 
 
+def build_brownfield_facts(classes: list[dict[str, Any]], tables: list[dict[str, Any]]) -> dict[str, list[str]]:
+    listeners: list[str] = []
+    services: list[str] = []
+    mappers: list[str] = []
+    controllers: list[str] = []
+
+    for item in classes:
+        simple_name = str(item.get("simple_name") or item.get("class_name") or "").split(".")[-1]
+        if not simple_name:
+            continue
+        if simple_name.endswith("Listener") and simple_name not in listeners:
+            listeners.append(simple_name)
+        elif simple_name.endswith("Controller") and simple_name not in controllers:
+            controllers.append(simple_name)
+        elif simple_name.endswith("Mapper") and simple_name not in mappers:
+            mappers.append(simple_name)
+        elif "Service" in simple_name and simple_name not in services:
+            services.append(simple_name)
+
+    table_names: list[str] = []
+    for item in tables:
+        table_name = str(item.get("table_name") or "")
+        if table_name and table_name not in table_names:
+            table_names.append(table_name)
+
+    return {
+        "listeners": listeners[:10],
+        "services": services[:10],
+        "mappers": mappers[:10],
+        "controllers": controllers[:10],
+        "tables": table_names[:12],
+    }
+
+
 def fallback_constraints(tags: list[str], project_mode: str) -> list[str]:
     constraints = [
         "分层调用符合规范",
@@ -437,6 +471,7 @@ def assemble(workspace: str | Path) -> dict[str, Any]:
 
     all_tables = load_schema_context()
     matched_tables = filter_schema_context(all_tables, tokens)
+    brownfield_facts = build_brownfield_facts(matched_classes, matched_tables)
 
     scenario = project_mode
     warnings: list[str] = []
@@ -455,6 +490,9 @@ def assemble(workspace: str | Path) -> dict[str, Any]:
             warnings.append("未匹配到相关表结构事实，数据库设计将以保守模式输出")
         else:
             warnings.append("新领域模式下未匹配到表结构事实，将生成待确认的数据模型占位")
+
+    if project_mode == "brownfield" and not any(brownfield_facts.values()):
+        warnings.append("brownfield 模式下未提取到可用 listener/service/mapper/controller/table 事实")
 
     feature_name = str(structured_prd.get("feature_name") or workspace_path.name)
     feature_slug = safe_slug(feature_name, safe_slug(workspace_path.name, "feature"))
@@ -489,6 +527,7 @@ def assemble(workspace: str | Path) -> dict[str, Any]:
             "matched_tables": matched_tables,
             "all_table_count": len(all_tables),
         },
+        "brownfield_facts": brownfield_facts,
         "constraints": constraints,
         "arch_standard": arch_standard,
         "arch_standard_source": arch_standard_source,

@@ -3,7 +3,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 
 type JsonRecord = Record<string, any>;
@@ -11,6 +11,11 @@ type ToolDefinition = {
   name: string;
   description: string;
   inputSchema: JsonRecord;
+};
+
+const ATTACHMENT_CONTEXT_PROPERTIES = {
+  attachment_file: { type: "string" },
+  profile: { type: "string" },
 };
 
 const PACKAGE = JSON.parse(
@@ -31,7 +36,51 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "show_attachment",
     description: "Read the current attached-project configuration.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: { type: "object", properties: ATTACHMENT_CONTEXT_PROPERTIES },
+  },
+  {
+    name: "list_attachment_profiles",
+    description: "List all known attached-project profiles.",
+    inputSchema: { type: "object", properties: ATTACHMENT_CONTEXT_PROPERTIES },
+  },
+  {
+    name: "set_active_attachment_profile",
+    description: "Switch the active attached-project profile.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+        profile_name: { type: "string" },
+      },
+      required: ["profile_name"],
+    },
+  },
+  {
+    name: "init_feature",
+    description: "Initialize a feature workspace under specs/<feature>.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_name: { type: "string" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_name"],
+    },
+  },
+  {
+    name: "generate_feature_brief",
+    description: "Generate feature-brief.md from a source requirements file.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        source_file: { type: "string" },
+        feature_name: { type: "string" },
+        force: { type: "boolean" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["source_file", "feature_name"],
+    },
   },
   {
     name: "refresh_baseline",
@@ -40,6 +89,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       type: "object",
       properties: {
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
     },
   },
@@ -50,13 +100,14 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       type: "object",
       properties: {
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
     },
   },
   {
     name: "project_next",
     description: "Refresh and read the current project-next recommendation.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: { type: "object", properties: ATTACHMENT_CONTEXT_PROPERTIES },
   },
   {
     name: "flow_status",
@@ -65,6 +116,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       type: "object",
       properties: {
         feature_dir: { type: "string" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
       required: ["feature_dir"],
     },
@@ -77,6 +129,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {
         feature_dir: { type: "string" },
         stage: { type: "string", enum: ["design", "implementation", "all"] },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
       required: ["feature_dir"],
     },
@@ -90,6 +143,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         stage: { type: "string", enum: ["design", "implementation", "all"] },
         require_verify: { type: "boolean" },
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
     },
   },
@@ -100,6 +154,74 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
       type: "object",
       properties: {
         feature_dir: { type: "string" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "feature_doctor",
+    description: "Inspect a feature and report missing prerequisites and suggested fixes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "feature_repair",
+    description: "Attempt known automatic repairs for a feature prerequisite chain.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "approve_design",
+    description: "Write a design approval decision for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        approved_by: { type: "string" },
+        comments: { type: "string" },
+        status: { type: "string", enum: ["APPROVED", "REJECTED", "PENDING"] },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir", "approved_by"],
+    },
+  },
+  {
+    name: "prepare_design_cycle",
+    description: "Run verify -> generate-design -> init-approval for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "design_cycle",
+    description: "Run the feature design-cycle orchestration.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
       required: ["feature_dir"],
     },
@@ -113,6 +235,35 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         feature_dir: { type: "string" },
         strict: { type: "boolean" },
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "implementation_gates",
+    description: "Run the implementation-stage gates for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
+    },
+  },
+  {
+    name: "approved_implementation_cycle",
+    description: "Run check-approval -> implementation-gates for a feature.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
       required: ["feature_dir"],
     },
@@ -127,6 +278,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         strict: { type: "boolean" },
         require_attached_execution: { type: "boolean" },
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
       required: ["feature_dir"],
     },
@@ -140,6 +292,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         feature_dir: { type: "string" },
         strict: { type: "boolean" },
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
       required: ["feature_dir"],
     },
@@ -156,7 +309,58 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
         schema_roots: { type: "array", items: { type: "string" } },
         components_file: { type: "string" },
         async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
       },
+    },
+  },
+  {
+    name: "install_runtime",
+    description: "Install a self-contained SDD runtime into a target project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        target_root: { type: "string" },
+        runtime_dir: { type: "string" },
+        force: { type: "boolean" },
+        async: { type: "boolean" },
+      },
+      required: ["target_root"],
+    },
+  },
+  {
+    name: "continue_project_flow",
+    description: "Advance the highest-priority feature in the attached project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+    },
+  },
+  {
+    name: "project_cycle",
+    description: "Refresh project state, advance one feature, then refresh again.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+    },
+  },
+  {
+    name: "full_flow",
+    description: "Run the main feature flow from verify to baseline sync.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        feature_dir: { type: "string" },
+        strict: { type: "boolean" },
+        async: { type: "boolean" },
+        ...ATTACHMENT_CONTEXT_PROPERTIES,
+      },
+      required: ["feature_dir"],
     },
   },
   {
@@ -265,6 +469,7 @@ function resolvedPythonCommand(): string {
   const probe = spawnSync(preferred, ["-c", "import sys; print(sys.executable)"], {
     cwd: ROOT,
     encoding: "utf8",
+    windowsHide: true,
   });
   const resolved = (probe.stdout || "").trim().split(/\r?\n/, 1)[0];
   if (resolved) {
@@ -274,6 +479,7 @@ function resolvedPythonCommand(): string {
   const whereProbe = spawnSync("where.exe", [preferred], {
     cwd: ROOT,
     encoding: "utf8",
+    windowsHide: true,
   });
   const whereResolved = (whereProbe.stdout || "").trim().split(/\r?\n/, 1)[0];
   RESOLVED_PYTHON_COMMAND = whereResolved || preferred;
@@ -301,6 +507,7 @@ function runPipeline(args: string[]): JsonRecord {
   const result = spawnSync(command[0], command.slice(1), {
     cwd: ROOT,
     encoding: "utf8",
+    windowsHide: true,
   });
   const spawnError = result.error as NodeJS.ErrnoException | undefined;
   const structured = parseStructuredPipelineOutput(result.stdout || "");
@@ -352,6 +559,104 @@ function addRepeatedFlag(args: string[], flag: string, values: string[]): void {
   }
 }
 
+function resolveAttachmentPath(argumentsObject: JsonRecord): string {
+  if (typeof argumentsObject.attachment_file === "string" && argumentsObject.attachment_file.trim()) {
+    return path.resolve(ROOT, argumentsObject.attachment_file);
+  }
+  return DEFAULT_ATTACHMENT_PATH;
+}
+
+function resolveProfile(argumentsObject: JsonRecord): string | null {
+  return typeof argumentsObject.profile === "string" && argumentsObject.profile.trim()
+    ? argumentsObject.profile.trim()
+    : null;
+}
+
+function addAttachmentContextArgs(args: string[], argumentsObject: JsonRecord): void {
+  if (typeof argumentsObject.attachment_file === "string" && argumentsObject.attachment_file.trim()) {
+    args.push("--attachment-file", path.resolve(ROOT, argumentsObject.attachment_file));
+  }
+  const profile = resolveProfile(argumentsObject);
+  if (profile) {
+    args.push("--profile", profile);
+  }
+}
+
+function readAttachmentPayload(argumentsObject: JsonRecord): JsonRecord | null {
+  return readJsonFile(resolveAttachmentPath(argumentsObject));
+}
+
+function currentAttachment(argumentsObject: JsonRecord): JsonRecord | null {
+  const payload = readAttachmentPayload(argumentsObject);
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const profile = resolveProfile(argumentsObject);
+  if (profile && Array.isArray(payload.profiles)) {
+    const matched = payload.profiles.find((item: any) => item && item.profile === profile);
+    if (matched && typeof matched === "object") {
+      return matched;
+    }
+  }
+  return payload;
+}
+
+function sanitizeBucketName(value: string): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "attached-project";
+}
+
+function projectBucketName(argumentsObject: JsonRecord): string | null {
+  const attachment = currentAttachment(argumentsObject);
+  if (!attachment) {
+    return null;
+  }
+  const explicitProjectId = typeof attachment.project_id === "string" ? attachment.project_id.trim() : "";
+  if (explicitProjectId) {
+    return explicitProjectId;
+  }
+  const name = typeof attachment.name === "string" ? attachment.name : "attached-project";
+  const projectRoot = typeof attachment.project_root === "string" ? attachment.project_root : "";
+  const suffix = createHash("sha1").update(projectRoot).digest("hex").slice(0, 8);
+  return `${sanitizeBucketName(name)}-${suffix}`;
+}
+
+function projectArtifactsDir(argumentsObject: JsonRecord): string {
+  const bucketName = projectBucketName(argumentsObject);
+  return bucketName ? path.join(PROJECT_ARTIFACTS_DIR, bucketName) : PROJECT_ARTIFACTS_DIR;
+}
+
+function resolveFeatureDirForContext(value: any, argumentsObject: JsonRecord): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("feature_dir is required");
+  }
+  const featurePath = value.trim();
+  if (path.isAbsolute(featurePath)) {
+    return path.resolve(featurePath);
+  }
+  const attachment = currentAttachment(argumentsObject);
+  const designRoots = Array.isArray(attachment?.design_roots)
+    ? attachment.design_roots.filter((item: any): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+  const relativePath = featurePath.toLowerCase().startsWith("specs\\") || featurePath.toLowerCase().startsWith("specs/")
+    ? featurePath.replace(/^specs[\\/]/i, "")
+    : featurePath;
+  for (const designRoot of designRoots) {
+    const candidate = path.resolve(designRoot, relativePath);
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  if (designRoots.length > 0) {
+    return path.resolve(designRoots[0], relativePath);
+  }
+  return path.resolve(ROOT, featurePath);
+}
+
 export function wantsAsync(argumentsObject: JsonRecord, defaultAsync = false): boolean {
   if (argumentsObject.async === true) {
     return true;
@@ -364,18 +669,30 @@ export function wantsAsync(argumentsObject: JsonRecord, defaultAsync = false): b
 
 export function shouldRunAsyncByDefault(toolName: string): boolean {
   return new Set([
+    "generate_feature_brief",
     "refresh_baseline",
+    "prepare_design_cycle",
+    "design_cycle",
     "project_console_cycle",
+    "project_cycle",
+    "continue_project_flow",
     "validate_all_reports",
     "design_gates",
+    "implementation_gates",
+    "approved_implementation_cycle",
     "gate5",
     "release_gate",
     "onboard_project",
+    "install_runtime",
+    "feature_repair",
+    "full_flow",
   ]).has(toolName);
 }
 
-function ensureTasksDir(): void {
-  fs.mkdirSync(TASKS_DIR, { recursive: true });
+function ensureTasksDir(argumentsObject?: JsonRecord): string {
+  const baseDir = path.join(path.dirname(resolveAttachmentPath(argumentsObject || {})), "tasks");
+  fs.mkdirSync(baseDir, { recursive: true });
+  return baseDir;
 }
 
 function createTaskId(): string {
@@ -389,8 +706,8 @@ function resolveTaskId(value: any): string {
   return value;
 }
 
-function taskPaths(taskId: string): JsonRecord {
-  const taskDir = path.join(TASKS_DIR, taskId);
+function taskPaths(taskId: string, tasksDir: string = TASKS_DIR): JsonRecord {
+  const taskDir = path.join(tasksDir, taskId);
   return {
     task_dir: taskDir,
     task_file: path.join(taskDir, "task.json"),
@@ -400,18 +717,18 @@ function taskPaths(taskId: string): JsonRecord {
   };
 }
 
-function readTaskState(taskId: string): JsonRecord | null {
-  const paths = taskPaths(taskId);
+function readTaskState(taskId: string, tasksDir: string = TASKS_DIR): JsonRecord | null {
+  const paths = taskPaths(taskId, tasksDir);
   return readJsonFile(String(paths.task_file));
 }
 
-function startPipelineTask(pipelineArgs: string[], taskLabel?: string): JsonRecord {
+function startPipelineTask(pipelineArgs: string[], taskLabel?: string, argumentsObject: JsonRecord = {}): JsonRecord {
   if (!Array.isArray(pipelineArgs) || pipelineArgs.length === 0) {
     throw new Error("pipeline_args must contain at least one run_pipeline command");
   }
-  ensureTasksDir();
+  const tasksDir = ensureTasksDir(argumentsObject);
   const taskId = createTaskId();
-  const paths = taskPaths(taskId);
+  const paths = taskPaths(taskId, tasksDir);
   fs.mkdirSync(String(paths.task_dir), { recursive: true });
   const createdAt = new Date().toISOString();
   const taskPayload: JsonRecord = {
@@ -427,6 +744,8 @@ function startPipelineTask(pipelineArgs: string[], taskLabel?: string): JsonReco
     result_file: paths.result_file,
     stdout_file: paths.stdout_file,
     stderr_file: paths.stderr_file,
+    attachment_file: resolveAttachmentPath(argumentsObject),
+    profile: resolveProfile(argumentsObject),
   };
   writeJsonFile(String(paths.task_file), taskPayload);
   const runnerArgs = [
@@ -452,6 +771,7 @@ function startPipelineTask(pipelineArgs: string[], taskLabel?: string): JsonReco
     cwd: ROOT,
     detached: true,
     stdio: "ignore",
+    windowsHide: true,
   });
   child.unref();
   taskPayload.runner_pid = child.pid ?? null;
@@ -511,21 +831,48 @@ export function implementationSummaryFromReport(report: any): JsonRecord {
   };
 }
 
-function latestArtifactFile(fileName: string): string | null {
-  if (!fs.existsSync(PROJECT_ARTIFACTS_DIR)) {
+function latestArtifactFile(fileName: string, argumentsObject: JsonRecord = {}): string | null {
+  const artifactsRoot = projectArtifactsDir(argumentsObject);
+  if (!fs.existsSync(artifactsRoot)) {
     return null;
   }
   const candidates = fs
-    .readdirSync(PROJECT_ARTIFACTS_DIR, { withFileTypes: true })
+    .readdirSync(artifactsRoot, { withFileTypes: true })
     .filter((entry: fs.Dirent) => entry.isDirectory())
-    .map((entry: fs.Dirent) => path.join(PROJECT_ARTIFACTS_DIR, entry.name, fileName))
+    .map((entry: fs.Dirent) => path.join(artifactsRoot, entry.name, fileName))
     .filter((candidate: string) => fs.existsSync(candidate))
     .map((candidate: string) => ({
       path: candidate,
       mtimeMs: fs.statSync(candidate).mtimeMs,
     }))
     .sort((a: { mtimeMs: number }, b: { mtimeMs: number }) => b.mtimeMs - a.mtimeMs);
-  return candidates[0]?.path || null;
+  if (candidates.length > 0) {
+    return candidates[0]?.path || null;
+  }
+  const directPath = path.join(artifactsRoot, fileName);
+  return fs.existsSync(directPath) ? directPath : null;
+}
+
+function featureArtifacts(featureDir: string, argumentsObject: JsonRecord = {}): JsonRecord {
+  const normalizedFeatureDir = resolveFeatureDirForContext(featureDir, argumentsObject);
+  const featureName = path.basename(normalizedFeatureDir);
+  const featureBriefPath = path.join(normalizedFeatureDir, "feature-brief.md");
+  const taskSlicesPath = path.join(normalizedFeatureDir, "tasks", "task-slices.generated.json");
+  const flowStatusPath = path.join(normalizedFeatureDir, "flow-status.json");
+  return {
+    feature_dir: normalizedFeatureDir,
+    feature_name: featureName,
+    feature_brief_path: fs.existsSync(featureBriefPath) ? featureBriefPath : null,
+    task_slices_path: fs.existsSync(taskSlicesPath) ? taskSlicesPath : null,
+    flow_status_path: fs.existsSync(flowStatusPath) ? flowStatusPath : null,
+  };
+}
+
+function buildFeatureExecutionResponse(execution: JsonRecord, featureDir: string, argumentsObject: JsonRecord = {}): JsonRecord {
+  return {
+    ...execution,
+    ...featureArtifacts(featureDir, argumentsObject),
+  };
 }
 
 export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
@@ -555,29 +902,96 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
 
   if (name === "show_attachment") {
     return {
-      attachment_path: DEFAULT_ATTACHMENT_PATH,
-      attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+      attachment_path: resolveAttachmentPath(argumentsObject),
+      attachment: currentAttachment(argumentsObject),
     };
+  }
+
+  if (name === "list_attachment_profiles") {
+    const payload = readAttachmentPayload(argumentsObject);
+    return {
+      attachment_path: resolveAttachmentPath(argumentsObject),
+      profiles: Array.isArray(payload?.profiles) ? payload.profiles : payload ? [payload] : [],
+      active_profile: payload && typeof payload.active_profile === "string" ? payload.active_profile : null,
+      active_project_id: payload && typeof payload.active_project_id === "string" ? payload.active_project_id : null,
+    };
+  }
+
+  if (name === "set_active_attachment_profile") {
+    const profileName = typeof argumentsObject.profile_name === "string" ? argumentsObject.profile_name.trim() : "";
+    if (!profileName) {
+      throw new Error("profile_name is required");
+    }
+    const args = ["attach-project", "--activate-profile", profileName, "--show-workspace"];
+    if (typeof argumentsObject.attachment_file === "string" && argumentsObject.attachment_file.trim()) {
+      throw new Error("set_active_attachment_profile currently supports the default attachment store only");
+    }
+    const execution = runPipeline(args);
+    return {
+      ...execution,
+      attachment_path: resolveAttachmentPath(argumentsObject),
+      workspace: readAttachmentPayload(argumentsObject),
+      active_profile: profileName,
+    };
+  }
+
+  if (name === "init_feature") {
+    const featureName = typeof argumentsObject.feature_name === "string" ? argumentsObject.feature_name.trim() : "";
+    if (!featureName) {
+      throw new Error("feature_name is required");
+    }
+    const args = ["init-feature", featureName];
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureName, argumentsObject);
+  }
+
+  if (name === "generate_feature_brief") {
+    const sourceFile = typeof argumentsObject.source_file === "string" ? argumentsObject.source_file : "";
+    const featureName = typeof argumentsObject.feature_name === "string" ? argumentsObject.feature_name.trim() : "";
+    if (!sourceFile) {
+      throw new Error("source_file is required");
+    }
+    if (!featureName) {
+      throw new Error("feature_name is required");
+    }
+    const args = ["generate-feature-brief", sourceFile, featureName];
+    if (argumentsObject.force === true) {
+      args.push("--force");
+    }
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, `generate_feature_brief:${featureName}`, argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureName, argumentsObject);
   }
 
   if (name === "refresh_baseline") {
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(["refresh-baseline"], "refresh_baseline");
+      const args = ["refresh-baseline"];
+      addAttachmentContextArgs(args, argumentsObject);
+      return startPipelineTask(args, "refresh_baseline", argumentsObject);
     }
-    const execution = runPipeline(["refresh-baseline"]);
+    const args = ["refresh-baseline"];
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
     return {
       ...execution,
-      attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+      attachment_path: resolveAttachmentPath(argumentsObject),
+      attachment: currentAttachment(argumentsObject),
     };
   }
 
   if (name === "project_console_cycle") {
+    const args = ["project-console-cycle"];
+    addAttachmentContextArgs(args, argumentsObject);
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(["project-console-cycle"], "project_console_cycle");
+      return startPipelineTask(args, "project_console_cycle", argumentsObject);
     }
-    const execution = runPipeline(["project-console-cycle"]);
-    const projectNextPath = latestArtifactFile("project-next.json");
-    const projectConsolePath = latestArtifactFile("project-console.json");
+    const execution = runPipeline(args);
+    const projectNextPath = latestArtifactFile("project-next.json", argumentsObject);
+    const projectConsolePath = latestArtifactFile("project-console.json", argumentsObject);
     const projectNext = projectNextPath ? readJsonFile(projectNextPath) : null;
     const projectConsole = projectConsolePath ? readJsonFile(projectConsolePath) : null;
     return {
@@ -608,8 +1022,10 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
   }
 
   if (name === "project_next") {
-    const execution = runPipeline(["project-next"]);
-    const projectNextPath = latestArtifactFile("project-next.json");
+    const args = ["project-next"];
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
+    const projectNextPath = latestArtifactFile("project-next.json", argumentsObject);
     const projectNext = projectNextPath ? readJsonFile(projectNextPath) : null;
     return {
       ...withArtifactStatus(execution, projectNext),
@@ -637,8 +1053,10 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
   }
 
   if (name === "flow_status") {
-    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
-    const execution = runPipeline(["flow-status", featureDir]);
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["flow-status", featureDir];
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
     const flowStatusPath = path.join(featureDir, "flow-status.json");
     const flowStatus = readJsonFile(flowStatusPath);
     return {
@@ -675,9 +1093,11 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
   }
 
   if (name === "validate_reports") {
-    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
     const stage = typeof argumentsObject.stage === "string" ? argumentsObject.stage : "all";
-    return runPipeline(["validate-reports", featureDir, "--stage", stage]);
+    const args = ["validate-reports", featureDir, "--stage", stage];
+    addAttachmentContextArgs(args, argumentsObject);
+    return runPipeline(args);
   }
 
   if (name === "validate_all_reports") {
@@ -686,15 +1106,18 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
     if (argumentsObject.require_verify === true) {
       args.push("--require-verify");
     }
+    addAttachmentContextArgs(args, argumentsObject);
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(args, "validate_all_reports");
+      return startPipelineTask(args, "validate_all_reports", argumentsObject);
     }
     return runPipeline(args);
   }
 
   if (name === "generate_task_slices") {
-    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
-    const execution = runPipeline(["generate-task-slices", featureDir]);
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["generate-task-slices", featureDir];
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
     const generatedPath = path.join(featureDir, "tasks", "task-slices.generated.json");
     const taskSlices = readJsonFile(generatedPath);
     return {
@@ -704,20 +1127,111 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
     };
   }
 
+  if (name === "feature_doctor") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["feature-doctor", featureDir];
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
+  if (name === "feature_repair") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["feature-repair", featureDir];
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "feature_repair", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
+  if (name === "approve_design") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const approvedBy = typeof argumentsObject.approved_by === "string" ? argumentsObject.approved_by.trim() : "";
+    if (!approvedBy) {
+      throw new Error("approved_by is required");
+    }
+    const args = ["approve-design", featureDir, "--approved-by", approvedBy];
+    if (typeof argumentsObject.comments === "string" && argumentsObject.comments.length > 0) {
+      args.push("--comments", argumentsObject.comments);
+    }
+    if (typeof argumentsObject.status === "string") {
+      args.push("--status", argumentsObject.status);
+    }
+    addAttachmentContextArgs(args, argumentsObject);
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
+  if (name === "prepare_design_cycle") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["prepare-design-cycle", featureDir];
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "prepare_design_cycle", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
+  if (name === "design_cycle") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["design-cycle", featureDir];
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "design_cycle", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
   if (name === "design_gates") {
-    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
     const args = ["design-gates", featureDir];
     if (argumentsObject.strict === true) {
       args.push("--strict");
     }
+    addAttachmentContextArgs(args, argumentsObject);
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(args, "design_gates");
+      return startPipelineTask(args, "design_gates", argumentsObject);
     }
     return runPipeline(args);
   }
 
+  if (name === "implementation_gates") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["implementation-gates", featureDir];
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "implementation_gates", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
+  if (name === "approved_implementation_cycle") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["approved-implementation-cycle", featureDir];
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "approved_implementation_cycle", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
+  }
+
   if (name === "gate5") {
-    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
     const args = ["gate5", featureDir];
     if (argumentsObject.require_attached_execution === true) {
       args.push("--require-attached-execution");
@@ -725,8 +1239,9 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
     if (argumentsObject.strict === true) {
       args.push("--strict");
     }
+    addAttachmentContextArgs(args, argumentsObject);
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(args, "gate5");
+      return startPipelineTask(args, "gate5", argumentsObject);
     }
     const execution = runPipeline(args);
     const reportsDir = path.join(featureDir, "reports");
@@ -741,13 +1256,14 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
   }
 
   if (name === "release_gate") {
-    const featureDir = resolveFeatureDir(argumentsObject.feature_dir);
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
     const args = ["release-gate", featureDir];
     if (argumentsObject.strict === true) {
       args.push("--strict");
     }
+    addAttachmentContextArgs(args, argumentsObject);
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(args, "release_gate");
+      return startPipelineTask(args, "release_gate", argumentsObject);
     }
     const execution = runPipeline(args);
     const reportsDir = path.join(featureDir, "reports");
@@ -774,26 +1290,100 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
     if (typeof argumentsObject.components_file === "string") {
       args.push("--components-file", argumentsObject.components_file);
     }
+    addAttachmentContextArgs(args, argumentsObject);
     if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
-      return startPipelineTask(args, "onboard_project");
+      return startPipelineTask(args, "onboard_project", argumentsObject);
     }
     const execution = runPipeline(args);
     return {
       ...execution,
-      attachment_path: DEFAULT_ATTACHMENT_PATH,
-      attachment: readJsonFile(DEFAULT_ATTACHMENT_PATH),
+      attachment_path: resolveAttachmentPath(argumentsObject),
+      attachment: currentAttachment(argumentsObject),
     };
+  }
+
+  if (name === "install_runtime") {
+    const targetRoot = typeof argumentsObject.target_root === "string" ? argumentsObject.target_root.trim() : "";
+    if (!targetRoot) {
+      throw new Error("target_root is required");
+    }
+    const args = ["install-runtime", "--target-root", targetRoot];
+    if (typeof argumentsObject.runtime_dir === "string" && argumentsObject.runtime_dir.trim()) {
+      args.push("--runtime-dir", argumentsObject.runtime_dir.trim());
+    }
+    if (argumentsObject.force === true) {
+      args.push("--force");
+    }
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "install_runtime", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return {
+      ...execution,
+      target_root: path.resolve(targetRoot),
+    };
+  }
+
+  if (name === "continue_project_flow") {
+    const args = ["continue-project-flow"];
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "continue_project_flow", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    const projectNextPath = latestArtifactFile("project-next.json", argumentsObject);
+    const projectConsolePath = latestArtifactFile("project-console.json", argumentsObject);
+    return {
+      ...withArtifactStatus(execution, projectNextPath || projectConsolePath),
+      project_next_path: projectNextPath,
+      project_next: projectNextPath ? readJsonFile(projectNextPath) : null,
+      project_console_path: projectConsolePath,
+      project_console: projectConsolePath ? readJsonFile(projectConsolePath) : null,
+    };
+  }
+
+  if (name === "project_cycle") {
+    const args = ["project-cycle"];
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "project_cycle", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    const projectNextPath = latestArtifactFile("project-next.json", argumentsObject);
+    const projectConsolePath = latestArtifactFile("project-console.json", argumentsObject);
+    return {
+      ...withArtifactStatus(execution, projectNextPath || projectConsolePath),
+      project_next_path: projectNextPath,
+      project_next: projectNextPath ? readJsonFile(projectNextPath) : null,
+      project_console_path: projectConsolePath,
+      project_console: projectConsolePath ? readJsonFile(projectConsolePath) : null,
+    };
+  }
+
+  if (name === "full_flow") {
+    const featureDir = resolveFeatureDirForContext(argumentsObject.feature_dir, argumentsObject);
+    const args = ["full-flow", featureDir];
+    if (argumentsObject.strict === true) {
+      args.push("--strict");
+    }
+    addAttachmentContextArgs(args, argumentsObject);
+    if (wantsAsync(argumentsObject, shouldRunAsyncByDefault(name))) {
+      return startPipelineTask(args, "full_flow", argumentsObject);
+    }
+    const execution = runPipeline(args);
+    return buildFeatureExecutionResponse(execution, featureDir, argumentsObject);
   }
 
   if (name === "start_pipeline_task") {
     const pipelineArgs = asStringArray(argumentsObject.pipeline_args);
     const taskLabel = typeof argumentsObject.task_label === "string" ? argumentsObject.task_label : undefined;
-    return startPipelineTask(pipelineArgs, taskLabel);
+    return startPipelineTask(pipelineArgs, taskLabel, argumentsObject);
   }
 
   if (name === "get_pipeline_task") {
     const taskId = resolveTaskId(argumentsObject.task_id);
-    const task = readTaskState(taskId);
+    const tasksDir = ensureTasksDir(argumentsObject);
+    const task = readTaskState(taskId, tasksDir);
     if (!task) {
       return {
         ok: false,
@@ -802,7 +1392,7 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
         task_id: taskId,
       };
     }
-    const paths = taskPaths(taskId);
+    const paths = taskPaths(taskId, tasksDir);
     return {
       ok: task.status !== "failed",
       status: task.status,
@@ -815,7 +1405,8 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
 
   if (name === "read_pipeline_task_result") {
     const taskId = resolveTaskId(argumentsObject.task_id);
-    const task = readTaskState(taskId);
+    const tasksDir = ensureTasksDir(argumentsObject);
+    const task = readTaskState(taskId, tasksDir);
     if (!task) {
       return {
         ok: false,
@@ -824,7 +1415,7 @@ export function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRec
         task_id: taskId,
       };
     }
-    const paths = taskPaths(taskId);
+    const paths = taskPaths(taskId, tasksDir);
     const resultPayload = readJsonFile(String(paths.result_file));
     if (!resultPayload) {
       return {

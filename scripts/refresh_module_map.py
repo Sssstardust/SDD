@@ -114,7 +114,7 @@ def load_node_payload(force_refresh: bool, scan_roots: list[str] | None = None, 
     return payload if isinstance(payload, dict) else None
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force-refresh", action="store_true", help="Ignore cache and force a fresh scan.")
     parser.add_argument("--project-root", default=None, help="Explicit target project root")
@@ -127,7 +127,7 @@ def main() -> int:
     )
     parser.add_argument("--profile", default=None, help="Optional attachment profile name.")
     parser.add_argument("--output", default=None, help="Optional module-map.json output path")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     attachment_path = Path(args.attachment_file)
     baseline_dir = get_active_baseline_dir(

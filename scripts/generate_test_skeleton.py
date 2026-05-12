@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +22,11 @@ from versioning import detect_latest_design_path, reports_dir_for_design, resolv
 
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def ensure_task_slices(feature_dir: Path) -> int:
+    command = [sys.executable, str(ROOT / "scripts" / "generate_task_slices.py"), str(feature_dir)]
+    return subprocess.run(command, check=False).returncode
 
 
 def read_text(path: Path) -> str:
@@ -407,6 +414,10 @@ def main() -> int:
     design_acceptance_matrix = extract_design_acceptance_matrix(design_text)
 
     task_files = sorted((feature_dir / "tasks").glob("slice-*.md"))
+    if not task_files:
+        print("[WARN] 未找到 slice-*.md，尝试先生成 task slices")
+        if ensure_task_slices(feature_dir) == 0:
+            task_files = sorted((feature_dir / "tasks").glob("slice-*.md"))
     if not task_files:
         print("[ERROR] 未找到任何 slice-*.md")
         return 1

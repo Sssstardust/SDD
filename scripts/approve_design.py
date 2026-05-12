@@ -8,9 +8,11 @@ Update `reports/v{N}/approval.json` for high-risk design approval state.
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime, timezone
 
 from concurrency import feature_lock
+from init_approval import main as init_approval_main
 from json_io import read_json, write_json
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
@@ -36,8 +38,16 @@ def main() -> int:
 
     approval_path = reports_dir_for_design(feature_dir, design_path) / "approval.json"
     if not approval_path.exists():
-        print(f"[ERROR] missing approval file: {approval_path}")
-        return 1
+        print(f"[WARN] missing approval file: {approval_path}")
+        saved_argv = list(sys.argv)
+        try:
+            sys.argv = ["init_approval.py", str(feature_dir)]
+            init_code = init_approval_main()
+        finally:
+            sys.argv = saved_argv
+        if init_code != 0 or not approval_path.exists():
+            print(f"[ERROR] failed to initialize approval file: {approval_path}")
+            return 1
 
     with feature_lock(feature_dir, phase="approve-design"):
         payload = read_json(approval_path)

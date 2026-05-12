@@ -22,3 +22,8 @@ tests
 src
 
 .tmp*
+*.log
+
+.spec/baseline
+.spec/baselines
+.spec/tasks

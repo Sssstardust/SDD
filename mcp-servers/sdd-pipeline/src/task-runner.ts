@@ -100,6 +100,7 @@ function main(): void {
       cwd,
       encoding: "utf8",
       env: buildSubprocessEnv(),
+      windowsHide: true,
     });
     const spawnError = result.error as NodeJS.ErrnoException | undefined;
 

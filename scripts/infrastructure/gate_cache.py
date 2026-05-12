@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .baseline_paths import get_active_baseline_dir
-from .versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from .versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir, resolve_locked_design_path
 from design_evidence import hash_file
 
 
@@ -24,10 +24,10 @@ def _stable_hash_text(path: Path) -> str:
     return str(value) if value is not None else "missing"
 
 
-def _base_design_gate_payload_parts(feature_dir: Path) -> list[str]:
+def _base_design_gate_payload_parts(feature_dir: Path, *, gate_name: str | None = None) -> list[str]:
     feature_dir = resolve_feature_dir(feature_dir)
     feature_brief = feature_dir / "feature-brief.md"
-    design_path = detect_latest_design_path(feature_dir)
+    design_path = resolve_locked_design_path(feature_dir, gate_name=gate_name)
     return [
         str(feature_dir),
         _stable_hash_text(feature_brief),
@@ -37,13 +37,13 @@ def _base_design_gate_payload_parts(feature_dir: Path) -> list[str]:
 
 
 def design_gate_cache_input_hash(feature_dir: Path) -> str:
-    payload_parts = _base_design_gate_payload_parts(resolve_feature_dir(feature_dir))
+    payload_parts = _base_design_gate_payload_parts(resolve_feature_dir(feature_dir), gate_name="gate1")
     return hashlib.sha256("::".join(payload_parts).encode("utf-8")).hexdigest()
 
 
 def design_gate_input_hash(feature_dir: Path, gate_name: str) -> str:
     feature_dir = resolve_feature_dir(feature_dir)
-    payload_parts = _base_design_gate_payload_parts(feature_dir)
+    payload_parts = _base_design_gate_payload_parts(feature_dir, gate_name=gate_name)
     baseline_dir = get_active_baseline_dir(create=True, migrate_legacy=True)
     if gate_name in {"gate2", "gate3"}:
         payload_parts.extend(
@@ -133,7 +133,7 @@ def should_skip_design_gate(
 
 
 def gate_report_path_for(feature_dir: Path, gate_name: str) -> Path:
-    design_path = detect_latest_design_path(feature_dir)
+    design_path = resolve_locked_design_path(feature_dir, gate_name=gate_name)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     if gate_name == "gate1":
         return reports_dir / "gate1-report.json"

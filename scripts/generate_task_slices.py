@@ -16,6 +16,7 @@ from pathlib import Path
 
 from concurrency import atomic_write_text, feature_lock
 from versioning import detect_latest_design_path, resolve_feature_dir
+from design_evidence import hash_file
 
 
 CROSS_CUTTING_TAGS = {
@@ -88,6 +89,23 @@ def extract_requirements(yaml_text: str) -> list[dict[str, str]]:
     current: dict[str, str] | None = None
 
     for line in lines:
+        inline_match = re.match(r"^\s*-\s*\{(.*)\}\s*$", line)
+        if inline_match:
+            if current:
+                requirements.append(current)
+                current = None
+            fields: dict[str, str] = {}
+            for part in inline_match.group(1).split(","):
+                if ":" not in part:
+                    continue
+                key, value = part.split(":", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key in {"req_id", "priority", "title", "description"} and value:
+                    fields[key] = value
+            if "req_id" in fields:
+                requirements.append(fields)
+            continue
         req_match = re.match(r"^\s*-\s*req_id\s*:\s*(REQ-\d+)\s*$", line)
         if req_match:
             if current:
@@ -107,15 +125,38 @@ def extract_requirements(yaml_text: str) -> list[dict[str, str]]:
 
 def extract_design_acceptance_matrix(design_text: str) -> dict[str, list[str]]:
     matrix: dict[str, list[str]] = {}
+    req_index = 0
+    acceptance_index = 2
+    header_resolved = False
     for raw_line in design_text.splitlines():
         stripped = raw_line.strip()
         if not stripped.startswith("|"):
             continue
         cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if len(cells) < 5:
+        if len(cells) < 3:
             continue
-        req_id = cells[0]
-        acceptance = cells[2]
+        if not header_resolved:
+            normalized = [cell.lower().replace(" ", "") for cell in cells]
+            req_candidate = next((index for index, cell in enumerate(normalized) if cell in {"req-id", "reqid"}), None)
+            acceptance_candidate = next(
+                (
+                    index
+                    for index, cell in enumerate(normalized)
+                    if cell in {"验收标准", "验收", "acceptancecriteria", "acceptance"}
+                ),
+                None,
+            )
+            if req_candidate is not None:
+                req_index = req_candidate
+            if acceptance_candidate is not None:
+                acceptance_index = acceptance_candidate
+            header_resolved = True
+            if req_candidate is not None or acceptance_candidate is not None:
+                continue
+        if req_index >= len(cells) or acceptance_index >= len(cells):
+            continue
+        req_id = cells[req_index]
+        acceptance = cells[acceptance_index]
         if re.fullmatch(r"REQ-\d+", req_id) and acceptance:
             matrix.setdefault(req_id, []).append(acceptance)
     return matrix
@@ -243,6 +284,8 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
         manifest = {
             "feature_name": feature_name,
             "design_version": design_path.name,
+            "locked_design_version": design_path.name,
+            "locked_design_hash": hash_file(design_path),
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "result": "FAIL" if errors else "PASS",
             "created": created,
@@ -250,8 +293,8 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             "errors": errors,
         }
         manifest_path = tasks_dir / "task-slices.generated.json"
-        atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         manifest["manifest"] = str(manifest_path)
+        atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         return manifest
 
 

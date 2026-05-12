@@ -34,6 +34,12 @@
   如果存在 `severity=ERROR` 的项，必须逐条修复，不要忽略。
 - `current_design_markdown`
   在 `resume` 模式下优先基于当前 draft 修补，而不是完全改写成另一套结构。
+- `brownfield_facts`
+  如果 `project_mode=brownfield`，优先只使用这里列出的 listener/service/mapper/controller/table 名称。
+  若某个名称不在 `brownfield_facts` 中，不要臆造为“现有实现”，只能：
+  1. 标记为 `[NEW]`
+  2. 或标记为 `[NEEDS_EVIDENCE]`
+  3. 或使用“待确认”表达
 - 序列图中的类名
   优先使用 `module_map.matched_classes` 中的类。
 - 数据模型中的表名和字段

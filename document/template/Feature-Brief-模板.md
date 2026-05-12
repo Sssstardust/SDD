@@ -10,6 +10,9 @@
 
 ```yaml
 project_mode: brownfield
+# 选择指引：
+# - 若设计中的 OpenAPI path 都已能映射到现有真实 Controller endpoint，选 brownfield
+# - 若本次包含全新 path，且对应 Controller 方法尚未存在，选 greenfield
 project_mode_source: agent
 project_mode_confidence: 0.85
 project_mode_evidence:

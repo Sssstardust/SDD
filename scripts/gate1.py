@@ -19,7 +19,7 @@ from design_evidence import freeze_design_pack, hash_file, hash_tree
 from gate_report import write_gate_section
 from gates.gate1_checker import collect_open_ambiguity_errors, summarize_command_results, validate_required_artifacts
 from gates.gate1_reporter import build_gate1_payload
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from versioning import reports_dir_for_design, resolve_feature_dir, resolve_locked_design_path
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,7 +69,7 @@ def run_check(label: str, command: list[str]) -> dict[str, object]:
 
 def gate1(feature_dir: Path) -> dict[str, object]:
     feature_brief = feature_dir / "feature-brief.md"
-    design_path = detect_latest_design_path(feature_dir)
+    design_path = resolve_locked_design_path(feature_dir, gate_name="gate1")
 
     errors: list[str] = []
     checks: list[str] = []

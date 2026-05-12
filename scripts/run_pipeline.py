@@ -81,7 +81,8 @@ from application.project_runtime import (
     run_feature_cycle as app_run_feature_cycle,
     run_project_cycle as app_run_project_cycle,
 )
-from attached_project import DEFAULT_ATTACHMENT_PATH
+from application.preflight import assert_feature_prerequisites, assert_feature_within_attachment, missing_feature_prerequisites
+from attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config
 from concurrency import atomic_write_text, feature_lock
 from infrastructure.baseline_paths import get_active_baseline_dir
 from domain.pipeline import PipelineRunContext
@@ -92,6 +93,7 @@ from project_artifact_paths import get_active_project_artifacts_dir
 from application.pipeline_result import build_result, emit_result
 from pipeline_orchestration import append_post_flow_steps, build_design_gate_steps, build_feature_cycle_steps, build_implementation_gate_steps, build_refresh_baseline_steps
 from project_flow_runner import capture_project_cycle_candidates, dispatch_feature_next_command, load_project_next_candidate, project_next_json_path, run_project_console_refresh_steps
+from install_sdd_runtime import install_runtime as install_local_sdd_runtime
 from versioning import detect_latest_design_path, get_primary_design_root, reports_dir_for_design, resolve_feature_dir
 
 
@@ -196,8 +198,15 @@ def collect_trace_errors(exit_code: int) -> list[str]:
     return errors
 
 
-def init_feature(feature_name: str) -> int:
-    feature_dir = get_primary_design_root() / feature_name
+def init_feature(
+    feature_name: str,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
+    feature_dir = get_primary_design_root(
+        attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+        profile=profile,
+    ) / feature_name
     design_pack_dir = feature_dir / "design-pack"
     tasks_dir = feature_dir / "tasks"
     reports_dir = feature_dir / "reports"
@@ -229,8 +238,18 @@ def init_feature(feature_name: str) -> int:
     return 0
 
 
-def generate_feature_brief(source_file: str, feature_name: str, force: bool = False) -> int:
-    feature_dir = resolve_feature_dir(feature_name)
+def generate_feature_brief(
+    source_file: str,
+    feature_name: str,
+    force: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
+    feature_dir = resolve_feature_dir(
+        feature_name,
+        attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+        profile=profile,
+    )
     feature_dir.mkdir(parents=True, exist_ok=True)
     structured_prd_path = feature_dir / "structured-prd.json"
     feature_brief_path = feature_dir / "feature-brief.md"
@@ -344,12 +363,16 @@ def check_design_pack(feature_brief_path: str) -> int:
 
 
 def gate1(feature_dir: str) -> int:
+    attachment = load_attachment_config(DEFAULT_ATTACHMENT_PATH) if DEFAULT_ATTACHMENT_PATH.exists() else None
+    assert_feature_within_attachment(resolve_feature_dir(feature_dir), attachment)
     _context = build_pipeline_run_context(command="gate1", feature_dir=feature_dir)
     script = ROOT / "scripts" / "gate1.py"
     return run_external_command([sys.executable, str(script), feature_dir])
 
 
 def gate2(feature_dir: str, strict: bool = False) -> int:
+    attachment = load_attachment_config(DEFAULT_ATTACHMENT_PATH) if DEFAULT_ATTACHMENT_PATH.exists() else None
+    assert_feature_within_attachment(resolve_feature_dir(feature_dir), attachment)
     _context = build_pipeline_run_context(command="gate2", feature_dir=feature_dir, strict=strict)
     script = ROOT / "scripts" / "check_design_truthfulness.py"
     cmd = [sys.executable, str(script), feature_dir]
@@ -359,6 +382,8 @@ def gate2(feature_dir: str, strict: bool = False) -> int:
 
 
 def gate3(feature_dir: str) -> int:
+    attachment = load_attachment_config(DEFAULT_ATTACHMENT_PATH) if DEFAULT_ATTACHMENT_PATH.exists() else None
+    assert_feature_within_attachment(resolve_feature_dir(feature_dir), attachment)
     _context = build_pipeline_run_context(command="gate3", feature_dir=feature_dir)
     script = ROOT / "scripts" / "check_arch_semantics.py"
     return run_external_command([sys.executable, str(script), feature_dir])
@@ -374,7 +399,14 @@ def check_approval(feature_dir: str) -> int:
     return run_external_command([sys.executable, str(script), feature_dir])
 
 
-def approve_design(feature_dir: str, approved_by: str, comments: str = "", status: str = "APPROVED") -> int:
+def approve_design(
+    feature_dir: str,
+    approved_by: str,
+    comments: str = "",
+    status: str = "APPROVED",
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     script = ROOT / "scripts" / "approve_design.py"
     cmd = [
         sys.executable,
@@ -387,6 +419,10 @@ def approve_design(feature_dir: str, approved_by: str, comments: str = "", statu
     ]
     if comments:
         cmd.extend(["--comments", comments])
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
     return run_external_command(cmd)
 
 
@@ -395,9 +431,18 @@ def update_design_index(feature_dir: str) -> int:
     return run_external_command([sys.executable, str(script), feature_dir])
 
 
-def generate_task_slices(feature_dir: str) -> int:
+def generate_task_slices(
+    feature_dir: str,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
     script = ROOT / "scripts" / "generate_task_slices.py"
-    return run_external_command([sys.executable, str(script), feature_dir])
+    cmd = [sys.executable, str(script), feature_dir]
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
+    if profile:
+        cmd.extend(["--profile", profile])
+    return run_external_command(cmd)
 
 
 def gate4(feature_dir: str) -> int:
@@ -406,6 +451,8 @@ def gate4(feature_dir: str) -> int:
 
 
 def gate5(feature_dir: str, require_attached_execution: bool = False, strict: bool = False) -> int:
+    attachment = load_attachment_config(DEFAULT_ATTACHMENT_PATH) if DEFAULT_ATTACHMENT_PATH.exists() else None
+    assert_feature_within_attachment(resolve_feature_dir(feature_dir), attachment)
     _context = build_pipeline_run_context(command="gate5", feature_dir=feature_dir, strict=strict)
     script = ROOT / "scripts" / "check_design_test_coverage.py"
     cmd = [sys.executable, str(script), feature_dir]
@@ -520,6 +567,7 @@ def onboard_project(
     components_file: str | None = None,
     profile: str | None = None,
     project_id: str | None = None,
+    attachment_file: str | None = None,
 ) -> int:
     script = ROOT / "scripts" / "onboard_attached_project.py"
     cmd = [sys.executable, str(script)]
@@ -533,6 +581,8 @@ def onboard_project(
         cmd.extend(["--design-root", design_root])
     for schema_root in schema_roots or []:
         cmd.extend(["--schema-root", schema_root])
+    if attachment_file:
+        cmd.extend(["--attachment-file", attachment_file])
     if profile:
         cmd.extend(["--profile", profile])
     if project_id:
@@ -764,12 +814,33 @@ def run_design_gates(
     )
 
 
-def run_prepare_design_cycle(feature_dir: str) -> int:
+def run_prepare_design_cycle(
+    feature_dir: str,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
+    doctor_payload = feature_repair_report(feature_dir, apply_fixes=False)
+    context_check = doctor_payload.get("context_check")
+    if isinstance(context_check, dict) and context_check.get("status") == "CONTEXT_MISSING":
+        console_print("[ERROR] design preparation blocked by missing brownfield context")
+        for item in context_check.get("missing", []):
+            console_print(f"  - missing context: {item}")
+        return 1
+
     feature_brief = str(Path(feature_dir) / "feature-brief.md")
+    resume_design = detect_latest_design_path(
+        Path(
+            resolve_feature_dir(
+                feature_dir,
+                attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+                profile=profile,
+            )
+        )
+    ).exists()
     return run_steps(
         [
             ("verify", lambda: verify(feature_brief)),
-            ("generate-design", lambda: generate_design(feature_dir, force=True)),
+            ("generate-design", lambda: generate_design(feature_dir, force=False, resume=resume_design)),
             ("init-approval", lambda: init_approval(feature_dir)),
         ],
         console_print=console_print,
@@ -782,6 +853,10 @@ def run_design_cycle(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
+    assert_feature_prerequisites(
+        Path(resolve_feature_dir(feature_dir)),
+        require_feature_brief=True,
+    )
     return run_steps(
         append_post_flow_steps(
             [
@@ -835,6 +910,13 @@ def run_approved_implementation_cycle(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
+    assert_feature_prerequisites(
+        Path(resolve_feature_dir(feature_dir)),
+        require_feature_brief=True,
+        require_design=True,
+        require_approval=True,
+        require_task_slices_manifest=True,
+    )
     return run_steps(
         append_post_flow_steps(
             [
@@ -1033,8 +1115,18 @@ def build_json_payload(args: argparse.Namespace, exit_code: int, duration_ms: in
 
 def build_command_handlers() -> dict[str, callable]:
     return {
-        "generate-feature-brief": lambda args: generate_feature_brief(args.source_file, args.feature_name, args.force),
-        "init-feature": lambda args: init_feature(args.feature_name),
+        "generate-feature-brief": lambda args: generate_feature_brief(
+            args.source_file,
+            args.feature_name,
+            args.force,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
+        "init-feature": lambda args: init_feature(
+            args.feature_name,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
         "bootstrap": lambda args: bootstrap(args.feature_dir, args.force),
         "greenfield-init": lambda args: bootstrap(args.feature_dir, args.force),
         "scaffold": lambda args: bootstrap(args.feature_dir, args.force),
@@ -1048,15 +1140,51 @@ def build_command_handlers() -> dict[str, callable]:
         "gate2": lambda args: gate2(args.feature_dir, args.strict),
         "gate3": lambda args: gate3(args.feature_dir),
         "init-approval": lambda args: init_approval(args.feature_dir),
-        "approve-design": lambda args: approve_design(args.feature_dir, args.approved_by, args.comments, args.status),
-        "check-approval": lambda args: check_approval(args.feature_dir),
+        "approve-design": lambda args: approve_design(
+            args.feature_dir,
+            args.approved_by,
+            args.comments,
+            args.status,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
+        "check-approval": lambda args: check_approval(
+            args.feature_dir,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
         "update-design-index": lambda args: update_design_index(args.feature_dir),
-        "generate-task-slices": lambda args: generate_task_slices(args.feature_dir),
+        "generate-task-slices": lambda args: generate_task_slices(
+            args.feature_dir,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
         "gate4": lambda args: gate4(args.feature_dir),
-        "gate5": lambda args: gate5(args.feature_dir, args.require_attached_execution, args.strict),
-        "release-gate": lambda args: release_gate(args.feature_dir, args.strict),
-        "pre-release-check": lambda args: release_gate(args.feature_dir, args.strict),
-        "go-live-check": lambda args: release_gate(args.feature_dir, args.strict),
+        "gate5": lambda args: gate5(
+            args.feature_dir,
+            args.require_attached_execution,
+            args.strict,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
+        "release-gate": lambda args: release_gate(
+            args.feature_dir,
+            args.strict,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
+        "pre-release-check": lambda args: release_gate(
+            args.feature_dir,
+            args.strict,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
+        "go-live-check": lambda args: release_gate(
+            args.feature_dir,
+            args.strict,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
         "check-arch-standards-sync": lambda args: check_arch_standards_sync(),
         "cancel-design": lambda args: cancel_design(args.feature_dir, args.reason),
         "archive-design": lambda args: archive_design(args.feature_name, args.intent_id, args.status, args.reason),
@@ -1074,6 +1202,7 @@ def build_command_handlers() -> dict[str, callable]:
             project_id=args.project_id,
             list_profiles=args.list_profiles,
             activate_profile=args.activate_profile,
+            attachment_file=getattr(args, "attachment_file", None),
         ),
         "show-attachment": lambda args: attach_project(show=True, profile=args.profile),
         "onboard-project": lambda args: onboard_project(
@@ -1084,6 +1213,7 @@ def build_command_handlers() -> dict[str, callable]:
             components_file=args.components_file,
             profile=args.profile,
             project_id=args.project_id,
+            attachment_file=getattr(args, "attachment_file", None),
         ),
         "bootstrap-attached-project": lambda args: onboard_project(
             args.project_root,
@@ -1093,6 +1223,7 @@ def build_command_handlers() -> dict[str, callable]:
             components_file=args.components_file,
             profile=args.profile,
             project_id=args.project_id,
+            attachment_file=getattr(args, "attachment_file", None),
         ),
         "refresh-schema-context": lambda args: refresh_schema_context(
             from_polyquery=args.from_polyquery,
@@ -1111,7 +1242,12 @@ def build_command_handlers() -> dict[str, callable]:
             profile=args.profile,
         ),
         "refresh-project-state": lambda args: refresh_project_state(args.feature, args.attachment_file, args.profile),
-        "validate-reports": lambda args: validate_reports(args.feature_dir, args.stage),
+        "validate-reports": lambda args: validate_reports(
+            args.feature_dir,
+            args.stage,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
         "validate-all-reports": lambda args: validate_all_reports(args.stage, args.require_verify, args.attachment_file, args.profile),
         "build-approval-summary": lambda args: build_approval_summary(args.feature_dir),
         "approved-implementation-cycle": lambda args: run_approved_implementation_cycle(
@@ -1132,12 +1268,130 @@ def build_command_handlers() -> dict[str, callable]:
         "tooling-hygiene": lambda args: build_tooling_hygiene(),
         "workspace-hygiene": lambda args: build_workspace_hygiene(),
         "upgrade-design-tests": lambda args: upgrade_design_tests(args.feature, args.attachment_file, args.profile),
-        "prepare-design-cycle": lambda args: run_prepare_design_cycle(args.feature_dir),
+        "prepare-design-cycle": lambda args: run_prepare_design_cycle(
+            args.feature_dir,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
         "design-cycle": lambda args: run_design_cycle(args.feature_dir, args.strict, args.attachment_file, args.profile),
         "design-gates": lambda args: run_design_gates(args.feature_dir, args.strict, args.attachment_file, args.profile),
         "implementation-gates": lambda args: run_implementation_gates(args.feature_dir, args.strict),
         "full-flow": lambda args: run_full_flow(args.feature_dir, args.strict, args.attachment_file, args.profile),
+        "install-runtime": lambda args: install_runtime_command(args.target_root, args.runtime_dir, args.force),
+        "feature-doctor": lambda args: feature_doctor_command(
+            args.feature_dir,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
+        "feature-repair": lambda args: feature_repair_command(
+            args.feature_dir,
+            getattr(args, "attachment_file", None),
+            getattr(args, "profile", None),
+        ),
     }
+
+
+def install_runtime_command(target_root: str, runtime_dir: str, force: bool = False) -> int:
+    payload = install_local_sdd_runtime(Path(target_root).resolve(), runtime_dir, force)
+    console_print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def feature_repair_report(feature_dir: str, *, apply_fixes: bool = False) -> dict[str, object]:
+    feature_path = Path(resolve_feature_dir(feature_dir))
+    missing = missing_feature_prerequisites(
+        feature_path,
+        require_feature_brief=True,
+        require_design=True,
+        require_approval=False,
+        require_task_slices_manifest=False,
+        require_task_slice_files=False,
+    )
+    actions_attempted: list[str] = []
+    warnings: list[str] = []
+
+    if not feature_path.exists():
+        missing.append(f"missing feature directory: {feature_path}")
+
+    feature_brief = feature_path / "feature-brief.md"
+    design_path = detect_latest_design_path(feature_path)
+    reports_dir = reports_dir_for_design(feature_path, design_path) if design_path else feature_path / "reports" / "v1"
+    approval_path = reports_dir / "approval.json"
+    task_slices_manifest = feature_path / "tasks" / "task-slices.generated.json"
+    context_check = None
+    try:
+        from check_design_truthfulness import detect_context_missing
+
+        baseline_dir = get_active_baseline_dir(
+            attachment_path=Path(DEFAULT_ATTACHMENT_PATH),
+            create=True,
+            migrate_legacy=True,
+        )
+        design_pack_dir = resolve_feature_dir(feature_dir, attachment_path=Path(DEFAULT_ATTACHMENT_PATH))
+        context_check = detect_context_missing(feature_path, design_pack_dir / "design-pack", baseline_dir)
+    except Exception as exc:
+        context_check = {"status": "ERROR", "message": str(exc), "missing": []}
+
+    if apply_fixes and feature_brief.exists() and design_path.exists():
+        if not approval_path.exists():
+            code = init_approval(str(feature_path))
+            actions_attempted.append("init-approval")
+            if code != 0:
+                warnings.append("init-approval failed")
+        if not task_slices_manifest.exists():
+            code = generate_task_slices(str(feature_path))
+            actions_attempted.append("generate-task-slices")
+            if code != 0:
+                warnings.append("generate-task-slices failed")
+
+    remaining = missing_feature_prerequisites(
+        feature_path,
+        require_feature_brief=True,
+        require_design=True,
+        require_approval=False,
+        require_task_slices_manifest=False,
+        require_task_slice_files=False,
+    )
+
+    if not approval_path.exists() and feature_brief.exists():
+        warnings.append(f"missing approval scaffold: {approval_path}")
+    if not task_slices_manifest.exists() and feature_brief.exists() and design_path.exists():
+        warnings.append(f"missing task slices manifest: {task_slices_manifest}")
+    if isinstance(context_check, dict) and context_check.get("status") == "CONTEXT_MISSING":
+        for item in context_check.get("missing", []):
+            warnings.append(f"context missing: {item}")
+
+    status = "ok" if not remaining and not warnings else "warn"
+    return {
+        "status": status,
+        "feature_dir": str(feature_path),
+        "missing": remaining,
+        "warnings": warnings,
+        "actions_attempted": actions_attempted,
+        "approval_path": str(approval_path),
+        "task_slices_manifest": str(task_slices_manifest),
+        "context_check": context_check,
+    }
+
+
+def feature_doctor_command(
+    feature_dir: str,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
+    payload = feature_repair_report(feature_dir, apply_fixes=False, attachment_file=attachment_file, profile=profile)
+    console_print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload["status"] == "ok" else 1
+
+
+def feature_repair_command(
+    feature_dir: str,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> int:
+    payload = feature_repair_report(feature_dir, apply_fixes=True, attachment_file=attachment_file, profile=profile)
+    console_print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload["status"] == "ok" else 1
 
 
 def dispatch_command(args: argparse.Namespace) -> int:
@@ -1153,9 +1407,13 @@ def main(argv: list[str] | None = None) -> int:
     p_generate_brief.add_argument("source_file", help="PRD/需求文本文件路径")
     p_generate_brief.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")
     p_generate_brief.add_argument("--force", action="store_true", help="允许覆盖已存在的 feature-brief.md")
+    p_generate_brief.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_generate_brief.add_argument("--profile", default=None, help="attachment profile name")
 
     p_init = subparsers.add_parser("init-feature")
     p_init.add_argument("feature_name", help="试点 feature 名称，如 order-create")
+    p_init.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_init.add_argument("--profile", default=None, help="attachment profile name")
 
     p_bootstrap = subparsers.add_parser("bootstrap")
     p_bootstrap.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1207,6 +1465,8 @@ def main(argv: list[str] | None = None) -> int:
     p_approve_design.add_argument("feature_dir", help="specs/<feature> feature directory")
     p_approve_design.add_argument("--approved-by", required=True, help="approver name")
     p_approve_design.add_argument("--comments", default="", help="approval comments")
+    p_approve_design.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_approve_design.add_argument("--profile", default=None, help="attachment profile name")
     p_approve_design.add_argument(
         "--status",
         choices=["APPROVED", "REJECTED", "PENDING"],
@@ -1216,12 +1476,16 @@ def main(argv: list[str] | None = None) -> int:
 
     p_check_approval = subparsers.add_parser("check-approval")
     p_check_approval.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_check_approval.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_check_approval.add_argument("--profile", default=None, help="attachment profile name")
 
     p_update_index = subparsers.add_parser("update-design-index")
     p_update_index.add_argument("feature_dir", help="specs/<feature> 目录路径")
 
     p_generate_slices = subparsers.add_parser("generate-task-slices")
     p_generate_slices.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_generate_slices.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_generate_slices.add_argument("--profile", default=None, help="attachment profile name")
 
     p_gate4 = subparsers.add_parser("gate4")
     p_gate4.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1230,10 +1494,14 @@ def main(argv: list[str] | None = None) -> int:
     p_gate5.add_argument("feature_dir", help="specs/<feature> 目录路径")
     p_gate5.add_argument("--require-attached-execution", action="store_true", help="要求附着项目 verification_commands 成功执行")
     p_gate5.add_argument("--strict", action="store_true", help="严格模式")
+    p_gate5.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_gate5.add_argument("--profile", default=None, help="attachment profile name")
 
     p_release_gate = subparsers.add_parser("release-gate")
     p_release_gate.add_argument("feature_dir", help="specs/<feature> 目录路径")
     p_release_gate.add_argument("--strict", action="store_true", help="严格模式")
+    p_release_gate.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_release_gate.add_argument("--profile", default=None, help="attachment profile name")
 
     p_pre_release = subparsers.add_parser("pre-release-check")
     p_pre_release.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1279,6 +1547,7 @@ def main(argv: list[str] | None = None) -> int:
     p_attach.add_argument("--list-profiles", action="store_true", help="列出 attachment profiles")
     p_attach.add_argument("--activate-profile", default=None, help="切换 active attachment profile")
     p_attach.add_argument("--clear", action="store_true", help="清空附着配置")
+    p_attach.add_argument("--attachment-file", default=None, help="attachment config path")
     p_show_attachment = subparsers.add_parser("show-attachment")
     p_show_attachment.add_argument("--profile", default=None, help="查看指定 profile 的 attachment 配置")
     p_onboard = subparsers.add_parser("onboard-project")
@@ -1289,6 +1558,7 @@ def main(argv: list[str] | None = None) -> int:
     p_onboard.add_argument("--design-root", action="append", default=None, help="显式 design 根目录，可重复传入")
     p_onboard.add_argument("--schema-root", action="append", default=None, help="显式 schema 根目录，可重复传入")
     p_onboard.add_argument("--components-file", default=None, help="components[] 或完整 attached-project payload JSON")
+    p_onboard.add_argument("--attachment-file", default=None, help="attachment config path")
     p_bootstrap_attached = subparsers.add_parser("bootstrap-attached-project")
     p_bootstrap_attached.add_argument("--project-root", default=None, help="目标项目根目录")
     p_bootstrap_attached.add_argument("--name", default=None, help="附着项目显示名称")
@@ -1323,6 +1593,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_validate_reports = subparsers.add_parser("validate-reports")
     p_validate_reports.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_validate_reports.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_validate_reports.add_argument("--profile", default=None, help="attachment profile name")
     p_validate_reports.add_argument(
         "--stage",
         choices=["design", "implementation", "all"],
@@ -1389,6 +1661,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_prepare_design = subparsers.add_parser("prepare-design-cycle")
     p_prepare_design.add_argument("feature_dir", help="specs/<feature> 目录路径")
+    p_prepare_design.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_prepare_design.add_argument("--profile", default=None, help="attachment profile name")
 
     p_design_cycle = subparsers.add_parser("design-cycle")
     p_design_cycle.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1411,6 +1685,21 @@ def main(argv: list[str] | None = None) -> int:
     p_full.add_argument("--attachment-file", default=None, help="attachment config path")
     p_full.add_argument("--profile", default=None, help="attachment profile name")
     p_full.add_argument("--strict", action="store_true", help="严格模式")
+
+    p_install_runtime = subparsers.add_parser("install-runtime")
+    p_install_runtime.add_argument("--target-root", required=True, help="target project root")
+    p_install_runtime.add_argument("--runtime-dir", default=".sdd-runtime", help="runtime directory name")
+    p_install_runtime.add_argument("--force", action="store_true", help="replace existing runtime directory")
+
+    p_feature_doctor = subparsers.add_parser("feature-doctor")
+    p_feature_doctor.add_argument("feature_dir", help="specs/<feature> directory path")
+    p_feature_doctor.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_feature_doctor.add_argument("--profile", default=None, help="attachment profile name")
+
+    p_feature_repair = subparsers.add_parser("feature-repair")
+    p_feature_repair.add_argument("feature_dir", help="specs/<feature> directory path")
+    p_feature_repair.add_argument("--attachment-file", default=None, help="attachment config path")
+    p_feature_repair.add_argument("--profile", default=None, help="attachment profile name")
 
     args = parser.parse_args(argv)
 

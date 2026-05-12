@@ -21,6 +21,8 @@ COMPONENT_ROOT_FIELDS = {"scan_roots", "design_roots", "schema_roots"}
 COMPONENT_RESERVED_FIELDS = {"component_id", "name", "project_root", *COMPONENT_ROOT_FIELDS}
 ATTACHMENT_ROOT_FIELDS = {"scan_roots", "design_roots", "schema_roots"}
 ATTACHMENT_RESERVED_FIELDS = {"name", "project_root", "components", *ATTACHMENT_ROOT_FIELDS}
+ATTACHMENT_STATE_FIELDS = {"profiles", "active_profile", "active_project_id"}
+RISK_TIERS_REQUIRING_VERIFICATION_COMMANDS = {"high", "critical"}
 
 
 def normalize_path(value: Path | str) -> str:
@@ -77,6 +79,8 @@ def write_attachment_json(path: Path, payload: dict[str, object]) -> Path:
 def build_workspace_payload(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> dict[str, object]:
     profiles = list_attachment_profiles(attachment_path)
     active = next((item for item in profiles if item.get("active") is True), None)
+    if active is None and profiles:
+        active = profiles[0]
     return {
         "version": 1,
         "active_profile": active.get("profile") if isinstance(active, dict) else None,
@@ -362,6 +366,8 @@ def load_attachment_config(path: Path = DEFAULT_ATTACHMENT_PATH, *, profile: str
             for item in profiles:
                 if isinstance(item, dict) and item.get("profile") == profile:
                     return item
+        if payload.get("profile") == profile:
+            return payload
     return payload
 
 
@@ -372,6 +378,7 @@ def save_attachment_config(
     payload: dict[str, object] | None = None,
     profile: str | None = None,
     project_id: str | None = None,
+    set_active: bool = True,
 ) -> Path:
     if isinstance(payload_or_path, dict) and payload is None:
         data = dict(payload_or_path)
@@ -383,7 +390,33 @@ def save_attachment_config(
         data["profile"] = profile
     if project_id is not None:
         data["project_id"] = project_id
-    atomic_write_text(effective_path, json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    existing_payload = load_attachment_config(effective_path)
+    existing_profiles = _attachment_profile_entries(existing_payload)
+    entry_payload = {key: value for key, value in data.items() if key not in ATTACHMENT_STATE_FIELDS}
+    entry = normalize_attachment_json(entry_payload)
+    entry["profile"] = build_attachment_profile_name(entry, profile)
+    if project_id is not None:
+        entry["project_id"] = project_id
+    elif not isinstance(entry.get("project_id"), str) or not entry.get("project_id"):
+        entry["project_id"] = build_attachment_project_id(entry)
+
+    profiles = [item for item in existing_profiles if item.get("profile") != entry["profile"]]
+    profiles.append(entry)
+
+    active_profile = next((item.get("profile") for item in profiles if item.get("active") is True), None)
+    if set_active or active_profile is None:
+        active_profile = str(entry["profile"])
+    for item in profiles:
+        item["active"] = item.get("profile") == active_profile
+
+    active_entry = next((item for item in profiles if item.get("active") is True), entry)
+    output = dict(active_entry)
+    output["profiles"] = profiles
+    output["active_profile"] = active_entry.get("profile")
+    output["active_project_id"] = active_entry.get("project_id")
+
+    atomic_write_text(effective_path, json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
     return effective_path
 
 
@@ -410,13 +443,30 @@ def remove_attachment_profile(
     payload = load_attachment_config(config_path)
     if not isinstance(payload, dict):
         return
-    profiles = payload.get("profiles")
-    if not isinstance(profiles, list):
+    profiles = _attachment_profile_entries(payload)
+    if not profiles:
         return
     if profile is None:
         return
-    payload["profiles"] = [item for item in profiles if not (isinstance(item, dict) and item.get("profile") == profile)]
-    save_attachment_config(config_path, payload)
+    remaining = [item for item in profiles if item.get("profile") != profile]
+    if len(remaining) == len(profiles):
+        return
+    if not remaining:
+        config_path.unlink(missing_ok=True)
+        return
+
+    active_profile = next((item.get("profile") for item in remaining if item.get("active") is True), None)
+    if active_profile is None:
+        active_profile = str(remaining[0].get("profile") or "")
+    for item in remaining:
+        item["active"] = item.get("profile") == active_profile
+
+    active_entry = next((item for item in remaining if item.get("active") is True), remaining[0])
+    output = dict(active_entry)
+    output["profiles"] = remaining
+    output["active_profile"] = active_entry.get("profile")
+    output["active_project_id"] = active_entry.get("project_id")
+    save_attachment_config(payload_or_path=config_path, payload=output)
 
 
 def set_active_attachment_profile(profile: str, path: Path = DEFAULT_ATTACHMENT_PATH) -> None:
@@ -424,8 +474,8 @@ def set_active_attachment_profile(profile: str, path: Path = DEFAULT_ATTACHMENT_
     payload = load_attachment_config(config_path)
     if not isinstance(payload, dict):
         raise ValueError("no attached project is configured")
-    profiles = payload.get("profiles")
-    if not isinstance(profiles, list):
+    profiles = _attachment_profile_entries(payload)
+    if not profiles:
         raise ValueError(f"attachment profile not found: {profile}")
     matched = False
     for item in profiles:
@@ -434,19 +484,66 @@ def set_active_attachment_profile(profile: str, path: Path = DEFAULT_ATTACHMENT_
             matched = matched or item["active"] is True
     if not matched:
         raise ValueError(f"attachment profile not found: {profile}")
-    save_attachment_config(config_path, payload)
+    active_entry = next((item for item in profiles if item.get("active") is True), profiles[0])
+    output = dict(active_entry)
+    output["profiles"] = profiles
+    output["active_profile"] = active_entry.get("profile")
+    output["active_project_id"] = active_entry.get("project_id")
+    save_attachment_config(payload_or_path=config_path, payload=output)
 
 
 def list_attachment_profiles(path: Path = DEFAULT_ATTACHMENT_PATH) -> list[dict[str, object]]:
     config = load_attachment_config(path)
-    if not isinstance(config, dict):
+    return _attachment_profile_entries(config)
+
+
+def validate_components_for_risk_tier(
+    components: list[dict[str, object]] | None,
+    risk_tier: str,
+) -> list[str]:
+    warnings: list[str] = []
+    if risk_tier not in RISK_TIERS_REQUIRING_VERIFICATION_COMMANDS:
+        return warnings
+    if not isinstance(components, list):
+        return warnings
+    for component in components:
+        if not isinstance(component, dict):
+            continue
+        component_id = str(component.get("component_id") or component.get("name") or "component").strip()
+        cmds = component.get("verification_commands") or component.get("test_commands")
+        if not isinstance(cmds, list) or not cmds:
+            warnings.append(
+                f"[ONBOARD WARN] 组件 '{component_id}' 缺少 verification_commands。"
+                f" 高风险功能（risk_tier={risk_tier}）的 gate5 attached_execution 将 FAIL。"
+            )
+    return warnings
+
+
+def _attachment_profile_entries(payload: object) -> list[dict[str, object]]:
+    if not isinstance(payload, dict):
         return []
-    profiles = config.get("profiles")
-    if not isinstance(profiles, list):
-        return []
-    result: list[dict[str, object]] = []
-    for item in profiles:
-        normalized = normalize_attachment_json(item)
-        if normalized:
+    profiles = payload.get("profiles")
+    if isinstance(profiles, list) and profiles:
+        result: list[dict[str, object]] = []
+        for item in profiles:
+            if not isinstance(item, dict):
+                continue
+            normalized = normalize_attachment_json({k: v for k, v in item.items() if k not in ATTACHMENT_STATE_FIELDS})
+            if not normalized:
+                continue
+            if isinstance(item.get("active"), bool):
+                normalized["active"] = bool(item.get("active"))
             result.append(normalized)
-    return result
+        return result
+
+    if payload.get("profile") or payload.get("name"):
+        normalized = normalize_attachment_json({k: v for k, v in payload.items() if k not in ATTACHMENT_STATE_FIELDS})
+        if not normalized:
+            return []
+        if isinstance(payload.get("active"), bool):
+            normalized["active"] = bool(payload.get("active"))
+        else:
+            normalized["active"] = True
+        return [normalized]
+
+    return []

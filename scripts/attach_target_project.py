@@ -11,6 +11,7 @@ import argparse
 import json
 from pathlib import Path
 
+import refresh_module_map
 from attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     build_attachment_payload,
@@ -21,10 +22,11 @@ from attached_project import (
     remove_attachment_profile,
     save_attachment_config,
     set_active_attachment_profile,
+    validate_components_for_risk_tier,
 )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", default=None, help="Target project root")
     parser.add_argument("--name", default=None, help="Attached project display name")
@@ -39,7 +41,7 @@ def main() -> int:
     parser.add_argument("--show", action="store_true", help="Show the current or selected attachment config")
     parser.add_argument("--show-workspace", action="store_true", help="Show workspace.json style attachment summary")
     parser.add_argument("--clear", action="store_true", help="Clear attachment config or a selected profile")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.list_profiles:
         print(json.dumps(list_attachment_profiles(DEFAULT_ATTACHMENT_PATH), ensure_ascii=False, indent=2))
@@ -51,6 +53,20 @@ def main() -> int:
         except ValueError as exc:
             print(f"[ERROR] {exc}")
             return 1
+        try:
+            refresh_result = refresh_module_map.main(
+                [
+                    "--attachment-file",
+                    str(DEFAULT_ATTACHMENT_PATH),
+                    "--profile",
+                    args.activate_profile,
+                ]
+            )
+        except Exception as exc:
+            print(f"[ERROR] refresh_module_map failed after profile switch: {exc}")
+            return 1
+        if refresh_result != 0:
+            return refresh_result
         payload = load_attachment_config(DEFAULT_ATTACHMENT_PATH)
         print("[OK] active attachment profile switched")
         if isinstance(payload, dict):
@@ -101,6 +117,12 @@ def main() -> int:
     except ValueError as exc:
         print(f"[ERROR] {exc}")
         return 1
+
+    for warning in validate_components_for_risk_tier(
+        payload.get("components") if isinstance(payload.get("components"), list) else None,
+        str(payload.get("risk_tier") or "low"),
+    ):
+        print(warning)
 
     config_path = save_attachment_config(
         payload,

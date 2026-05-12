@@ -179,9 +179,9 @@ export const SEMANTIC_CHECKS: SemanticCheck[] = [
     whenAnyTags: ["external-call"],
     type: "file_contains",
     file: "design-pack/外部调用策略.md",
-    requiredAll: ["超时", "重试", "熔断"],
+    requiredAll: ["超时", "重试", "熔断", "降级", "fallback"],
     successMessage: "外部调用策略具备关键语义",
-    errorMessage: "外部调用策略缺少关键语义：超时 / 重试 / 熔断",
+    errorMessage: "外部调用策略缺少关键语义：超时 / 重试 / 熔断 / 降级 / fallback",
   },
 ];
 

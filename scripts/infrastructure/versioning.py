@@ -6,6 +6,7 @@ Infrastructure helpers for design/version path resolution.
 from __future__ import annotations
 
 import re
+import json
 from pathlib import Path
 
 from ._root import ROOT
@@ -31,6 +32,23 @@ def list_design_files(feature_dir: Path) -> list[Path]:
 def detect_latest_design_path(feature_dir: Path) -> Path:
     design_files = list_design_files(feature_dir)
     return design_files[-1] if design_files else feature_dir / "design-v1.md"
+
+
+def resolve_locked_design_path(feature_dir: Path, gate_name: str | None = None) -> Path:
+    if gate_name == "gate1":
+        manifest_path = feature_dir / "tasks" / "task-slices.generated.json"
+        if manifest_path.exists():
+            try:
+                payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                payload = {}
+            if isinstance(payload, dict):
+                locked_design_version = str(payload.get("locked_design_version") or "").strip()
+                if locked_design_version:
+                    candidate = feature_dir / locked_design_version
+                    if candidate.exists():
+                        return candidate
+    return detect_latest_design_path(feature_dir)
 
 
 def resolve_design_path(feature_dir: Path, design_version: str | None = None) -> Path:

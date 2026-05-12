@@ -122,6 +122,7 @@ function main() {
             cwd,
             encoding: "utf8",
             env: buildSubprocessEnv(),
+            windowsHide: true,
         });
         const spawnError = result.error;
         fs.writeFileSync(stdoutFile, result.stdout || "", "utf8");
