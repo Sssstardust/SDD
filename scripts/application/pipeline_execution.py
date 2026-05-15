@@ -53,3 +53,34 @@ def run_steps(
             console_print(f"[STOP] {label} failed with exit code {code}")
             return code
     return 0
+
+
+def run_steps_resilient(
+    steps: list[tuple[str, Callable[[], int]]],
+    *,
+    console_print: Callable[[str], None],
+    on_step_completed: Callable[[str], None] | None = None,
+    diagnostic_steps: list[tuple[str, Callable[[], int]]] | None = None,
+) -> int:
+    """
+    Run steps sequentially. If a step fails, attempt to run diagnostic steps before returning the error.
+    """
+    final_exit_code = 0
+    for label, step in steps:
+        console_print(f"[RUN] {label}")
+        code = step()
+        if code == 0:
+            if on_step_completed is not None:
+                on_step_completed(label)
+        else:
+            console_print(f"[ERROR] {label} failed with exit code {code}")
+            final_exit_code = code
+            break
+
+    if final_exit_code != 0 and diagnostic_steps:
+        console_print(f"[DIAGNOSE] Execution failed at step, running diagnostics...")
+        for diag_label, diag_step in diagnostic_steps:
+            console_print(f"[RUN DIAGNOSTIC] {diag_label}")
+            diag_step()  # We ignore diagnostic step exit codes as they are best-effort
+    
+    return final_exit_code

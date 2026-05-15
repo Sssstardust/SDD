@@ -216,6 +216,50 @@ def build_slice(
     )
 
 
+def extract_domain_entities(design_text: str) -> list[str]:
+    """Extract entity names from '## 2. 领域模型映射' section."""
+    entities: list[str] = []
+    lines = design_text.splitlines()
+    in_section = False
+    for line in lines:
+        if line.strip().startswith("## 2."):
+            in_section = True
+            continue
+        if in_section and line.strip().startswith("## "):
+            break
+        if in_section:
+            # Match patterns like '- **User**', '- User', or table cells '| User |'
+            match = re.search(r"-\s+\*\*([a-zA-Z0-9_]+)\*\*", line)
+            if not match:
+                match = re.search(r"-\s+([a-zA-Z0-9_]{3,})", line)
+            if match:
+                entities.append(match.group(1))
+    return sorted(list(set(entities)))
+
+
+def extract_api_endpoints(design_text: str) -> list[str]:
+    """Extract API paths or names from '## 4. 接口契约' section."""
+    apis: list[str] = []
+    lines = design_text.splitlines()
+    in_section = False
+    for line in lines:
+        if line.strip().startswith("## 4."):
+            in_section = True
+            continue
+        if in_section and line.strip().startswith("## "):
+            break
+        if in_section:
+            # Match patterns like 'POST /api/v1/user' or '`getUser`'
+            match = re.search(r"(GET|POST|PUT|DELETE|PATCH)\s+([/\w\-{}\.]+)", line)
+            if match:
+                apis.append(f"{match.group(1)} {match.group(2)}")
+            else:
+                match = re.search(r"`([a-zA-Z0-9_]{3,})`", line)
+                if match:
+                    apis.append(match.group(1))
+    return sorted(list(set(apis)))
+
+
 def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str, object]:
     feature_brief = feature_dir / "feature-brief.md"
     design_path = detect_latest_design_path(feature_dir)
@@ -227,18 +271,62 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
     if not design_path.exists():
         return {"result": "FAIL", "errors": [f"missing design document: {design_path}"], "created": []}
 
+    design_content = design_path.read_text(encoding="utf-8", errors="ignore")
     yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8", errors="ignore")))
     feature_name = extract_scalar(yaml_text, "feature_name") or feature_dir.name
     tags = extract_list_items(yaml_text, "capability_tags")
     requirements = extract_requirements(yaml_text)
-    acceptance_matrix = extract_design_acceptance_matrix(design_path.read_text(encoding="utf-8", errors="ignore"))
+    acceptance_matrix = extract_design_acceptance_matrix(design_content)
+    
+    entities = extract_domain_entities(design_content)
+    apis = extract_api_endpoints(design_content)
 
     with feature_lock(feature_dir, phase="generate-task-slices"):
         created: list[str] = []
         skipped: list[str] = []
         errors: list[str] = []
         counter = 1
+        
+        # 1. Entity Slices
+        entity_ids = []
+        for entity in entities:
+            slice_id = f"SLICE-{counter:03d}-ENTITY"
+            target = tasks_dir / f"slice-{counter:03d}-entity-{entity.lower()}.md"
+            content = build_slice(
+                slice_id=slice_id,
+                title=f"领域实体实现: {entity}",
+                req_ids=[r["req_id"] for r in requirements[:1]], # Default to first req as anchor
+                acceptance_checks=[f"实体 {entity} 结构符合设计", f"CRUD 基础逻辑通过"],
+            )
+            if target.exists() and not force:
+                skipped.append(str(target))
+            else:
+                atomic_write_text(target, content, encoding="utf-8")
+                created.append(str(target))
+            entity_ids.append(slice_id)
+            counter += 1
 
+        # 2. API Slices
+        api_ids = []
+        for api in apis:
+            slice_id = f"SLICE-{counter:03d}-API"
+            target = tasks_dir / f"slice-{counter:03d}-api.md"
+            content = build_slice(
+                slice_id=slice_id,
+                title=f"接口契约实现: {api}",
+                req_ids=[r["req_id"] for r in requirements[:1]],
+                acceptance_checks=[f"接口 {api} 响应符合定义", f"输入校验逻辑生效"],
+                depends_on=entity_ids[:1] if entity_ids else [],
+            )
+            if target.exists() and not force:
+                skipped.append(str(target))
+            else:
+                atomic_write_text(target, content, encoding="utf-8")
+                created.append(str(target))
+            api_ids.append(slice_id)
+            counter += 1
+
+        # 3. Biz/Integration Slices
         for requirement in requirements:
             req_id = requirement["req_id"]
             acceptance_checks = acceptance_matrix.get(req_id, [])
@@ -251,6 +339,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
                 title=requirement.get("title") or req_id,
                 req_ids=[req_id],
                 acceptance_checks=acceptance_checks,
+                depends_on=entity_ids + api_ids
             )
             if target.exists() and not force:
                 skipped.append(str(target))
@@ -272,7 +361,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
                 req_ids=all_req_ids,
                 acceptance_checks=all_acceptance_checks,
                 cross_cutting_checks=list(rule["cross_cutting_checks"]),
-                depends_on=["SLICE-001-BIZ"] if requirements else [],
+                depends_on=entity_ids + api_ids + ["SLICE-001-BIZ"] if requirements else [],
             )
             if target.exists() and not force:
                 skipped.append(str(target))

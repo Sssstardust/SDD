@@ -35,30 +35,10 @@
       "project_id": "arc-web-a602642e",
       "profile": "arc-web",
       "active": true,
-      "verification_commands": [
-        {
-          "name": "arc-web-sync-task-verify",
-          "command": [
-            "C:\\Python313\\python.exe",
-            "-c",
-            "from pathlib import Path; root=Path(r\"D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\"); required=[\"src/main/java/com/aspire/hlwjf/pdc/arc/web/controller/FlexibleTariffSyncTaskController.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/service/impl/FlexibleTariffSyncTaskServiceImpl.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/service/TariffSyncTaskService.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/entity/ArcSyncBatchEntity.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/entity/ArcSyncTaskDetailEntity.java\",\"src/main/resources/mapper/ArcSyncBatchMapper.xml\",\"src/main/resources/mapper/ArcSyncTaskDetailMapper.xml\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/listener/TariffAuditPassedListener.java\"]; missing=[str(p) for p in required if not (root / p).exists()]; assert not missing, \"missing files\"; text=(root / \"src/main/java/com/aspire/hlwjf/pdc/arc/web/controller/FlexibleTariffSyncTaskController.java\").read_text(encoding=\"utf-8\"); assert \"/flexibleTariff/syncTask\" in text; assert \"TariffSyncTaskService\" in text; print(\"arc-web sync-task verification ok\")"
-          ],
-          "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root"
-        }
-      ]
+      "verification_commands": []
     }
   ],
   "active_profile": "arc-web",
   "active_project_id": "arc-web-a602642e",
-  "verification_commands": [
-    {
-      "name": "arc-web-sync-task-verify",
-      "command": [
-        "C:\\Python313\\python.exe",
-        "-c",
-        "from pathlib import Path; root=Path(r\"D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\"); required=[\"src/main/java/com/aspire/hlwjf/pdc/arc/web/controller/FlexibleTariffSyncTaskController.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/service/impl/FlexibleTariffSyncTaskServiceImpl.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/service/TariffSyncTaskService.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/entity/ArcSyncBatchEntity.java\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/entity/ArcSyncTaskDetailEntity.java\",\"src/main/resources/mapper/ArcSyncBatchMapper.xml\",\"src/main/resources/mapper/ArcSyncTaskDetailMapper.xml\",\"src/main/java/com/aspire/hlwjf/pdc/arc/web/listener/TariffAuditPassedListener.java\"]; missing=[str(p) for p in required if not (root / p).exists()]; assert not missing, \"missing files\"; text=(root / \"src/main/java/com/aspire/hlwjf/pdc/arc/web/controller/FlexibleTariffSyncTaskController.java\").read_text(encoding=\"utf-8\"); assert \"/flexibleTariff/syncTask\" in text; assert \"TariffSyncTaskService\" in text; print(\"arc-web sync-task verification ok\")"
-      ],
-      "cwd": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root"
-    }
-  ]
+  "verification_commands": []
 }

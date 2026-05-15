@@ -73,7 +73,7 @@ from pathlib import Path
 from application.gate_cache_runtime import write_gate_cache_entry
 from application.pipeline_dispatch import dispatch_command as app_dispatch_command
 from application.pipeline_cli import collect_artifacts_for_command
-from application.pipeline_execution import build_subprocess_env, run_captured_command, run_external_command as app_run_external_command, run_steps
+from application.pipeline_execution import build_subprocess_env, run_captured_command, run_external_command as app_run_external_command, run_steps, run_steps_resilient
 from application.project_runtime import (
     detect_next_flow_step as app_detect_next_flow_step,
     run_continue_flow as app_run_continue_flow,
@@ -837,13 +837,21 @@ def run_prepare_design_cycle(
             )
         )
     ).exists()
-    return run_steps(
+    
+    def run_doctor_diag() -> int:
+        script = ROOT / "scripts" / "doctor.py"
+        return run_external_command([sys.executable, str(script), "--json"])
+
+    return run_steps_resilient(
         [
             ("verify", lambda: verify(feature_brief)),
             ("generate-design", lambda: generate_design(feature_dir, force=False, resume=resume_design)),
             ("init-approval", lambda: init_approval(feature_dir)),
         ],
         console_print=console_print,
+        diagnostic_steps=[
+            ("doctor-check", run_doctor_diag)
+        ]
     )
 
 
@@ -1170,20 +1178,14 @@ def build_command_handlers() -> dict[str, callable]:
         "release-gate": lambda args: release_gate(
             args.feature_dir,
             args.strict,
-            getattr(args, "attachment_file", None),
-            getattr(args, "profile", None),
         ),
         "pre-release-check": lambda args: release_gate(
             args.feature_dir,
             args.strict,
-            getattr(args, "attachment_file", None),
-            getattr(args, "profile", None),
         ),
         "go-live-check": lambda args: release_gate(
             args.feature_dir,
             args.strict,
-            getattr(args, "attachment_file", None),
-            getattr(args, "profile", None),
         ),
         "check-arch-standards-sync": lambda args: check_arch_standards_sync(),
         "cancel-design": lambda args: cancel_design(args.feature_dir, args.reason),
@@ -1245,8 +1247,6 @@ def build_command_handlers() -> dict[str, callable]:
         "validate-reports": lambda args: validate_reports(
             args.feature_dir,
             args.stage,
-            getattr(args, "attachment_file", None),
-            getattr(args, "profile", None),
         ),
         "validate-all-reports": lambda args: validate_all_reports(args.stage, args.require_verify, args.attachment_file, args.profile),
         "build-approval-summary": lambda args: build_approval_summary(args.feature_dir),

@@ -1,0 +1,29 @@
+{
+  "sdd_interface_version": "1.2.0",
+  "min_python": "3.13.0",
+  "min_node": "18.0.0",
+  "commands": {
+    "run_pipeline": {
+      "description": "SDD 流程编排主入口",
+      "args_schema": {
+        "stage": "string",
+        "feature": "string?",
+        "strict": "boolean"
+      },
+      "exit_codes": {
+        "0": "SUCCESS",
+        "1": "GATE_FAIL",
+        "2": "AMBIGUITY",
+        "3": "BASELINE_MISSING",
+        "9": "INTERNAL_ERROR"
+      }
+    }
+  },
+  "supported_features": [
+    "onboard-project",
+    "refresh-baseline",
+    "design-gates",
+    "implementation-gates",
+    "release-gate"
+  ]
+}
