@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Project Console</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --ink: #1f2933;
+      --muted: #52606d;
+      --line: #d9d2c3;
+      --accent: #8f3b2e;
+      --accent-soft: #f8e8dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      background: linear-gradient(180deg, #f9f4ec 0%, var(--bg) 100%);
+      color: var(--ink);
+      font: 14px/1.5 "Segoe UI", sans-serif;
+    }
+    h1, h2 { margin: 0 0 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 20px 0 28px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(31, 41, 51, 0.06);
+    }
+    .hero {
+      background: radial-gradient(circle at top right, #f8d9b7 0%, var(--panel) 50%);
+    }
+    .metric {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    ul { margin: 0; padding-left: 18px; }
+    .chips { list-style: none; padding: 0; margin: 0; }
+    .chips li {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--accent-soft);
+      color: var(--ink);
+    }
+    code {
+      color: var(--accent);
+      white-space: pre-wrap;
+    }
+    .section { margin-bottom: 28px; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <section class="card hero">
+    <h1>Project Console</h1>
+    <p class="muted">Project ID: <strong>attached-project-b44a1870</strong></p>
+    <p class="muted">Project Name: <strong>attached-project</strong></p>
+    <p class="muted">Artifacts Dir: <code>D:\project\SDD\.spec\project-artifacts\attached-project-b44a1870</code></p>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Feature Count</h2>
+      <div class="metric">3</div>
+    </article>
+    <article class="card">
+      <h2>Stage Distribution</h2>
+      <ul class="chips"><li><strong>implementation-needs-attention</strong><span>1</span></li><li><strong>release-ready</strong><span>2</span></li></ul>
+    </article>
+    <article class="card">
+      <h2>State Sources</h2>
+      <ul class="chips"><li><strong>project-state.json</strong><span>3</span></li></ul>
+    </article>
+  </section>
+
+  <section class="section card">
+    <h2>Current Recommendation</h2>
+    <ul><li><strong>Feature:</strong> admin-management</li><li><strong>Stage:</strong> implementation-needs-attention</li><li><strong>Source:</strong> project-state.json</li><li><strong>Risk:</strong> high</li><li><strong>Reason:</strong> implementation-stage gates contain failures; implementation traceability=WARN; real-test admission=FAIL missingReq=3; attached execution=FAIL; gate5 admission=FAIL</li><li><strong>Command:</strong> <code>python scripts/run_pipeline.py approved-implementation-cycle D:\project\SDD\specs\admin-management --strict</code></li></ul>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Latest Execution</h2>
+      <p>{&#x27;at&#x27;: &#x27;2026-04-20T06:48:26.731366+00:00&#x27;, &#x27;op_type&#x27;: &#x27;continue-project-flow&#x27;, &#x27;payload&#x27;: {&#x27;result&#x27;: &#x27;no_candidate&#x27;}}</p>
+    </article>
+    <article class="card">
+      <h2>Tooling Hygiene</h2>
+      <p>No obvious generated-artifact or workspace hygiene issues were found.</p>
+    </article>
+  </section>
+
+  <section class="section card">
+    <h2>Recent Operations</h2>
+    <ul><li><code>2026-05-15T11:14:27.688785+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\attached-project-b44a1870\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 6, &#x27;duration_ms&#x27;: 36, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-15T05:54:33.471548+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 6, &#x27;duration_ms&#x27;: 24, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-15T03:26:08.508798+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 6, &#x27;duration_ms&#x27;: 26, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T12:56:52.949778+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 8, &#x27;duration_ms&#x27;: 46, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T09:55:29.956462+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 23, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T09:46:35.423222+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 24, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T09:24:22.047008+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 8, &#x27;duration_ms&#x27;: 28, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T08:47:37.514271+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 6, &#x27;duration_ms&#x27;: 27, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T08:46:59.437084+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 6, &#x27;duration_ms&#x27;: 25, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-14T08:46:48.397641+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 6, &#x27;duration_ms&#x27;: 26, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li></ul>
+  </section>
+
+  <section class="section">
+    <h2>Features</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Stage</th>
+          <th>Source</th>
+          <th>Risk</th>
+          <th>Approval</th>
+          <th>gate2</th>
+          <th>gate3</th>
+          <th>gate4</th>
+          <th>gate5</th>
+          <th>impl</th>
+          <th>gate3 ai</th>
+          <th>gate5 admission</th>
+          <th>real test admission</th>
+          <th>attached execution</th>
+          <th>component execution</th>
+          <th>framework evidence</th>
+          <th>resource claims</th>
+          <th>Missing</th>
+          <th>Blockers</th>
+          <th>Next</th>
+        </tr>
+      </thead>
+      <tbody><tr><td>admin-management</td><td>implementation-needs-attention</td><td>project-state.json</td><td>high</td><td>APPROVED</td><td>PASS</td><td>PASS</td><td>PASS</td><td>FAIL</td><td>WARN</td><td>SKIPPED not-configured</td><td>FAIL fail=attached_execution,real_test_req</td><td>FAIL high-risk-p0-req missing=3</td><td>FAIL required explicit-cli</td><td>PASS</td><td>N/A</td><td>op=1</td><td>0</td><td>10</td><td><code>python scripts/run_pipeline.py approved-implementation-cycle D:\project\SDD\specs\admin-management --strict</code></td></tr><tr><td>payment-review-control</td><td>release-ready</td><td>project-state.json</td><td>high</td><td>APPROVED</td><td>PASS</td><td>PASS</td><td>PASS</td><td>PASS</td><td>PASS</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>0</td><td>0</td><td><code>None</code></td></tr><tr><td>task-board</td><td>release-ready</td><td>project-state.json</td><td>high</td><td>APPROVED</td><td>PASS</td><td>PASS</td><td>PASS</td><td>PASS</td><td>WARN</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>0</td><td>6</td><td><code>None</code></td></tr></tbody>
+    </table>
+  </section>
+</body>
+</html>

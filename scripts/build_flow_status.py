@@ -137,6 +137,18 @@ def main() -> int:
     print(f"  - flow-status json: {flow_status_json_path}")
     print(f"  - flow-status md:   {flow_status_md_path}")
     print(f"  - next: {state.get('next_command')}")
+
+    if state.get("implementation_result") != "PASS":
+        # ANSI escape codes for red bold text
+        print("\033[1;31m")
+        print("!" * 80)
+        print("[CRITICAL] IMPLEMENTATION IS NOT PASS!")
+        print("Your code changes are not fully verified by Gate 5.")
+        print("Please run: python scripts/run_pipeline.py flow-status <feature> --strict")
+        print("Ensure all REQ-IDs are covered and TODOs are cleared before delivery.")
+        print("!" * 80)
+        print("\033[0m")
+
     return 0
 
 

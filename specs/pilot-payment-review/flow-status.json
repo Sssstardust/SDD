@@ -3,6 +3,14 @@
   "feature_name": "payment-review-control",
   "current_stage": "release-ready",
   "risk_tier": "high",
+  "strict_recommended": true,
+  "strict_next_step": false,
+  "strict_summary": {
+    "recommended": true,
+    "next_step_strict": false,
+    "next_command_has_strict_flag": false,
+    "mode": "recommended"
+  },
   "design_version": "design-v1.md",
   "reports_dir": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1",
   "approval_status": "APPROVED",
@@ -10,9 +18,57 @@
   "gate3_result": "PASS",
   "gate4_result": "PASS",
   "gate5_result": "PASS",
+  "implementation_result": "PASS",
   "release_gate_result": "PASS",
+  "release_exception_metadata": {},
   "next_command": null,
   "reason": "feature passed implementation verification and release governance",
   "missing_artifacts": [],
-  "blockers": []
+  "blockers": [],
+  "implementation_framework_evidence": {},
+  "implementation_match_highlights": [],
+  "implementation_missing_method_details": [],
+  "implementation_ambiguous_classes": [],
+  "real_test_req_admission": {},
+  "attached_execution_admission": {},
+  "affected_component_execution_admission": {},
+  "gate5_admission_summary": {},
+  "gate3_rule_evaluation": {},
+  "gate3_ai_review": {},
+  "design_class_resolution_brief": {},
+  "schema_table_resolution_brief": {},
+  "design_resource_claim_summary": {},
+  "design_resource_claim_brief": {},
+  "gate_cache": {
+    "gate1": {
+      "status": "PASS",
+      "input_hash": "4a7159c7f9ba5c591d34fb46fc3cd3992c236ead761cc296f6dc2e6d7cb74c59",
+      "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate1-report.json",
+      "completed_at": null
+    },
+    "gate2": {
+      "status": "PASS",
+      "input_hash": "d97acd43752026f787fa4a13bd6bd6643c46ef6dbd2c2025d8b94e95890fefec",
+      "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+      "completed_at": null
+    },
+    "gate3": {
+      "status": "PASS",
+      "input_hash": "d97acd43752026f787fa4a13bd6bd6643c46ef6dbd2c2025d8b94e95890fefec",
+      "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+      "completed_at": null
+    },
+    "gate4": {
+      "status": "PASS",
+      "input_hash": "f20a68bed23b0b156d0aaeee77737c9914bea43cf979f2e45eca34a3f5a37432",
+      "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+      "completed_at": null
+    },
+    "gate5": {
+      "status": "PASS",
+      "input_hash": "f898eff94b1f453ce8abefb8c49f845101143262f5ae6c493685ddab6013f9ac",
+      "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+      "completed_at": null
+    }
+  }
 }

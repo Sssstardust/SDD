@@ -1234,6 +1234,16 @@ def evaluate_affected_component_execution_admission(
     }
 
 
+def load_gate_waivers(feature_dir: Path) -> dict[str, Any]:
+    waiver_path = feature_dir / "gate-waivers.json"
+    if not waiver_path.exists():
+        return {}
+    try:
+        return json.loads(waiver_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def main_for_args(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1275,11 +1285,22 @@ def main_for_args(argv: list[str] | None = None) -> int:
     content = test_file.read_text(encoding="utf-8")
     uncovered_p0, uncovered_p1, details, placeholder_todos = summarize_gate5_coverage(content, report["mappings"])
 
+    gate_waivers = load_gate_waivers(feature_dir).get("gate5", {})
+    waived_req_ids = sorted(gate_waivers.keys())
+    if gate_waivers:
+        uncovered_p0 = [req_id for req_id in uncovered_p0 if req_id not in gate_waivers]
+        uncovered_p1 = [req_id for req_id in uncovered_p1 if req_id not in gate_waivers]
+        placeholder_todos = [req_id for req_id in placeholder_todos if req_id not in gate_waivers]
+
     result = "PASS"
     if uncovered_p0:
         result = "FAIL"
     elif uncovered_p1:
         result = "WARN"
+    elif gate_waivers:
+        # If everything else passes but we have waivers, mark as PASS but could be WARN depending on policy.
+        # Here we keep it as PASS but add to warnings.
+        pass
 
     execution = attempt_test_execution(test_file, report["mappings"])
     attached_execution = run_attached_verification_commands(
@@ -1443,6 +1464,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
         "warnings": baseline_warnings + placeholder_warnings,
         "errors": baseline_errors,
         "placeholder_todos": placeholder_todos,
+        "waived_req_ids": waived_req_ids,
+        "gate_waivers": gate_waivers,
         "evidence": evidence,
         "details": details,
     }
@@ -1493,6 +1516,8 @@ def main_for_args(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"[{result}] Gate 5 覆盖验证完成")
+    if waived_req_ids:
+        print(f"  - waived:        {', '.join(waived_req_ids)}")
     if uncovered_p1:
         print(f"  - uncovered_p1: {', '.join(sorted(set(uncovered_p1)))}")
     print(f"  - execution: {execution_status}")

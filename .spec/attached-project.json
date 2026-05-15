@@ -1,20 +1,14 @@
 {
-  "name": "arc-web",
-  "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
-  "scan_roots": [
-    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java",
-    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\test\\java"
-  ],
+  "name": "attached-project",
+  "project_root": "D:\\project\\SDD",
   "design_roots": [
-    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs"
-  ],
-  "schema_roots": [
-    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\resources",
-    "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\database"
+    "D:\\project\\SDD\\specs"
   ],
   "components": [],
-  "project_id": "arc-web-a602642e",
-  "profile": "arc-web",
+  "project_id": "attached-project-b44a1870",
+  "profile": "attached-project",
+  "scan_roots": [],
+  "schema_roots": [],
   "active": true,
   "profiles": [
     {
@@ -34,11 +28,23 @@
       "components": [],
       "project_id": "arc-web-a602642e",
       "profile": "arc-web",
-      "active": true,
+      "active": false,
       "verification_commands": []
+    },
+    {
+      "name": "attached-project",
+      "project_root": "D:\\project\\SDD",
+      "design_roots": [
+        "D:\\project\\SDD\\specs"
+      ],
+      "components": [],
+      "project_id": "attached-project-b44a1870",
+      "profile": "attached-project",
+      "scan_roots": [],
+      "schema_roots": [],
+      "active": true
     }
   ],
-  "active_profile": "arc-web",
-  "active_project_id": "arc-web-a602642e",
-  "verification_commands": []
+  "active_profile": "attached-project",
+  "active_project_id": "attached-project-b44a1870"
 }

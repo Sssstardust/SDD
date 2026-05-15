@@ -201,16 +201,16 @@ def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> N
             handle.flush()
             os.fsync(handle.fileno())
         last_error: OSError | None = None
-        for attempt in range(5):
+        for attempt in range(15):
             try:
                 os.replace(temp_path, path)
                 last_error = None
                 break
-            except PermissionError as error:
+            except OSError as error:
                 last_error = error
-                if attempt >= 4:
+                if attempt >= 14:
                     raise
-                time.sleep(0.05 * (attempt + 1))
+                time.sleep(0.2 * (attempt + 1))
         if last_error is not None:
             raise last_error
     finally:

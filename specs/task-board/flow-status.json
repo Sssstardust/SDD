@@ -3,6 +3,14 @@
   "feature_name": "task-board",
   "current_stage": "release-ready",
   "risk_tier": "high",
+  "strict_recommended": true,
+  "strict_next_step": false,
+  "strict_summary": {
+    "recommended": true,
+    "next_step_strict": false,
+    "next_command_has_strict_flag": false,
+    "mode": "recommended"
+  },
   "design_version": "design-v2.md",
   "reports_dir": "D:\\project\\SDD\\specs\\task-board\\reports\\v2",
   "approval_status": "APPROVED",
@@ -10,7 +18,9 @@
   "gate3_result": "PASS",
   "gate4_result": "PASS",
   "gate5_result": "PASS",
+  "implementation_result": "WARN",
   "release_gate_result": "PASS",
+  "release_exception_metadata": {},
   "next_command": null,
   "reason": "feature passed implementation verification and release governance",
   "missing_artifacts": [],
@@ -19,6 +29,53 @@
     "gate5: REQ-002 仍包含 TODO 占位符",
     "gate5: REQ-003 仍包含 TODO 占位符",
     "gate5: REQ-004 仍包含 TODO 占位符",
-    "gate5: REQ-005 仍包含 TODO 占位符"
-  ]
+    "gate5: REQ-005 仍包含 TODO 占位符",
+    "gate5: implementation traceability=WARN"
+  ],
+  "implementation_framework_evidence": {},
+  "implementation_match_highlights": [],
+  "implementation_missing_method_details": [],
+  "implementation_ambiguous_classes": [],
+  "real_test_req_admission": {},
+  "attached_execution_admission": {},
+  "affected_component_execution_admission": {},
+  "gate5_admission_summary": {},
+  "gate3_rule_evaluation": {},
+  "gate3_ai_review": {},
+  "design_class_resolution_brief": {},
+  "schema_table_resolution_brief": {},
+  "design_resource_claim_summary": {},
+  "design_resource_claim_brief": {},
+  "gate_cache": {
+    "gate1": {
+      "status": "PASS",
+      "input_hash": "b240b8491485281b5255e59b6fbe4c478a6e17db05d0c369ba41ac04e27884df",
+      "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate1-report.json",
+      "completed_at": null
+    },
+    "gate2": {
+      "status": "PASS",
+      "input_hash": "60a13dc01e35dae5e9ca7b87967664c6a04706ec4d3ef89904ede5d4c338b430",
+      "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "completed_at": null
+    },
+    "gate3": {
+      "status": "PASS",
+      "input_hash": "60a13dc01e35dae5e9ca7b87967664c6a04706ec4d3ef89904ede5d4c338b430",
+      "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "completed_at": null
+    },
+    "gate4": {
+      "status": "PASS",
+      "input_hash": "1e168a91933af54ad01a94c7caefcef014eebe00801406516f39de9c7da93fe7",
+      "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "completed_at": null
+    },
+    "gate5": {
+      "status": "PASS",
+      "input_hash": "8f3017103162113e560d90bf7f685794d4b2d334e9dda5876b4628327b84a3da",
+      "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+      "completed_at": null
+    }
+  }
 }

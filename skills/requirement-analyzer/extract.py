@@ -769,6 +769,7 @@ def build_heuristic_result(source_path: Path, text: str, confirmed_by: str) -> d
         "apis": apis,
         "business_rules": business_rules,
         "dependencies": dependencies,
+        "logic_atoms": [],
         "clarify": None,
         "metadata": {
             "source_file": str(source_path),
@@ -848,6 +849,7 @@ def normalize_result(data: dict[str, Any], source_path: Path, confirmed_by: str,
     )
     normalized["business_rules"] = unique_strings(list(normalized.get("business_rules") or []))
     normalized["dependencies"] = unique_strings(list(normalized.get("dependencies") or []))
+    normalized["logic_atoms"] = list(normalized.get("logic_atoms") or [])
 
     normalized["metadata"] = deep_merge(
         {
@@ -1226,6 +1228,40 @@ def derive_risk_focus(tags: list[str], project_mode: str) -> str:
     return "；".join(focus)
 
 
+def render_logic_atoms_yaml(logic_atoms: list[dict[str, Any]]) -> str:
+    if not logic_atoms:
+        return "logic_atoms: []"
+    lines = ["logic_atoms:"]
+    for atom in logic_atoms:
+        req_id = atom.get("req_id") or "REQ-???"
+        lines.append(f"  - req_id: {req_id}")
+        lines.append("    logic:")
+        for step_group in atom.get("logic") or []:
+            comp = yaml_quote(step_group.get("component") or "Unknown")
+            meth = yaml_quote(step_group.get("method") or "unknown")
+            lines.append(f"      - component: {comp}")
+            lines.append(f"        method: {meth}")
+            lines.append("        steps:")
+            for step in step_group.get("steps") or []:
+                lines.append(f"          - {yaml_quote(step)}")
+    return "\n".join(lines)
+
+
+def render_logic_atoms_bullets(logic_atoms: list[dict[str, Any]]) -> str:
+    if not logic_atoms:
+        return "- 无明确逻辑建模"
+    lines = []
+    for atom in logic_atoms:
+        req_id = atom.get("req_id") or "REQ-???"
+        lines.append(f"- **{req_id}** 实现路径：")
+        for step_group in atom.get("logic") or []:
+            comp = step_group.get("component") or "Unknown"
+            meth = step_group.get("method") or "unknown"
+            steps = " -> ".join(step_group.get("steps") or [])
+            lines.append(f"  - `{comp}.{meth}`: {steps}")
+    return "\n".join(lines)
+
+
 def render_feature_brief(data: dict[str, Any], source_path: Path) -> str:
     tags = list(data.get("capability_tags") or [])
     requirements = list(data.get("requirements") or [])
@@ -1234,6 +1270,7 @@ def render_feature_brief(data: dict[str, Any], source_path: Path) -> str:
     apis_payload = list(data.get("apis") or [])
     business_rules = list(data.get("business_rules") or [])
     dependencies = list(data.get("dependencies") or [])
+    logic_atoms = list(data.get("logic_atoms") or [])
     metadata = dict(data.get("metadata") or {})
     project_mode = str(data.get("project_mode") or "brownfield")
     project_mode_source = str(data.get("project_mode_source") or "heuristic")
@@ -1278,12 +1315,14 @@ def render_feature_brief(data: dict[str, Any], source_path: Path) -> str:
     entities_block = render_entity_bullets(entities_payload)
     apis_block = render_api_bullets(apis_payload)
     dependencies_block = render_bullets(dependencies, "无明确外部依赖")
+    logic_atoms_block = render_logic_atoms_bullets(logic_atoms)
     structured_context_block = render_structured_context_block(
         entities=entities_payload,
         apis=apis_payload,
         business_rules=business_rules,
         dependencies=dependencies,
     )
+    logic_atoms_yaml = render_logic_atoms_yaml(logic_atoms)
     risk_reason = derive_risk_reason(tags)
     risk_focus = derive_risk_focus(tags, project_mode)
     priority_summary_block = render_named_bullets(requirement_priority_map)
@@ -1326,27 +1365,36 @@ requirements:
 
 ---
 
-## 3. 歧义与待澄清项
+## 3. 逻辑原子建模 (实现预演)
+```yaml
+{logic_atoms_yaml}
+```
+
+{logic_atoms_block}
+
+---
+
+## 4. 歧义与待澄清项
 {ambiguity_block}
 
 ---
 
-## 4. 业务说明
+## 5. 业务说明
 
 - 背景：{background}
 - 业务目标：{business_goal}
 - 非目标：{non_goal}
 - 成功标准：{success_standard}
 
-### 4.1 需求优先级映射
+### 5.1 需求优先级映射
 {priority_summary_block}
 
-### 4.2 关键业务规则映射
+### 5.2 关键业务规则映射
 {business_rules_block}
 
 ---
 
-## 5. 依赖与影响范围
+## 6. 依赖与影响范围
 - 涉及模块：{infer_modules(tags)}
 - 涉及实体：{"、".join(entities[:6]) if entities else "待补充"}
 - 涉及数据库：{"是" if "db-change" in tags else "待补充"}
@@ -1354,23 +1402,23 @@ requirements:
 - 是否影响现有接口：{"是" if apis else "待补充"}
 - 关键接口：{"；".join(apis[:4]) if apis else "待补充"}
 
-### 5.1 实体映射
+### 6.1 实体映射
 {entities_block}
 
-### 5.2 接口映射
+### 6.2 接口映射
 {apis_block}
 
-### 5.3 依赖映射
+### 6.3 依赖映射
 {dependencies_block}
 
-### 5.4 结构化补充上下文
+### 6.4 结构化补充上下文
 ```yaml
 {structured_context_block}
 ```
 
 ---
 
-## 6. 风险说明
+## 7. 风险说明
 
 - 风险级别：`{risk_tier}`
 - 为什么当前 `risk_tier` 是这个级别：{risk_reason}
@@ -1381,7 +1429,7 @@ requirements:
 
 ---
 
-## 7. 审阅记录
+## 8. 审阅记录
 
 - 审阅人：
 - 审阅结论：

@@ -22,6 +22,7 @@
     "apis",
     "business_rules",
     "dependencies",
+    "logic_atoms",
     "metadata"
   ],
   "properties": {
@@ -115,6 +116,12 @@
         "minLength": 1
       }
     },
+    "logic_atoms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/logic_atom"
+      }
+    },
     "clarify": {
       "anyOf": [
         {
@@ -130,6 +137,45 @@
     }
   },
   "$defs": {
+    "logic_atom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["req_id", "logic"],
+      "properties": {
+        "req_id": {
+          "type": "string",
+          "pattern": "^REQ-[0-9]{3}$"
+        },
+        "logic": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/logic_step"
+          }
+        }
+      }
+    },
+    "logic_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "method", "steps"],
+      "properties": {
+        "component": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "requirement": {
       "type": "object",
       "additionalProperties": false,

@@ -17,7 +17,8 @@
    - `external-call` + `payment`
    否则设为 `low`。
 8. 如果核心字段缺失，保留已提取出的部分内容，将 `status` 设为 `clarify`，并填写 `clarify.missing_fields` 与 `clarify.questions`。
-9. 输出 JSON 时要考虑下游 `feature-brief.md` 的渲染效果，不要只做“刚好过 schema”的最小填充。
+9. 必须执行“逻辑原子建模”：在 `logic_atoms` 中针对每个 `REQ` 明确其涉及的 `component` (类名/模块名)、`method` (方法名) 和 `steps` (核心逻辑步骤)。这有助于下游任务切片的精确生成。
+10. 输出 JSON 时要考虑下游 `feature-brief.md` 的渲染效果，不要只做“刚好过 schema”的最小填充。
 
 字段质量要求：
 
@@ -45,6 +46,11 @@
 - `dependencies`
   优先提取具体系统、服务、数据库、中间件、第三方或集成依赖。
   不要在这里重复大段需求句子，除非该句本身明确描述了依赖。
+- `logic_atoms`
+  实现预演的核心。每个原子必须对应一个 `req_id`。
+  `component` 应使用该领域的通用类名建议（如 `PaymentService`, `OrderRepository`）。
+  `method` 应是具备业务语义的方法名（如 `validateBalance`, `updateStatus`）。
+  `steps` 是一组按序排列的短语，描述该方法内的关键动作。
 - `project_mode_evidence`
   用 1 到 3 条短事实描述，不要写成长段解释。
 

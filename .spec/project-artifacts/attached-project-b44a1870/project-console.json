@@ -1,0 +1,855 @@
+{
+  "project": {
+    "project_id": "attached-project-b44a1870",
+    "project_name": "attached-project",
+    "project_root": "D:\\project\\SDD",
+    "artifacts_dir": "D:\\project\\SDD\\.spec\\project-artifacts\\attached-project-b44a1870",
+    "attachment_path": "D:\\project\\SDD\\.spec\\attached-project.json",
+    "attachment_present": true
+  },
+  "workspace": {
+    "version": 1,
+    "active_profile": "attached-project",
+    "active_project_id": "attached-project-b44a1870",
+    "profiles": [
+      {
+        "name": "arc-web",
+        "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+        "scan_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java",
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\test\\java"
+        ],
+        "design_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs"
+        ],
+        "schema_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\resources",
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\database"
+        ],
+        "components": [],
+        "project_id": "arc-web-a602642e",
+        "profile": "arc-web",
+        "active": false,
+        "verification_commands": []
+      },
+      {
+        "name": "attached-project",
+        "project_root": "D:\\project\\SDD",
+        "design_roots": [
+          "D:\\project\\SDD\\specs"
+        ],
+        "components": [],
+        "project_id": "attached-project-b44a1870",
+        "profile": "attached-project",
+        "scan_roots": [],
+        "schema_roots": [],
+        "active": true
+      }
+    ]
+  },
+  "feature_count": 3,
+  "state_source_policy": "prefer_persisted",
+  "state_source_counts": {
+    "project-state.json": 3
+  },
+  "features": [
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\admin-management",
+      "feature_name": "admin-management",
+      "current_stage": "implementation-needs-attention",
+      "risk_tier": "high",
+      "strict_recommended": true,
+      "strict_next_step": true,
+      "strict_summary": {
+        "recommended": true,
+        "next_step_strict": true,
+        "next_command_has_strict_flag": true,
+        "mode": "strict"
+      },
+      "design_version": "design-v3.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "FAIL",
+      "implementation_result": "WARN",
+      "release_gate_result": null,
+      "release_exception_metadata": {},
+      "next_command": "python scripts/run_pipeline.py approved-implementation-cycle D:\\project\\SDD\\specs\\admin-management --strict",
+      "reason": "implementation-stage gates contain failures",
+      "missing_artifacts": [],
+      "blockers": [
+        "gate5: REQ-001 仍包含 TODO 占位符",
+        "gate5: REQ-002 仍包含 TODO 占位符",
+        "gate5: REQ-003 仍包含 TODO 占位符",
+        "gate5: REQ-004 仍包含 TODO 占位符",
+        "gate5: REQ-005 仍包含 TODO 占位符",
+        "gate5: REQ-006 仍包含 TODO 占位符",
+        "gate5: REQ-007 仍包含 TODO 占位符",
+        "gate5: implementation traceability=WARN",
+        "gate5: real-test admission=FAIL",
+        "gate5: attached-execution admission=FAIL"
+      ],
+      "implementation_framework_evidence": {
+        "inherited_matches": 0,
+        "low_confidence_matches": 0,
+        "lombok_inferred_matches": 0,
+        "mybatis_bound_matches": 0,
+        "mybatis_result_map_matches": 0,
+        "low_confidence_resource_keys": [],
+        "owner_classes": [],
+        "inherited_from": [],
+        "mybatis_statement_ids": [],
+        "mybatis_result_map_ids": []
+      },
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {
+        "result": "FAIL",
+        "requirement": "high-risk-p0-req",
+        "required_req_ids": [
+          "REQ-001",
+          "REQ-002",
+          "REQ-003"
+        ],
+        "missing_required_req_ids": [
+          "REQ-001",
+          "REQ-002",
+          "REQ-003"
+        ],
+        "message": "high-risk feature requires real-test coverage for all P0 req ids"
+      },
+      "attached_execution_admission": {
+        "result": "FAIL",
+        "required": true,
+        "requirement_reason": "explicit-cli",
+        "execution_status": "FAIL",
+        "command_count": 0,
+        "failed_components": [],
+        "failed_commands": [],
+        "message": "attached execution failed"
+      },
+      "affected_component_execution_admission": {
+        "result": "PASS",
+        "required": true,
+        "required_components": [],
+        "covered_components": [],
+        "missing_components": [],
+        "failed_components": [],
+        "message": "no affected components declared for execution admission"
+      },
+      "gate5_admission_summary": {
+        "result": "FAIL",
+        "admission_results": {
+          "real_test_req": "FAIL",
+          "attached_execution": "FAIL",
+          "affected_component_execution": "PASS"
+        },
+        "failing_admissions": [
+          "attached_execution",
+          "real_test_req"
+        ],
+        "warning_admissions": [],
+        "skipped_admissions": [],
+        "passing_admissions": [
+          "affected_component_execution"
+        ],
+        "failure_count": 2,
+        "warning_count": 0
+      },
+      "gate3_rule_evaluation": {
+        "result": "PASS",
+        "checks": [
+          "序列图分层与依赖方向满足最小约束",
+          "异常处理章节存在有效条目",
+          "事务边界说明已存在",
+          "幂等策略具备关键语义",
+          "外部调用策略具备关键语义"
+        ],
+        "warnings": [],
+        "errors": []
+      },
+      "gate3_ai_review": {
+        "result": "SKIPPED",
+        "mode": "not-configured",
+        "confidence": null,
+        "rationale": "AI semantic review is not configured in the current Gate 3 implementation",
+        "evidence_refs": [],
+        "violations": []
+      },
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {
+        "total": 6,
+        "kinds": [
+          "event",
+          "operation",
+          "table"
+        ],
+        "counts_by_kind": {
+          "event": 2,
+          "operation": 1,
+          "table": 3
+        },
+        "names_by_kind": {
+          "event": [
+            "AdminManagementEvent",
+            "TOPIC_ADMIN_MANAGEMENT"
+          ],
+          "operation": [
+            "POST /api/v1/admin-management"
+          ],
+          "table": [
+            "t_admin_management_brief",
+            "t_admin_management_req",
+            "t_admin_management_support"
+          ]
+        },
+        "resource_keys_by_kind": {
+          "event": [
+            "event::AdminManagementEvent",
+            "event::TOPIC_ADMIN_MANAGEMENT"
+          ],
+          "operation": [
+            "operation::POST /api/v1/admin-management"
+          ],
+          "table": [
+            "table::t_admin_management_brief",
+            "table::t_admin_management_req",
+            "table::t_admin_management_support"
+          ]
+        },
+        "component_ids_by_kind": {},
+        "highlights": {
+          "operation": [
+            "POST /api/v1/admin-management"
+          ],
+          "table": [
+            "t_admin_management_brief",
+            "t_admin_management_req",
+            "t_admin_management_support"
+          ],
+          "event": [
+            "AdminManagementEvent",
+            "TOPIC_ADMIN_MANAGEMENT"
+          ]
+        }
+      },
+      "design_resource_claim_brief": {
+        "counts_by_kind": {
+          "event": 2,
+          "operation": 1,
+          "table": 3
+        },
+        "operation_components": [],
+        "schema_table_components": [],
+        "operation_resource_keys": [
+          "operation::POST /api/v1/admin-management"
+        ],
+        "schema_table_resource_keys": []
+      },
+      "gate_cache": {
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "be6d11e0129904f7c61cc67b5c418b1ada7c8a289aa79d076690ca3fbbda9e70",
+          "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "PASS",
+          "input_hash": "be6d11e0129904f7c61cc67b5c418b1ada7c8a289aa79d076690ca3fbbda9e70",
+          "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+          "completed_at": null
+        },
+        "gate4": {
+          "status": "PASS",
+          "input_hash": "77768e8aed9c9f0771ea605fa9c858847cd86151891a1a640c17626e39a6c50f",
+          "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+          "completed_at": null
+        },
+        "gate5": {
+          "status": "FAIL",
+          "input_hash": "c84178ac3180e875d4ec636f7e87f6469ddbd0cb1743e338c9a69cee9405fd13",
+          "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\SDD\\specs\\admin-management\\project-state.json",
+      "project_state_exists": true
+    },
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\pilot-payment-review",
+      "feature_name": "payment-review-control",
+      "current_stage": "release-ready",
+      "risk_tier": "high",
+      "strict_recommended": true,
+      "strict_next_step": false,
+      "strict_summary": {
+        "recommended": true,
+        "next_step_strict": false,
+        "next_command_has_strict_flag": false,
+        "mode": "recommended"
+      },
+      "design_version": "design-v1.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "implementation_result": "PASS",
+      "release_gate_result": "PASS",
+      "release_exception_metadata": {},
+      "next_command": null,
+      "reason": "feature passed implementation verification and release governance",
+      "missing_artifacts": [],
+      "blockers": [],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {
+        "gate1": {
+          "status": "PASS",
+          "input_hash": "4a7159c7f9ba5c591d34fb46fc3cd3992c236ead761cc296f6dc2e6d7cb74c59",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate1-report.json",
+          "completed_at": null
+        },
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "d97acd43752026f787fa4a13bd6bd6643c46ef6dbd2c2025d8b94e95890fefec",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "PASS",
+          "input_hash": "d97acd43752026f787fa4a13bd6bd6643c46ef6dbd2c2025d8b94e95890fefec",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate4": {
+          "status": "PASS",
+          "input_hash": "f20a68bed23b0b156d0aaeee77737c9914bea43cf979f2e45eca34a3f5a37432",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate5": {
+          "status": "PASS",
+          "input_hash": "f898eff94b1f453ce8abefb8c49f845101143262f5ae6c493685ddab6013f9ac",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\project-state.json",
+      "project_state_exists": true
+    },
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\task-board",
+      "feature_name": "task-board",
+      "current_stage": "release-ready",
+      "risk_tier": "high",
+      "strict_recommended": true,
+      "strict_next_step": false,
+      "strict_summary": {
+        "recommended": true,
+        "next_step_strict": false,
+        "next_command_has_strict_flag": false,
+        "mode": "recommended"
+      },
+      "design_version": "design-v2.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\task-board\\reports\\v2",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "implementation_result": "WARN",
+      "release_gate_result": "PASS",
+      "release_exception_metadata": {},
+      "next_command": null,
+      "reason": "feature passed implementation verification and release governance",
+      "missing_artifacts": [],
+      "blockers": [
+        "gate5: REQ-001 仍包含 TODO 占位符",
+        "gate5: REQ-002 仍包含 TODO 占位符",
+        "gate5: REQ-003 仍包含 TODO 占位符",
+        "gate5: REQ-004 仍包含 TODO 占位符",
+        "gate5: REQ-005 仍包含 TODO 占位符",
+        "gate5: implementation traceability=WARN"
+      ],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {
+        "gate1": {
+          "status": "PASS",
+          "input_hash": "b240b8491485281b5255e59b6fbe4c478a6e17db05d0c369ba41ac04e27884df",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate1-report.json",
+          "completed_at": null
+        },
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "60a13dc01e35dae5e9ca7b87967664c6a04706ec4d3ef89904ede5d4c338b430",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "PASS",
+          "input_hash": "60a13dc01e35dae5e9ca7b87967664c6a04706ec4d3ef89904ede5d4c338b430",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        },
+        "gate4": {
+          "status": "PASS",
+          "input_hash": "1e168a91933af54ad01a94c7caefcef014eebe00801406516f39de9c7da93fe7",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        },
+        "gate5": {
+          "status": "PASS",
+          "input_hash": "8f3017103162113e560d90bf7f685794d4b2d334e9dda5876b4628327b84a3da",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\SDD\\specs\\task-board\\project-state.json",
+      "project_state_exists": true
+    }
+  ],
+  "latest_execution": {
+    "at": "2026-04-20T06:48:26.731366+00:00",
+    "op_type": "continue-project-flow",
+    "payload": {
+      "result": "no_candidate"
+    }
+  },
+  "recent_ops": [
+    {
+      "at": "2026-05-14T08:46:48.397641+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 6,
+        "duration_ms": 26,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-14T08:46:59.437084+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 6,
+        "duration_ms": 25,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-14T08:47:37.514271+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 6,
+        "duration_ms": 27,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-14T09:24:22.047008+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 8,
+        "duration_ms": 28,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-14T09:46:35.423222+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 24,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-14T09:55:29.956462+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 23,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-14T12:56:52.949778+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 8,
+        "duration_ms": 46,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-15T03:26:08.508798+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 6,
+        "duration_ms": 26,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-15T05:54:33.471548+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 6,
+        "duration_ms": 24,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-15T11:14:27.688785+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\attached-project-b44a1870\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 6,
+        "duration_ms": 36,
+        "auto_discover": null,
+        "error": null
+      }
+    }
+  ],
+  "stage_counts": {
+    "implementation-needs-attention": 1,
+    "release-ready": 2
+  },
+  "strict_recommended_count": 3,
+  "strict_next_step_count": 1,
+  "gate_summary": {
+    "gate2": {
+      "PASS": 3,
+      "WARN": 0,
+      "FAIL": 0
+    },
+    "gate3": {
+      "PASS": 3,
+      "WARN": 0,
+      "FAIL": 0
+    },
+    "gate3_ai": {
+      "WARN": 0,
+      "SKIPPED": 1
+    },
+    "gate5": {
+      "PASS": 2,
+      "WARN": 0,
+      "FAIL": 1
+    }
+  },
+  "strict_summary": {
+    "recommended_count": 3,
+    "next_step_strict_count": 1,
+    "candidate_mode": "strict"
+  },
+  "candidate": {
+    "feature_dir": "D:\\project\\SDD\\specs\\admin-management",
+    "feature_name": "admin-management",
+    "current_stage": "implementation-needs-attention",
+    "risk_tier": "high",
+    "strict_recommended": true,
+    "strict_next_step": true,
+    "strict_summary": {
+      "recommended": true,
+      "next_step_strict": true,
+      "next_command_has_strict_flag": true,
+      "mode": "strict"
+    },
+    "design_version": "design-v3.md",
+    "reports_dir": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3",
+    "approval_status": "APPROVED",
+    "gate2_result": "PASS",
+    "gate3_result": "PASS",
+    "gate4_result": "PASS",
+    "gate5_result": "FAIL",
+    "implementation_result": "WARN",
+    "release_gate_result": null,
+    "release_exception_metadata": {},
+    "next_command": "python scripts/run_pipeline.py approved-implementation-cycle D:\\project\\SDD\\specs\\admin-management --strict",
+    "reason": "implementation-stage gates contain failures; implementation traceability=WARN; real-test admission=FAIL missingReq=3; attached execution=FAIL; gate5 admission=FAIL",
+    "missing_artifacts": [],
+    "blockers": [
+      "gate5: REQ-001 仍包含 TODO 占位符",
+      "gate5: REQ-002 仍包含 TODO 占位符",
+      "gate5: REQ-003 仍包含 TODO 占位符",
+      "gate5: REQ-004 仍包含 TODO 占位符",
+      "gate5: REQ-005 仍包含 TODO 占位符",
+      "gate5: REQ-006 仍包含 TODO 占位符",
+      "gate5: REQ-007 仍包含 TODO 占位符",
+      "gate5: implementation traceability=WARN",
+      "gate5: real-test admission=FAIL",
+      "gate5: attached-execution admission=FAIL"
+    ],
+    "implementation_framework_evidence": {
+      "inherited_matches": 0,
+      "low_confidence_matches": 0,
+      "lombok_inferred_matches": 0,
+      "mybatis_bound_matches": 0,
+      "mybatis_result_map_matches": 0,
+      "low_confidence_resource_keys": [],
+      "owner_classes": [],
+      "inherited_from": [],
+      "mybatis_statement_ids": [],
+      "mybatis_result_map_ids": []
+    },
+    "implementation_match_highlights": [],
+    "implementation_missing_method_details": [],
+    "implementation_ambiguous_classes": [],
+    "real_test_req_admission": {
+      "result": "FAIL",
+      "requirement": "high-risk-p0-req",
+      "required_req_ids": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003"
+      ],
+      "missing_required_req_ids": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-003"
+      ],
+      "message": "high-risk feature requires real-test coverage for all P0 req ids"
+    },
+    "attached_execution_admission": {
+      "result": "FAIL",
+      "required": true,
+      "requirement_reason": "explicit-cli",
+      "execution_status": "FAIL",
+      "command_count": 0,
+      "failed_components": [],
+      "failed_commands": [],
+      "message": "attached execution failed"
+    },
+    "affected_component_execution_admission": {
+      "result": "PASS",
+      "required": true,
+      "required_components": [],
+      "covered_components": [],
+      "missing_components": [],
+      "failed_components": [],
+      "message": "no affected components declared for execution admission"
+    },
+    "gate5_admission_summary": {
+      "result": "FAIL",
+      "admission_results": {
+        "real_test_req": "FAIL",
+        "attached_execution": "FAIL",
+        "affected_component_execution": "PASS"
+      },
+      "failing_admissions": [
+        "attached_execution",
+        "real_test_req"
+      ],
+      "warning_admissions": [],
+      "skipped_admissions": [],
+      "passing_admissions": [
+        "affected_component_execution"
+      ],
+      "failure_count": 2,
+      "warning_count": 0
+    },
+    "gate3_rule_evaluation": {
+      "result": "PASS",
+      "checks": [
+        "序列图分层与依赖方向满足最小约束",
+        "异常处理章节存在有效条目",
+        "事务边界说明已存在",
+        "幂等策略具备关键语义",
+        "外部调用策略具备关键语义"
+      ],
+      "warnings": [],
+      "errors": []
+    },
+    "gate3_ai_review": {
+      "result": "SKIPPED",
+      "mode": "not-configured",
+      "confidence": null,
+      "rationale": "AI semantic review is not configured in the current Gate 3 implementation",
+      "evidence_refs": [],
+      "violations": []
+    },
+    "design_class_resolution_brief": {},
+    "schema_table_resolution_brief": {},
+    "design_resource_claim_summary": {
+      "total": 6,
+      "kinds": [
+        "event",
+        "operation",
+        "table"
+      ],
+      "counts_by_kind": {
+        "event": 2,
+        "operation": 1,
+        "table": 3
+      },
+      "names_by_kind": {
+        "event": [
+          "AdminManagementEvent",
+          "TOPIC_ADMIN_MANAGEMENT"
+        ],
+        "operation": [
+          "POST /api/v1/admin-management"
+        ],
+        "table": [
+          "t_admin_management_brief",
+          "t_admin_management_req",
+          "t_admin_management_support"
+        ]
+      },
+      "resource_keys_by_kind": {
+        "event": [
+          "event::AdminManagementEvent",
+          "event::TOPIC_ADMIN_MANAGEMENT"
+        ],
+        "operation": [
+          "operation::POST /api/v1/admin-management"
+        ],
+        "table": [
+          "table::t_admin_management_brief",
+          "table::t_admin_management_req",
+          "table::t_admin_management_support"
+        ]
+      },
+      "component_ids_by_kind": {},
+      "highlights": {
+        "operation": [
+          "POST /api/v1/admin-management"
+        ],
+        "table": [
+          "t_admin_management_brief",
+          "t_admin_management_req",
+          "t_admin_management_support"
+        ],
+        "event": [
+          "AdminManagementEvent",
+          "TOPIC_ADMIN_MANAGEMENT"
+        ]
+      }
+    },
+    "design_resource_claim_brief": {
+      "counts_by_kind": {
+        "event": 2,
+        "operation": 1,
+        "table": 3
+      },
+      "operation_components": [],
+      "schema_table_components": [],
+      "operation_resource_keys": [
+        "operation::POST /api/v1/admin-management"
+      ],
+      "schema_table_resource_keys": []
+    },
+    "gate_cache": {
+      "gate2": {
+        "status": "PASS",
+        "input_hash": "be6d11e0129904f7c61cc67b5c418b1ada7c8a289aa79d076690ca3fbbda9e70",
+        "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+        "completed_at": null
+      },
+      "gate3": {
+        "status": "PASS",
+        "input_hash": "be6d11e0129904f7c61cc67b5c418b1ada7c8a289aa79d076690ca3fbbda9e70",
+        "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+        "completed_at": null
+      },
+      "gate4": {
+        "status": "PASS",
+        "input_hash": "77768e8aed9c9f0771ea605fa9c858847cd86151891a1a640c17626e39a6c50f",
+        "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+        "completed_at": null
+      },
+      "gate5": {
+        "status": "FAIL",
+        "input_hash": "c84178ac3180e875d4ec636f7e87f6469ddbd0cb1743e338c9a69cee9405fd13",
+        "report_path": "D:\\project\\SDD\\specs\\admin-management\\reports\\v3\\gate-report.json",
+        "completed_at": null
+      }
+    },
+    "state_source": "project-state.json",
+    "project_state_path": "D:\\project\\SDD\\specs\\admin-management\\project-state.json",
+    "project_state_exists": true
+  },
+  "tooling_hygiene": null,
+  "workspace_hygiene": null
+}

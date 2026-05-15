@@ -161,9 +161,9 @@ def get_scalar(data: dict[str, Any], key: str, default: str | None = None) -> st
     return str(value)
 
 
-def get_list(data: dict[str, Any], key: str) -> list[str]:
+def get_list(data: dict[str, Any], key: str) -> list[Any]:
     value = data.get(key)
     if isinstance(value, list):
-        return [str(item) for item in value]
+        return list(value)
     return []
 

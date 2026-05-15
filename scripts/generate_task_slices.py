@@ -15,8 +15,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from concurrency import atomic_write_text, feature_lock
-from versioning import detect_latest_design_path, resolve_feature_dir
-from design_evidence import hash_file
+from versioning import detect_latest_design_path, resolve_feature_dir, reports_dir_for_design
+from design_evidence import hash_file, resolve_design_pack_dir
+from domain.feature_brief import FeatureBrief
 
 
 CROSS_CUTTING_TAGS = {
@@ -176,11 +177,11 @@ def build_slice(
     acceptance_checks: list[str],
     depends_on: list[str] | None = None,
     cross_cutting_checks: list[str] | None = None,
+    implementation_guide: str | None = None,
 ) -> str:
     depends_on = depends_on or []
     cross_cutting_checks = cross_cutting_checks or []
-    return "\n".join(
-        [
+    lines = [
             f"# {slice_id} {title}",
             "",
             "```yaml",
@@ -212,8 +213,15 @@ def build_slice(
             ],
             "```",
             "",
-        ]
-    )
+    ]
+    if implementation_guide:
+        lines.extend([
+            "## 实现指南 (Implementation Guide)",
+            "",
+            implementation_guide,
+            ""
+        ])
+    return "\n".join(lines)
 
 
 def extract_domain_entities(design_text: str) -> list[str]:
@@ -261,25 +269,36 @@ def extract_api_endpoints(design_text: str) -> list[str]:
 
 
 def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str, object]:
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief_path = feature_dir / "feature-brief.md"
     design_path = detect_latest_design_path(feature_dir)
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
 
-    if not feature_brief.exists():
-        return {"result": "FAIL", "errors": [f"missing feature-brief.md: {feature_brief}"], "created": []}
+    if not feature_brief_path.exists():
+        return {"result": "FAIL", "errors": [f"missing feature-brief.md: {feature_brief_path}"], "created": []}
     if not design_path.exists():
         return {"result": "FAIL", "errors": [f"missing design document: {design_path}"], "created": []}
 
     design_content = design_path.read_text(encoding="utf-8", errors="ignore")
-    yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8", errors="ignore")))
-    feature_name = extract_scalar(yaml_text, "feature_name") or feature_dir.name
+    brief_content = feature_brief_path.read_text(encoding="utf-8", errors="ignore")
+    brief = FeatureBrief.from_text(brief_content, feature_dir_name=feature_dir.name)
+    
+    yaml_text = "\n".join(extract_yaml_blocks(brief_content))
+    feature_name = brief.feature_name
     tags = extract_list_items(yaml_text, "capability_tags")
     requirements = extract_requirements(yaml_text)
     acceptance_matrix = extract_design_acceptance_matrix(design_content)
     
+    # Map logic atoms by req_id for quick lookup
+    logic_map = {atom.get("req_id"): atom.get("logic") for atom in brief.logic_atoms}
+    
     entities = extract_domain_entities(design_content)
     apis = extract_api_endpoints(design_content)
+
+    # Detect SQL files in design-pack for artifact-driven tasks
+    reports_dir = reports_dir_for_design(feature_dir, design_path)
+    design_pack_dir = resolve_design_pack_dir(feature_dir, reports_dir)
+    sql_files = sorted(list(design_pack_dir.glob("*.sql"))) if design_pack_dir.exists() else []
 
     with feature_lock(feature_dir, phase="generate-task-slices"):
         created: list[str] = []
@@ -333,13 +352,26 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             if not acceptance_checks:
                 errors.append(f"{req_id} not found in design acceptance matrix")
                 continue
+            
+            guide_lines = []
+            if req_id in logic_map:
+                for logic_step in logic_map[req_id]:
+                    comp = logic_step.get("component", "Unknown")
+                    meth = logic_step.get("method", "unknown")
+                    steps = logic_step.get("steps", [])
+                    guide_lines.append(f"### 在 `{comp}` 中实现 `{meth}`")
+                    for step in steps:
+                        guide_lines.append(f"- [ ] {step}")
+                    guide_lines.append("")
+            
             target = tasks_dir / f"slice-{counter:03d}-biz.md"
             content = build_slice(
                 slice_id=f"SLICE-{counter:03d}-BIZ",
                 title=requirement.get("title") or req_id,
                 req_ids=[req_id],
                 acceptance_checks=acceptance_checks,
-                depends_on=entity_ids + api_ids
+                depends_on=entity_ids + api_ids,
+                implementation_guide="\n".join(guide_lines) if guide_lines else None
             )
             if target.exists() and not force:
                 skipped.append(str(target))
@@ -352,6 +384,20 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             rule = CROSS_CUTTING_TAGS.get(tag)
             if not rule:
                 continue
+            
+            guide = None
+            if tag == "db-change" and sql_files:
+                guide_lines = ["### 执行并验证以下 SQL 资产："]
+                for sql in sql_files:
+                    try:
+                        rel_path = sql.relative_to(feature_dir)
+                    except ValueError:
+                        rel_path = sql.name
+                    guide_lines.append(f"- [ ] `{sql.name}` (路径: `{rel_path}`)")
+                guide_lines.append("")
+                guide_lines.append("执行命令：`python scripts/run_pipeline.py apply-db-changes` (若项目支持)")
+                guide = "\n".join(guide_lines)
+
             target = tasks_dir / f"slice-{counter:03d}-{rule['suffix']}.md"
             all_req_ids = [item["req_id"] for item in requirements]
             all_acceptance_checks = [check for req_id in all_req_ids for check in acceptance_matrix.get(req_id, [])]
@@ -362,6 +408,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
                 acceptance_checks=all_acceptance_checks,
                 cross_cutting_checks=list(rule["cross_cutting_checks"]),
                 depends_on=entity_ids + api_ids + ["SLICE-001-BIZ"] if requirements else [],
+                implementation_guide=guide
             )
             if target.exists() and not force:
                 skipped.append(str(target))
