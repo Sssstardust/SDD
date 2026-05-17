@@ -6,6 +6,7 @@ import * as readline from "node:readline";
 import {
   getConstraints,
   getFeatureRules,
+  getLayeringSemantics,
   getRule,
   listRules,
   readRuleContent,
@@ -101,6 +102,9 @@ function toolDispatch(name: string, argumentsObject: JsonRecord): JsonRecord {
       }, {} as Record<string, string>),
     };
   }
+  if (name === "get_layering_semantics") {
+    return getLayeringSemantics();
+  }
   throw new Error(`未知工具: ${name}`);
 }
 
@@ -159,6 +163,14 @@ function toolDefinitions(): JsonRecord[] {
           rule_files: { type: "array", items: { type: "string" } },
         },
         required: ["feature_type"],
+      },
+    },
+    {
+      name: "get_layering_semantics",
+      description: "返回架构分层语义及调用方向规则 (JSON 格式)",
+      inputSchema: {
+        type: "object",
+        properties: {},
       },
     },
   ];

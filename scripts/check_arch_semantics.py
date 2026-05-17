@@ -267,35 +267,30 @@ def classify_layer(name: str) -> str:
     return classify_layer_with_semantics(name, semantics)
 
 
-def load_layering_semantics() -> dict[str, object]:
-    fallback = {
-        "layers": {
-            "ui": {"suffixes": ["UI"]},
-            "controller": {"suffixes": ["Controller"]},
-            "service": {"suffixes": ["Service"]},
-            "repository": {"suffixes": ["Repository"]},
-            "state_machine": {"suffixes": ["StateMachine"]},
-        },
-        "direction_rules": [
-            {"from": "ui", "allowed_to": ["controller"], "error": "UI 不应直接调用 {dst_name}"},
-            {"from": "controller", "allowed_to": ["service", "state_machine"], "error": "Controller 不应直接调用 {dst_name}"},
-            {"from": "repository", "allowed_to": [], "error": "Repository 不应作为主动调用方: {src_name} -> {dst_name}"},
-            {"from": "service", "forbidden_to": ["ui"], "error": "Service 不应直接依赖 UI: {src_name} -> {dst_name}"},
-            {"from": "state_machine", "forbidden_to": ["ui", "controller"], "error": "StateMachine 不应直接依赖上层: {src_name} -> {dst_name}"},
-        ],
-    }
-    semantics_file = DOCS_LAYERING_SEMANTICS_FILE if DOCS_LAYERING_SEMANTICS_FILE.exists() else MCP_LAYERING_SEMANTICS_FILE
-    if not semantics_file.exists():
-        return fallback
-
+def call_arch_standard_tool(tool_name: str, arguments: dict[str, object] | None = None) -> dict:
+    if not ARCH_STANDARD_SERVER.exists():
+        return {}
+    
+    args_json = json.dumps(arguments or {}, ensure_ascii=False)
     try:
-        data = json.loads(semantics_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return fallback
+        result = subprocess.run(
+            ["node", str(ARCH_STANDARD_SERVER), "--tool", tool_name, "--arguments", args_json],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=str(ROOT),
+        )
+        if result.returncode != 0:
+            return {}
+        return json.loads(result.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError):
+        return {}
 
-    if not isinstance(data, dict):
-        return fallback
-    return data
+
+def load_layering_semantics() -> dict[str, object]:
+    return call_arch_standard_tool("get_layering_semantics")
 
 
 def classify_layer_with_semantics(name: str, semantics: dict[str, object]) -> str:
@@ -373,28 +368,11 @@ def file_matches_requirements(path: Path, required_all: list[str], required_any_
 
 
 def load_arch_feature_rules(feature_type: str, tags: list[str]) -> dict:
-    if not ARCH_STANDARD_SERVER.exists():
-        return {}
     payload = {
         "feature_type": feature_type,
         "capability_tags": tags,
     }
-    result = subprocess.run(
-        ["node", str(ARCH_STANDARD_SERVER), "--tool", "get_feature_rules", "--arguments", json.dumps(payload, ensure_ascii=False)],
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        cwd=str(ROOT),
-    )
-    if result.returncode != 0:
-        return {}
-    try:
-        data = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return {}
-    return data if isinstance(data, dict) else {}
+    return call_arch_standard_tool("get_feature_rules", payload)
 
 
 def main_for_args(argv: list[str] | None = None) -> int:

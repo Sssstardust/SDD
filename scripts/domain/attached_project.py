@@ -231,6 +231,11 @@ def normalize_attachment_payload(payload: dict[str, object]) -> dict[str, object
     return normalized
 
 
+def is_fixture_attachment(path: Path | str) -> bool:
+    lowered = str(path).replace("/", "\\").lower()
+    return "\\examples\\fixtures\\" in lowered or "attached-sample-project" in lowered
+
+
 def build_attachment_project_id(payload: dict[str, object]) -> str:
     explicit = payload.get("project_id")
     if isinstance(explicit, str) and explicit.strip():

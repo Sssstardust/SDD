@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,21 @@ from xml.etree import ElementTree
 
 
 ROOT = Path(__file__).resolve().parents[2]
+# Ensure we can import from scripts/
+if str(ROOT / "scripts") not in sys.path:
+    sys.path.append(str(ROOT / "scripts"))
+
+from domain.attached_project import is_fixture_attachment, load_attached_project_root
+from domain.requirement_heuristics import (
+    ENTITY_TERMS,
+    DEPENDENCY_TERMS,
+    BUSINESS_RULE_HINTS,
+    has_greenfield_signal,
+    infer_capability_tags,
+    infer_feature_type,
+    infer_risk_tier,
+)
+
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.json"
 
 TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "gb18030")
@@ -37,172 +53,6 @@ API_ENTITY_TOKEN_BLACKLIST = {
     "download",
     "push",
     "list",
-}
-GREENFIELD_KEYWORDS = (
-    "新建",
-    "从零",
-    "初始化",
-    "脚手架",
-    "bootstrap",
-    "greenfield",
-    "全新模块",
-    "新项目",
-    "新服务",
-)
-TAG_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "api": (
-        "接口",
-        "api",
-        "rest",
-        "http",
-        "endpoint",
-        "controller",
-        "页面",
-        "查询",
-        "列表",
-        "新增",
-        "创建",
-        "修改",
-        "删除",
-        "审核",
-        "提交",
-        "详情",
-    ),
-    "db-change": (
-        "数据库",
-        "表",
-        "字段",
-        "sql",
-        "索引",
-        "迁移",
-        "schema",
-        "ddl",
-        "新增字段",
-        "调整字段",
-        "表结构",
-    ),
-    "payment": (
-        "支付",
-        "付款",
-        "扣款",
-        "收款",
-        "退款",
-        "对账",
-        "账单",
-        "资金",
-        "分账",
-        "收银",
-    ),
-    "idempotent": (
-        "幂等",
-        "重复提交",
-        "重复请求",
-        "token",
-        "防重",
-        "去重",
-    ),
-    "async": (
-        "异步",
-        "消息",
-        "mq",
-        "topic",
-        "queue",
-        "事件",
-        "订阅",
-        "发布",
-        "回调",
-        "通知",
-    ),
-    "external-call": (
-        "外部",
-        "第三方",
-        "feign",
-        "调用外部",
-        "外部系统",
-        "下游接口",
-        "上游接口",
-        "第三方接口",
-        "合作方",
-        "网关",
-        "渠道",
-    ),
-    "security-sensitive": (
-        "权限",
-        "鉴权",
-        "认证",
-        "授权",
-        "脱敏",
-        "敏感",
-        "审计",
-        "风控",
-        "隐私",
-        "安全",
-    ),
-}
-ENTITY_TERMS = (
-    "订单",
-    "支付",
-    "支付单",
-    "退款",
-    "账单",
-    "账户",
-    "用户",
-    "会员",
-    "商品",
-    "库存",
-    "审批",
-    "审核",
-    "任务",
-    "通知",
-    "消息",
-)
-DEPENDENCY_TERMS = (
-    "mysql",
-    "postgresql",
-    "oracle",
-    "redis",
-    "mq",
-    "kafka",
-    "rocketmq",
-    "rabbitmq",
-    "es",
-    "elasticsearch",
-    "支付渠道",
-    "第三方",
-    "外部系统",
-    "短信",
-    "邮件",
-    "对象存储",
-    "oss",
-    "s3",
-    "微信",
-    "支付宝",
-)
-BUSINESS_RULE_HINTS = (
-    "必须",
-    "不得",
-    "不能",
-    "需要",
-    "需",
-    "应当",
-    "仅",
-    "校验",
-    "限制",
-    "重试",
-    "超时",
-    "回滚",
-    "幂等",
-)
-FEATURE_TYPE_HINTS = {
-    "payment": ("支付", "付款", "退款", "扣款", "对账"),
-    "review": ("审核", "审批", "复核"),
-    "pricing": ("资费", "套餐", "价格", "计费"),
-    "notification": ("通知", "消息", "短信", "邮件"),
-    "batch": ("批量", "定时", "批处理", "任务"),
-    "async": ("异步", "事件", "回调", "mq"),
-    "data-change": ("字段", "表结构", "数据库", "ddl", "迁移"),
-    "crud": ("新增", "创建", "修改", "删除", "列表", "详情", "查询"),
-    "new-domain": ("新建", "从零", "全新模块", "新项目", "新服务"),
 }
 
 REQUIRED_CLARIFY_FIELDS = ("feature_name", "feature_type", "entities", "business_rules")
@@ -269,11 +119,6 @@ def first_heading_or_line(text: str) -> str:
     return "auto-feature"
 
 
-def score_tag(text: str, keywords: tuple[str, ...]) -> int:
-    lower = text.lower()
-    return sum(1 for keyword in keywords if keyword.lower() in lower)
-
-
 def has_text_signal(text: str, signals: tuple[str, ...]) -> bool:
     return any(signal in text for signal in signals)
 
@@ -290,44 +135,6 @@ def is_multi_domain_platform_demand(text: str) -> bool:
     return matched_groups >= 3
 
 
-def infer_capability_tags(text: str, apis: list[dict[str, str]]) -> list[str]:
-    scores = {tag: score_tag(text, keywords) for tag, keywords in TAG_KEYWORDS.items()}
-    tags = {tag for tag, score in scores.items() if score >= 1}
-
-    if apis:
-        tags.add("api")
-    if has_text_signal(text, ("员工档案", "组织架构", "审批", "请假", "加班", "报销", "公告", "考勤", "打卡", "文件网盘", "在线预览")):
-        tags.add("api")
-    if scores["async"] >= 2 or ("异步" in text and any(word in text for word in ("通知", "事件", "回调"))):
-        tags.add("async")
-    if scores["external-call"] >= 2 or ("第三方" in text and "接口" in text):
-        tags.add("external-call")
-    if "审核人" in text or "审核时间" in text:
-        tags.add("db-change")
-    if has_text_signal(text, ("员工档案", "组织架构", "请假", "加班", "报销", "流程自定义", "考勤", "打卡", "文件网盘", "在线预览")):
-        tags.add("db-change")
-    if any(word in text for word in ("重复提交", "重复调用", "防重")):
-        tags.add("idempotent")
-    if has_text_signal(text, ("权限", "角色", "多角色", "员工档案", "考勤", "打卡", "审计", "隐私")):
-        tags.add("security-sensitive")
-    if not tags:
-        tags.add("api")
-
-    return sorted(tags)
-
-
-def infer_risk_tier(tags: set[str]) -> str:
-    if "payment" in tags:
-        return "high"
-    if "async" in tags and "db-change" in tags:
-        return "high"
-    if "security-sensitive" in tags:
-        return "high"
-    if "external-call" in tags and "payment" in tags:
-        return "high"
-    return "low"
-
-
 def load_attached_project_root() -> Path | None:
     if not ATTACHED_PROJECT_PATH.exists():
         return None
@@ -341,50 +148,25 @@ def load_attached_project_root() -> Path | None:
     return Path(project_root)
 
 
-def is_fixture_attachment(path: Path) -> bool:
-    lowered = str(path).replace("/", "\\").lower()
-    return "\\examples\\fixtures\\" in lowered or "attached-sample-project" in lowered
-
-
 def detect_project_mode(text: str) -> tuple[str, list[str], float]:
-    lower = text.lower()
-    has_greenfield_signal = any(keyword.lower() in lower for keyword in GREENFIELD_KEYWORDS)
+    has_green_signal = has_greenfield_signal(text)
     attached_project_root = load_attached_project_root()
     has_real_attached_project = bool(attached_project_root and not is_fixture_attachment(attached_project_root))
 
     evidence: list[str] = []
     if has_real_attached_project:
         evidence.append(f"检测到附着目标项目：{attached_project_root}")
-    if has_greenfield_signal:
+    if has_green_signal:
         evidence.append("需求文本命中 greenfield 关键词")
 
-    if has_greenfield_signal and not has_real_attached_project:
+    if has_green_signal and not has_real_attached_project:
         return "greenfield", evidence or ["需求明显为新建工程"], 0.88
-    if has_greenfield_signal and has_real_attached_project:
+    if has_green_signal and has_real_attached_project:
         evidence.append("同时存在存量工程与新建工程信号")
         return "hybrid", evidence, 0.72
     if has_real_attached_project:
         return "brownfield", evidence, 0.86
     return "hybrid", evidence or ["当前仅有 SDD 工作区上下文，缺少真实业务工程事实"], 0.60
-
-
-def infer_feature_type(title: str, text: str, tags: set[str]) -> str:
-    lower_title = title.lower()
-    lower_text = text.lower()
-    if "payment" in tags:
-        return "payment"
-    if is_multi_domain_platform_demand(text):
-        return "general"
-    if "security-sensitive" in tags and any(token in text for token in ("审核", "审批")):
-        return "review"
-    for feature_type, hints in FEATURE_TYPE_HINTS.items():
-        if any(hint.lower() in lower_title or hint.lower() in lower_text for hint in hints):
-            return feature_type
-    if "async" in tags:
-        return "async"
-    if "db-change" in tags:
-        return "data-change"
-    return "general"
 
 
 def split_candidate_items(text: str) -> list[str]:
@@ -423,7 +205,6 @@ def make_requirement_title(text: str) -> str:
 
 
 def infer_requirement_priority(text: str, index: int) -> str:
-    lowered = text.lower()
     if any(token in text for token in ("P0", "必须", "核心", "主流程", "关键")):
         return "P0"
     if any(token in text for token in ("可选", "优化", "增强", "P2")):
@@ -744,7 +525,7 @@ def build_heuristic_result(source_path: Path, text: str, confirmed_by: str) -> d
     project_mode, evidence, confidence = detect_project_mode(text)
     apis = extract_apis(text)
     requirements = extract_requirements(text)
-    capability_tags = infer_capability_tags(text, apis)
+    capability_tags = infer_capability_tags(text, bool(apis))
     entities = extract_entities(text, apis)
     business_rules = extract_business_rules(text)
     dependencies = extract_dependencies(text)
@@ -998,33 +779,6 @@ def validate_structured_prd(data: dict[str, Any]) -> list[str]:
 
     if data.get("project_mode") not in {"brownfield", "greenfield", "hybrid"}:
         errors.append("project_mode 非法")
-
-    if data.get("risk_tier") not in {"low", "high"}:
-        errors.append("risk_tier 非法")
-
-    try:
-        confidence = float(data.get("project_mode_confidence"))
-        if not (0 <= confidence <= 1):
-            errors.append("project_mode_confidence 必须在 0~1 之间")
-    except (TypeError, ValueError):
-        errors.append("project_mode_confidence 必须为数字")
-
-    requirements = data.get("requirements") or []
-    if not isinstance(requirements, list) or not requirements:
-        errors.append("requirements 不能为空")
-    else:
-        if not any(str(item.get("priority")) == "P0" for item in requirements if isinstance(item, dict)):
-            errors.append("requirements 至少需要一个 P0")
-
-    for key in ("capability_tags", "ambiguities", "entities", "apis", "business_rules", "dependencies"):
-        if not isinstance(data.get(key), list):
-            errors.append(f"{key} 必须是数组")
-
-    clarify = data.get("clarify")
-    if data.get("status") == "clarify" and not isinstance(clarify, dict):
-        errors.append("clarify 状态下必须提供 clarify 对象")
-
-    return errors
 
 
 def infer_modules(tags: list[str]) -> str:
@@ -1383,7 +1137,7 @@ requirements:
 
 - 背景：{background}
 - 业务目标：{business_goal}
-- 非目标：{non_goal}
+- 非 goal：{non_goal}
 - 成功标准：{success_standard}
 
 ### 5.1 需求优先级映射

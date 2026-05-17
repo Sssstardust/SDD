@@ -1,9 +1,42 @@
 #!/usr/bin/env node
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const fs = require("node:fs");
-const path = require("node:path");
-const readline = require("node:readline");
+const fs = __importStar(require("node:fs"));
+const path = __importStar(require("node:path"));
+const readline = __importStar(require("node:readline"));
 const rule_map_1 = require("./rule-map");
 const PACKAGE = JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"));
 function parseArgs(argv) {
@@ -54,6 +87,12 @@ function listRuleFiles() {
     }));
 }
 function toolDispatch(name, argumentsObject) {
+    if (name === "health_check") {
+        return {
+            status: "ok",
+            reason: "arch-standard rules are readable from docs/arch-standards",
+        };
+    }
     if (name === "list_rules") {
         return {
             count: (0, rule_map_1.listRules)().length,
@@ -82,6 +121,9 @@ function toolDispatch(name, argumentsObject) {
             }, {}),
         };
     }
+    if (name === "get_layering_semantics") {
+        return (0, rule_map_1.getLayeringSemantics)();
+    }
     throw new Error(`未知工具: ${name}`);
 }
 function runCli(tool, argumentsText) {
@@ -90,6 +132,14 @@ function runCli(tool, argumentsText) {
 }
 function toolDefinitions() {
     return [
+        {
+            name: "health_check",
+            description: "返回 MCP Server 健康状态",
+            inputSchema: {
+                type: "object",
+                properties: {},
+            },
+        },
         {
             name: "list_rules",
             description: "列出可用架构规范及对应规则文件",
@@ -130,6 +180,14 @@ function toolDefinitions() {
                     rule_files: { type: "array", items: { type: "string" } },
                 },
                 required: ["feature_type"],
+            },
+        },
+        {
+            name: "get_layering_semantics",
+            description: "返回架构分层语义及调用方向规则 (JSON 格式)",
+            inputSchema: {
+                type: "object",
+                properties: {},
             },
         },
     ];

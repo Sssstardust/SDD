@@ -1,7 +1,7 @@
 {
   "feature_name": "task-board",
   "design_version": "design-v2.md",
-  "updated_at": "2026-05-07T08:29:35.005180+00:00",
+  "updated_at": "2026-05-17T07:01:27.928080+00:00",
   "gate2": {
     "result": "PASS",
     "checks": [
@@ -92,15 +92,44 @@
     }
   },
   "gate3": {
-    "result": "PASS",
+    "result": "FAIL",
+    "rule_evaluation": {
+      "result": "FAIL",
+      "checks": [
+        "序列图分层与依赖方向满足最小约束",
+        "异常处理章节存在有效条目",
+        "事务边界说明已存在"
+      ],
+      "warnings": [],
+      "errors": [
+        "外部调用策略缺少关键语义：超时 / 重试 / 熔断 / 降级 / fallback"
+      ]
+    },
+    "ai_review": {
+      "result": "SKIPPED",
+      "mode": "not-configured",
+      "confidence": null,
+      "rationale": "AI semantic review is not configured in the current Gate 3 implementation",
+      "evidence_refs": [],
+      "violations": []
+    },
     "checks": [
       "序列图分层与依赖方向满足最小约束",
       "异常处理章节存在有效条目",
-      "事务边界说明已存在",
-      "外部调用策略具备关键语义"
+      "事务边界说明已存在"
     ],
     "warnings": [],
-    "errors": []
+    "errors": [
+      "外部调用策略缺少关键语义：超时 / 重试 / 熔断 / 降级 / fallback"
+    ],
+    "violations": [
+      {
+        "rule": "gate3-error-001",
+        "severity": "error",
+        "location": null,
+        "detail": "外部调用策略缺少关键语义：超时 / 重试 / 熔断 / 降级 / fallback"
+      }
+    ]
   },
   "gate1": {
     "result": "PASS",
@@ -142,12 +171,13 @@
   },
   "gate4": {
     "result": "PASS",
-    "test_file": "D:\\project\\SDD\\src\\test\\java\\generated\\design\\task-board\\TaskBoardDesignVerificationTest.java",
+    "test_file": "D:\\project\\SDD\\src\\test\\java\\sdd\\generated\\task_board\\TaskBoardDesignVerificationTest.java",
     "test_file_preserved": false,
-    "mapping_count": 5,
+    "mapping_count": 6,
     "report_file": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate4-skeleton.json",
     "warnings": [],
-    "errors": []
+    "errors": [],
+    "violations": []
   },
   "gate5": {
     "result": "PASS",

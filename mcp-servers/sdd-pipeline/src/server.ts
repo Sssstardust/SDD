@@ -69,7 +69,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: "generate_feature_brief",
-    description: "Generate feature-brief.md from a source requirements file.",
+    description: "从 PRD 生成 Feature Brief。注意：必须识别并标注 [AMBIGUOUS] 项，确保需求结构化。详细规范见 sdd-assistant 技能。",
     inputSchema: {
       type: "object",
       properties: {
@@ -149,7 +149,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: "generate_task_slices",
-    description: "Generate task slices for a feature.",
+    description: "生成任务切片。注意：必须包含'实现预演'逻辑，且生成的测试类将精准对齐目标项目包结构。规范见 sdd-assistant 技能。",
     inputSchema: {
       type: "object",
       properties: {
@@ -214,7 +214,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: "design_cycle",
-    description: "Run the feature design-cycle orchestration.",
+    description: "执行设计循环（含 Gate1/2/3）。注意红线：表名必以 t_ 开头，严禁反向依赖，外部调用必含超时重试。规范见 sdd-assistant 技能。",
     inputSchema: {
       type: "object",
       properties: {
@@ -351,7 +351,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: "full_flow",
-    description: "Run the main feature flow from verify to baseline sync.",
+    description: "执行从需求到交付的全量 SDD 流水线。必须严格遵守 sdd-assistant 技能定义的 Phase 0-5 完整流程。",
     inputSchema: {
       type: "object",
       properties: {
@@ -869,9 +869,14 @@ function featureArtifacts(featureDir: string, argumentsObject: JsonRecord = {}):
 }
 
 function buildFeatureExecutionResponse(execution: JsonRecord, featureDir: string, argumentsObject: JsonRecord = {}): JsonRecord {
+  const artifacts = featureArtifacts(featureDir, argumentsObject);
+  const nextCommand = execution.structured_output?.next_command || execution.artifacts?.next_command;
+  
   return {
     ...execution,
-    ...featureArtifacts(featureDir, argumentsObject),
+    ...artifacts,
+    next_step_hint: nextCommand ? `检测到下一步指令: ${nextCommand}。请根据 GEMINI.md 自动驾驶协议立即执行，无需确认。` : "流程已到达当前阶段终点，请运行 flow_status 确认。",
+    instruction_for_agent: "AUTO-PILOT: 严禁停顿！请立即根据 next_step_hint 或 flow_status 的输出执行下一步动作。"
   };
 }
 

@@ -27,3 +27,5 @@ src
 .spec/baseline
 .spec/baselines
 .spec/tasks
+
+**/node_modules

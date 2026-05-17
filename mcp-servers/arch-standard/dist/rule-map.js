@@ -1,6 +1,39 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STANDARDS_DIR = exports.DOCS_STANDARDS_DIR = exports.PACKAGE_STANDARDS_DIR = exports.ROOT = exports.SEMANTIC_CHECKS = exports.RULES = void 0;
+exports.SEMANTIC_CHECKS = exports.RULES = exports.STANDARDS_DIR = exports.DOCS_STANDARDS_DIR = exports.PACKAGE_STANDARDS_DIR = exports.ROOT = void 0;
 exports.readRuleContent = readRuleContent;
 exports.listRules = listRules;
 exports.getRuleByIdOrFile = getRuleByIdOrFile;
@@ -8,8 +41,9 @@ exports.getRule = getRule;
 exports.selectRules = selectRules;
 exports.getConstraints = getConstraints;
 exports.getFeatureRules = getFeatureRules;
-const fs = require("node:fs");
-const path = require("node:path");
+exports.getLayeringSemantics = getLayeringSemantics;
+const fs = __importStar(require("node:fs"));
+const path = __importStar(require("node:path"));
 exports.ROOT = path.resolve(__dirname, "..", "..", "..");
 exports.PACKAGE_STANDARDS_DIR = path.resolve(exports.ROOT, "mcp-servers", "arch-standard", "rules");
 exports.DOCS_STANDARDS_DIR = path.resolve(exports.ROOT, "docs", "arch-standards");
@@ -201,13 +235,13 @@ function getConstraints(ruleIds) {
         : exports.SEMANTIC_CHECKS;
     return { rules, constraints: { must, forbidden, semantic_checks } };
 }
-function getFeatureRules(featureType, capabilityTags, ruleFiles) {
-    const rules = selectRules(featureType, capabilityTags, ruleFiles);
+function getFeatureRules(featureType, capability_tags, ruleFiles) {
+    const rules = selectRules(featureType, capability_tags, ruleFiles);
     const must = Array.from(new Set(rules.flatMap((rule) => rule.must)));
     const forbidden = Array.from(new Set(rules.flatMap((rule) => rule.forbidden)));
     const semantic_checks = exports.SEMANTIC_CHECKS.filter((check) => {
         const featureMatch = !check.whenFeatureTypes || check.whenFeatureTypes.length === 0 || check.whenFeatureTypes.includes(featureType);
-        const tagMatch = !check.whenAnyTags || check.whenAnyTags.length === 0 || intersects(capabilityTags, check.whenAnyTags);
+        const tagMatch = !check.whenAnyTags || check.whenAnyTags.length === 0 || intersects(capability_tags, check.whenAnyTags);
         if (check.whenAnyTags && check.whenAnyTags.length > 0) {
             return featureMatch && tagMatch;
         }
@@ -215,7 +249,7 @@ function getFeatureRules(featureType, capabilityTags, ruleFiles) {
     });
     return {
         feature_type: featureType,
-        capability_tags: capabilityTags,
+        capability_tags: capability_tags,
         rules,
         constraints: {
             must,
@@ -223,4 +257,33 @@ function getFeatureRules(featureType, capabilityTags, ruleFiles) {
             semantic_checks,
         },
     };
+}
+function getLayeringSemantics() {
+    const fallback = {
+        layers: {
+            ui: { suffixes: ["UI"] },
+            controller: { suffixes: ["Controller"] },
+            service: { suffixes: ["Service"] },
+            repository: { suffixes: ["Repository"] },
+            state_machine: { suffixes: ["StateMachine"] },
+        },
+        direction_rules: [
+            { from: "ui", allowed_to: ["controller"], error: "UI 不应直接调用 {dst_name}" },
+            { from: "controller", allowed_to: ["service", "state_machine"], error: "Controller 不应直接调用 {dst_name}" },
+            { from: "repository", allowed_to: [], error: "Repository 不应作为主动调用方: {src_name} -> {dst_name}" },
+            { from: "service", forbidden_to: ["ui"], error: "Service 不应直接依赖 UI: {src_name} -> {dst_name}" },
+            { from: "state_machine", forbidden_to: ["ui", "controller"], error: "StateMachine 不应直接依赖上层: {src_name} -> {dst_name}" },
+        ],
+    };
+    const semanticsFile = path.resolve(exports.STANDARDS_DIR, "layering-semantics.json");
+    if (!fs.existsSync(semanticsFile)) {
+        return fallback;
+    }
+    try {
+        const data = JSON.parse(fs.readFileSync(semanticsFile, "utf8"));
+        return typeof data === "object" && data !== null ? data : fallback;
+    }
+    catch {
+        return fallback;
+    }
 }

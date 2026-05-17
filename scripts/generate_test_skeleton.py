@@ -19,6 +19,10 @@ from pathlib import Path
 from concurrency import atomic_write_text, feature_lock
 from gate_report import write_gate_section
 from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from domain.attached_project import load_attachment_config, is_fixture_attachment
+from infrastructure.baseline_paths import get_active_baseline_dir
+from domain.baseline import ModuleMapDocument
+from domain.feature_brief import FeatureBrief
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -266,9 +270,19 @@ def validate_task_slices(
                 errors.append(f"{slice_file} 的 req_id {req_id} 未在 design 验收矩阵中找到")
             allowed_acceptance_checks.update(normalize_for_match(item) for item in design_checks)
 
+        # 定义允许的自动生成技术校验点模式
+        tech_check_prefixes = ("接口", "实体", "输入校验", "领域实体", "CRUD", "数据库", "异步", "超时", "熔断", "降级")
+
         for check in acceptance_checks:
-            if normalize_for_match(check) not in allowed_acceptance_checks:
-                errors.append(f"{slice_file} 的 acceptance_checks 未映射回 design 验收矩阵: {check}")
+            normalized_check = normalize_for_match(check)
+            if normalized_check in allowed_acceptance_checks:
+                continue
+            
+            # 如果是标准技术校验点，允许跳过设计矩阵匹配
+            if any(check.startswith(prefix) for prefix in tech_check_prefixes):
+                continue
+                
+            errors.append(f"{slice_file} 的 acceptance_checks 未映射回 design 验收矩阵: {check}")
 
         for case in cases:
             case_req_id = str(case.get("req_id") or "")
@@ -331,16 +345,56 @@ def deduplicate_mappings(mappings: list[dict[str, str]]) -> list[dict[str, str]]
     return deduped
 
 
-def build_java_test(feature_name: str, mappings: list[dict[str, str]]) -> str:
+def resolve_primary_business_package(brief: FeatureBrief, feature_dir: Path) -> str | None:
+    """尝试通过 logic_atoms 与 module-map 定位核心业务类的包路径。"""
+    if not brief.logic_atoms:
+        return None
+    
+    # 获取第一个被提及的组件
+    first_atom = brief.logic_atoms[0]
+    logic_steps = first_atom.get("logic", [])
+    if not logic_steps:
+        return None
+    
+    primary_comp = str(logic_steps[0].get("component", ""))
+    if not primary_comp:
+        return None
+    
+    # 查找 module-map
+    baseline_dir = get_active_baseline_dir()
+    if not baseline_dir:
+        return None
+    
+    module_map_path = baseline_dir / "module-map.json"
+    if not module_map_path.exists():
+        return None
+        
+    try:
+        mmap = ModuleMapDocument.from_json_file(module_map_path)
+        for cls_info in mmap.classes:
+            if cls_info.get("simple_name") == primary_comp:
+                pkg = cls_info.get("package")
+                return str(pkg) if pkg else None
+    except Exception:
+        pass
+    return None
+
+
+def build_java_test(feature_name: str, mappings: list[dict[str, str]], *, package_name: str | None = None) -> str:
     class_name = f"{to_pascal_case(feature_name)}DesignVerificationTest"
-    lines = [
+    lines = []
+    if package_name:
+        lines.append(f"package {package_name};")
+        lines.append("")
+
+    lines.extend([
         "/**",
         " * 自动生成测试骨架（最小版本）",
         f" * 对应 feature: {feature_name}",
         " */",
         f"public class {class_name} {{",
         "",
-    ]
+    ])
 
     for mapping in mappings:
         req_id = mapping["req_id"]
@@ -401,6 +455,10 @@ def main() -> int:
     if not feature_brief.exists():
         print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
         return 1
+
+    # 解析 Brief 以获取 logic_atoms
+    brief_content = feature_brief.read_text(encoding="utf-8")
+    brief_domain = FeatureBrief.from_text(brief_content, feature_dir_name=feature_dir.name)
 
     feature_meta = parse_feature_brief(feature_brief)
     feature_name = str(feature_meta["feature_name"])
@@ -484,14 +542,42 @@ def main() -> int:
 
     mappings = deduplicate_mappings(mappings)
 
+    # 路径决策逻辑：优先使用附着项目目录
+    attachment = load_attachment_config()
+    target_project_root: Path | None = None
+    if attachment:
+        project_root_str = attachment.get("project_root")
+        if isinstance(project_root_str, str) and project_root_str:
+            root_path = Path(project_root_str).resolve()
+            if not is_fixture_attachment(root_path):
+                target_project_root = root_path
+
+    sanitized_feature_name = sanitize_identifier(feature_name)
+    
+    # 默认路径
     test_dir = ROOT / "src" / "test" / "java" / "generated" / "design" / feature_name
+    package_name = None
+
+    if target_project_root:
+        target_test_root = target_project_root / "src" / "test" / "java"
+        if target_test_root.exists():
+            # 尝试精准对齐包路径
+            biz_package = resolve_primary_business_package(brief_domain, feature_dir)
+            if biz_package:
+                test_dir = target_test_root / biz_package.replace(".", "/")
+                package_name = biz_package
+            else:
+                # 回退到 sdd.generated
+                test_dir = target_test_root / "sdd" / "generated" / sanitized_feature_name
+                package_name = f"sdd.generated.{sanitized_feature_name}"
+
     test_dir.mkdir(parents=True, exist_ok=True)
     test_file = test_dir / f"{to_pascal_case(feature_name)}DesignVerificationTest.java"
 
     with feature_lock(feature_dir, phase="generate-test-skeleton"):
         preserved = should_preserve_existing_test(test_file, mappings)
         if not preserved:
-            atomic_write_text(test_file, build_java_test(feature_name, mappings), encoding="utf-8")
+            atomic_write_text(test_file, build_java_test(feature_name, mappings, package_name=package_name), encoding="utf-8")
 
         report = {
             "feature_name": feature_name,

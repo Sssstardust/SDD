@@ -1,18 +1,22 @@
 {
   "feature_name": "task-board",
   "design_version": "design-v2.md",
-  "generated_at": "2026-05-06T02:25:42.466703+00:00",
+  "locked_design_version": "design-v2.md",
+  "locked_design_hash": "29bb97bb2424c269a9ecba9796d22dcc9ece01aca0930577229ec5c8b4fd5961",
+  "generated_at": "2026-05-17T06:53:46.501815+00:00",
   "result": "PASS",
   "created": [
-    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-001-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-001-api.md",
     "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-002-biz.md",
     "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-003-biz.md",
     "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-004-biz.md",
     "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-005-biz.md",
-    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-006-db.md",
-    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-007-async.md",
-    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-008-external.md"
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-006-biz.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-007-db.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-008-async.md",
+    "D:\\project\\SDD\\specs\\task-board\\tasks\\slice-009-external.md"
   ],
   "skipped": [],
-  "errors": []
+  "errors": [],
+  "manifest": "D:\\project\\SDD\\specs\\task-board\\tasks\\task-slices.generated.json"
 }

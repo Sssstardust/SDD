@@ -240,13 +240,13 @@ export function getConstraints(ruleIds?: string[]): { rules: RuleMeta[]; constra
   return { rules, constraints: { must, forbidden, semantic_checks } };
 }
 
-export function getFeatureRules(featureType: string, capabilityTags: string[], ruleFiles?: string[]): FeatureRuleResponse {
-  const rules = selectRules(featureType, capabilityTags, ruleFiles);
+export function getFeatureRules(featureType: string, capability_tags: string[], ruleFiles?: string[]): FeatureRuleResponse {
+  const rules = selectRules(featureType, capability_tags, ruleFiles);
   const must = Array.from(new Set(rules.flatMap((rule) => rule.must)));
   const forbidden = Array.from(new Set(rules.flatMap((rule) => rule.forbidden)));
   const semantic_checks = SEMANTIC_CHECKS.filter((check) => {
     const featureMatch = !check.whenFeatureTypes || check.whenFeatureTypes.length === 0 || check.whenFeatureTypes.includes(featureType);
-    const tagMatch = !check.whenAnyTags || check.whenAnyTags.length === 0 || intersects(capabilityTags, check.whenAnyTags);
+    const tagMatch = !check.whenAnyTags || check.whenAnyTags.length === 0 || intersects(capability_tags, check.whenAnyTags);
     if (check.whenAnyTags && check.whenAnyTags.length > 0) {
       return featureMatch && tagMatch;
     }
@@ -255,7 +255,7 @@ export function getFeatureRules(featureType: string, capabilityTags: string[], r
 
   return {
     feature_type: featureType,
-    capability_tags: capabilityTags,
+    capability_tags: capability_tags,
     rules,
     constraints: {
       must,
@@ -264,3 +264,36 @@ export function getFeatureRules(featureType: string, capabilityTags: string[], r
     },
   };
 }
+
+
+export function getLayeringSemantics(): Record<string, any> {
+  const fallback = {
+    layers: {
+      ui: { suffixes: ["UI"] },
+      controller: { suffixes: ["Controller"] },
+      service: { suffixes: ["Service"] },
+      repository: { suffixes: ["Repository"] },
+      state_machine: { suffixes: ["StateMachine"] },
+    },
+    direction_rules: [
+      { from: "ui", allowed_to: ["controller"], error: "UI 不应直接调用 {dst_name}" },
+      { from: "controller", allowed_to: ["service", "state_machine"], error: "Controller 不应直接调用 {dst_name}" },
+      { from: "repository", allowed_to: [], error: "Repository 不应作为主动调用方: {src_name} -> {dst_name}" },
+      { from: "service", forbidden_to: ["ui"], error: "Service 不应直接依赖 UI: {src_name} -> {dst_name}" },
+      { from: "state_machine", forbidden_to: ["ui", "controller"], error: "StateMachine 不应直接依赖上层: {src_name} -> {dst_name}" },
+    ],
+  };
+
+  const semanticsFile = path.resolve(STANDARDS_DIR, "layering-semantics.json");
+  if (!fs.existsSync(semanticsFile)) {
+    return fallback;
+  }
+
+  try {
+    const data = JSON.parse(fs.readFileSync(semanticsFile, "utf8"));
+    return typeof data === "object" && data !== null ? data : fallback;
+  } catch {
+    return fallback;
+  }
+}
+

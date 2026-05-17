@@ -1,10 +1,19 @@
 {
   "feature_name": "task-board",
   "design_version": "design-v2.md",
-  "generated_at": "2026-05-06T02:29:57.144954+00:00",
-  "test_file": "D:\\project\\SDD\\src\\test\\java\\generated\\design\\task-board\\TaskBoardDesignVerificationTest.java",
+  "generated_at": "2026-05-17T07:01:27.921157+00:00",
+  "test_file": "D:\\project\\SDD\\src\\test\\java\\sdd\\generated\\task_board\\TaskBoardDesignVerificationTest.java",
   "test_file_preserved": false,
   "mappings": [
+    {
+      "slice_file": "slice-001-api.md",
+      "slice_id": "SLICE-001-API",
+      "req_id": "REQ-001",
+      "priority": "P0",
+      "description": "接口 POST /api/v1/task-board 响应符合定义",
+      "case_id": "TC-001",
+      "test_method": "test_req_001_post_api_v1_task_board"
+    },
     {
       "slice_file": "slice-001-biz.md",
       "slice_id": "SLICE-001-BIZ",
@@ -15,8 +24,8 @@
       "test_method": "test_req_001_crud"
     },
     {
-      "slice_file": "slice-002-biz.md",
-      "slice_id": "SLICE-002-BIZ",
+      "slice_file": "slice-003-biz.md",
+      "slice_id": "SLICE-003-BIZ",
       "req_id": "REQ-002",
       "priority": "P0",
       "description": "看板拖拽排序 可通过接口或集成测试验证",
@@ -24,8 +33,8 @@
       "test_method": "test_req_002_case"
     },
     {
-      "slice_file": "slice-003-biz.md",
-      "slice_id": "SLICE-003-BIZ",
+      "slice_file": "slice-004-biz.md",
+      "slice_id": "SLICE-004-BIZ",
       "req_id": "REQ-003",
       "priority": "P1",
       "description": "通知与到期提醒 可通过接口或集成测试验证",
@@ -33,8 +42,8 @@
       "test_method": "test_req_003_case"
     },
     {
-      "slice_file": "slice-004-biz.md",
-      "slice_id": "SLICE-004-BIZ",
+      "slice_file": "slice-005-biz.md",
+      "slice_id": "SLICE-005-BIZ",
       "req_id": "REQ-004",
       "priority": "P1",
       "description": "评论与动态记录 可通过接口或集成测试验证",
@@ -42,8 +51,8 @@
       "test_method": "test_req_004_case"
     },
     {
-      "slice_file": "slice-005-biz.md",
-      "slice_id": "SLICE-005-BIZ",
+      "slice_file": "slice-006-biz.md",
+      "slice_id": "SLICE-006-BIZ",
       "req_id": "REQ-005",
       "priority": "P0",
       "description": "权限与并发控制 可通过接口或集成测试验证",

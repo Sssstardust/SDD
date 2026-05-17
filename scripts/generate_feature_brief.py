@@ -15,92 +15,15 @@ from pathlib import Path
 
 from concurrency import atomic_write_text, feature_lock
 from versioning import resolve_feature_dir
+from domain.requirement_heuristics import (
+    has_greenfield_signal,
+    infer_capability_tags,
+    infer_feature_type,
+    infer_risk_tier,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
-
-GREENFIELD_KEYWORDS = ["新建", "从零", "初始化", "脚手架", "bootstrap", "greenfield", "全新模块", "新项目"]
-TAG_KEYWORDS = {
-    "api": [
-        "接口",
-        "api",
-        "rest",
-        "http",
-        "endpoint",
-        "controller",
-        "页面",
-        "列表页",
-        "详情页",
-        "查询",
-        "列表",
-        "新增",
-        "创建",
-        "修改",
-        "编辑",
-        "删除",
-        "审核",
-        "提交",
-        "启用",
-        "驳回",
-        "详情",
-    ],
-    "db-change": [
-        "数据库",
-        "表",
-        "字段",
-        "sql",
-        "索引",
-        "迁移",
-        "schema",
-        "ddl",
-        "新增字段",
-        "调整字段",
-        "表结构",
-    ],
-    "payment": [
-        "支付",
-        "付款",
-        "扣款",
-        "收款",
-        "退款",
-        "对账",
-        "账单",
-        "资金",
-        "分账",
-        "收银",
-    ],
-    "idempotent": [
-        "幂等",
-        "重复提交",
-        "重复请求",
-        "token",
-        "防重",
-        "去重",
-    ],
-    "async": [
-        "异步",
-        "消息",
-        "mq",
-        "topic",
-        "queue",
-        "事件",
-        "订阅",
-        "发布",
-        "回调",
-        "通知",
-    ],
-    "external-call": [
-        "外部",
-        "第三方",
-        "feign",
-        "调用外部",
-        "外部系统",
-        "下游接口",
-        "上游接口",
-        "第三方接口",
-        "合作方",
-    ],
-}
 
 
 def read_source(path: Path) -> str:
@@ -120,10 +43,8 @@ def first_heading_or_line(text: str) -> str:
 
 
 def detect_project_mode(text: str) -> tuple[str, list[str], float]:
-    lower = text.lower()
-    for keyword in GREENFIELD_KEYWORDS:
-        if keyword.lower() in lower:
-            return "greenfield", [f"文本命中 greenfield 关键词：{keyword}"], 0.85
+    if has_greenfield_signal(text):
+        return "greenfield", [f"需求文本命中 greenfield 信号"], 0.85
 
     evidence: list[str] = []
     if (ROOT / "src" / "main" / "java").exists():
@@ -133,69 +54,6 @@ def detect_project_mode(text: str) -> tuple[str, list[str], float]:
     if not evidence:
         evidence.append("未命中 greenfield 信号，默认按 brownfield 处理")
     return "brownfield", evidence, 0.80
-
-
-def score_tag(text: str, keywords: list[str]) -> int:
-    lower = text.lower()
-    score = 0
-    for keyword in keywords:
-        if keyword.lower() in lower:
-            score += 1
-    return score
-
-
-def infer_tags(text: str) -> list[str]:
-    scores = {tag: score_tag(text, keywords) for tag, keywords in TAG_KEYWORDS.items()}
-    tags = [tag for tag, score in scores.items() if score >= 1]
-
-    # 强化几类高价值标签的判断精度
-    if scores["payment"] >= 1:
-        tags.append("payment")
-    if scores["async"] >= 2 or ("异步" in text and ("通知" in text or "事件" in text)):
-        tags.append("async")
-    if scores["external-call"] >= 2 or ("第三方" in text and "接口" in text):
-        tags.append("external-call")
-
-    # api 默认放宽，只要明显是业务功能操作就给
-    if scores["api"] >= 1:
-        tags.append("api")
-
-    # 常见业务线索映射
-    if "审核人" in text or "审核时间" in text:
-        tags.append("db-change")
-    if "状态" in text and any(word in text for word in ["审核", "启用", "驳回", "提审"]):
-        tags.append("api")
-    if any(word in text for word in ["重复提交", "重复调用", "防重"]):
-        tags.append("idempotent")
-
-    if not tags:
-        tags.append("api")
-    return sorted(set(tags))
-
-
-def infer_risk_tier(tags: set[str]) -> str:
-    if "payment" in tags:
-        return "high"
-    if "async" in tags and "db-change" in tags:
-        return "high"
-    if "external-call" in tags and "payment" in tags:
-        return "high"
-    return "low"
-
-
-def infer_feature_type(title: str, tags: set[str]) -> str:
-    lower = title.lower()
-    if "payment" in tags or "支付" in title:
-        return "payment"
-    if "pricing" in lower or "资费" in title or "套餐" in title:
-        return "pricing"
-    if "review" in lower or "审核" in title:
-        return "review"
-    if "async" in tags:
-        return "async"
-    if "db-change" in tags:
-        return "data-change"
-    return "general"
 
 
 def split_numbered_items(text: str) -> list[str]:
@@ -301,6 +159,8 @@ def infer_modules(tags: list[str]) -> str:
         modules.append("外部系统集成")
     if "async" in tags:
         modules.append("异步事件链路")
+    if "security-sensitive" in tags:
+        modules.append("安全与审计")
     return "、".join(modules) if modules else "待补充"
 
 
@@ -431,9 +291,11 @@ def main() -> int:
     detected_title = first_heading_or_line(source_text)
     feature_name = feature_dir.name
     project_mode, evidence, confidence = detect_project_mode(source_text)
-    tags = infer_tags(source_text)
+    
+    tags = infer_capability_tags(source_text)
     risk_tier = infer_risk_tier(set(tags))
-    feature_type = infer_feature_type(detected_title, set(tags))
+    feature_type = infer_feature_type(detected_title, source_text, set(tags))
+    
     requirements = extract_requirements(source_text)
     one_liner = build_one_liner(detected_title, requirements)
 

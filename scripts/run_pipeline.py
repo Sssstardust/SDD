@@ -435,9 +435,12 @@ def generate_task_slices(
     feature_dir: str,
     attachment_file: str | None = None,
     profile: str | None = None,
+    force: bool = False,
 ) -> int:
     script = ROOT / "scripts" / "generate_task_slices.py"
     cmd = [sys.executable, str(script), feature_dir]
+    if force:
+        cmd.append("--force")
     if attachment_file:
         cmd.extend(["--attachment-file", attachment_file])
     if profile:
@@ -1166,6 +1169,7 @@ def build_command_handlers() -> dict[str, callable]:
             args.feature_dir,
             getattr(args, "attachment_file", None),
             getattr(args, "profile", None),
+            getattr(args, "force", False),
         ),
         "gate4": lambda args: gate4(args.feature_dir),
         "gate5": lambda args: gate5(
@@ -1486,6 +1490,7 @@ def main(argv: list[str] | None = None) -> int:
     p_generate_slices.add_argument("feature_dir", help="specs/<feature> 目录路径")
     p_generate_slices.add_argument("--attachment-file", default=None, help="attachment config path")
     p_generate_slices.add_argument("--profile", default=None, help="attachment profile name")
+    p_generate_slices.add_argument("--force", action="store_true", help="允许覆盖已存在的任务切片")
 
     p_gate4 = subparsers.add_parser("gate4")
     p_gate4.add_argument("feature_dir", help="specs/<feature> 目录路径")
