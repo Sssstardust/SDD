@@ -13,7 +13,7 @@ from ._root import ROOT
 from .concurrency import path_lock
 
 
-OPS_DIR = ROOT / ".spec" / "ops"
+OPS_DIR = ROOT / ".runtime" / "ops"
 OPS_LOG = OPS_DIR / "project-ops.jsonl"
 
 

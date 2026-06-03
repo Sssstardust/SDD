@@ -20,7 +20,7 @@ from typing import Iterator
 from ._root import ROOT
 
 
-LOCKS_DIR = ROOT / ".spec" / "locks"
+LOCKS_DIR = ROOT / ".runtime" / "cache"
 
 
 def _utc_now() -> datetime:

@@ -1126,6 +1126,9 @@ def build_json_payload(args: argparse.Namespace, exit_code: int, duration_ms: in
 
 def build_command_handlers() -> dict[str, callable]:
     return {
+        "analyze": run_semantic_analyze,
+        "design": run_semantic_design,
+        "validate": run_semantic_validate,
         "generate-feature-brief": lambda args: generate_feature_brief(
             args.source_file,
             args.feature_name,
@@ -1402,11 +1405,62 @@ def dispatch_command(args: argparse.Namespace) -> int:
     return app_dispatch_command(args, build_command_handlers())
 
 
+def run_semantic_analyze(args: argparse.Namespace) -> int:
+    """语义命令：需求分析与结构化校验 (PRD -> Structured JSON)"""
+    attachment_path = Path(args.attachment_file) if args.attachment_file else DEFAULT_ATTACHMENT_PATH
+    feature_dir = resolve_feature_dir(args.feature_name, attachment_path=attachment_path, profile=args.profile)
+    feature_brief = Path(feature_dir) / "需求规格.md"
+    
+    steps = [
+        ("generate-feature-brief", lambda: generate_feature_brief(args.source_file, args.feature_name, force=args.force, attachment_file=args.attachment_file, profile=args.profile)),
+        ("verify-brief", lambda: verify(str(feature_brief)))
+    ]
+    return run_steps(steps, console_print=console_print)
+
+def run_semantic_design(args: argparse.Namespace) -> int:
+    """语义命令：架构设计生成 (Structured JSON -> Design + Design Pack)"""
+    feature_dir = resolve_feature_dir(args.feature_name)
+    
+    steps = [
+        ("init-design", lambda: init_design(feature_dir)),
+        ("generate-design", lambda: generate_design(feature_dir, force=args.force)),
+        ("init-design-pack", lambda: init_design_pack(str(Path(feature_dir) / "需求规格.md")))
+    ]
+    return run_steps(steps, console_print=console_print)
+
+def run_semantic_validate(args: argparse.Namespace) -> int:
+    """语义命令：多维设计校验 (Gate 1/2/3 联合校验)"""
+    feature_dir = resolve_feature_dir(args.feature_name)
+    
+    steps = [
+        ("gate1", lambda: gate1(feature_dir)),
+        ("gate2", lambda: gate2(feature_dir, strict=args.strict)),
+        ("gate3", lambda: gate3(feature_dir))
+    ]
+    return run_steps(steps, console_print=console_print)
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", dest="json_output", action="store_true", help="emit structured JSON result")
     subparsers = parser.add_subparsers(dest="cmd", required=True)
 
+    # --- 新增语义化命令 (Semantic Commands) ---
+    p_analyze = subparsers.add_parser("analyze", help="[SEMANTIC] PRD 分析与结构化 (PRD -> Structured JSON)")
+    p_analyze.add_argument("source_file", help="PRD/需求文本文件路径")
+    p_analyze.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")
+    p_analyze.add_argument("--force", action="store_true", help="允许覆盖已存在的 需求规格.md")
+    p_analyze.add_argument("--attachment-file", default=None)
+    p_analyze.add_argument("--profile", default=None)
+
+    p_design = subparsers.add_parser("design", help="[SEMANTIC] 架构设计生成 (Structured JSON -> Design MD + Pack)")
+    p_design.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")
+    p_design.add_argument("--force", action="store_true", help="允许覆盖当前设计版本与 design-pack")
+
+    p_validate = subparsers.add_parser("validate", help="[SEMANTIC] 多维设计校验 (Gate 1/2/3 联合校验)")
+    p_validate.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")
+    p_validate.add_argument("--strict", action="store_true", help="启用架构红线严格检查")
+
+    # --- 原始子命令 (Original Commands) ---
     p_generate_brief = subparsers.add_parser("generate-feature-brief")
     p_generate_brief.add_argument("source_file", help="PRD/需求文本文件路径")
     p_generate_brief.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")

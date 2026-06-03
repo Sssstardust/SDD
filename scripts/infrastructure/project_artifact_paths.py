@@ -13,7 +13,7 @@ from domain.attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_con
 
 
 LEGACY_PROJECT_ARTIFACTS_DIR = ROOT / "specs"
-PROJECT_ARTIFACT_BUCKETS_DIR = ROOT / ".spec" / "project-artifacts"
+PROJECT_ARTIFACT_BUCKETS_DIR = ROOT / ".runtime" / "artifacts"
 
 
 def get_active_project_artifacts_dir(
