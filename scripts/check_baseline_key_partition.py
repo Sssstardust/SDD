@@ -9,7 +9,7 @@ import argparse
 import json
 from pathlib import Path
 
-from baseline_paths import get_active_baseline_dir
+from infrastructure.baseline_paths import get_active_baseline_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

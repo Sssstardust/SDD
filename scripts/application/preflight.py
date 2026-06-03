@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from versioning import detect_latest_design_path, reports_dir_for_design
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design
 
 
 def assert_feature_within_attachment(feature_dir: Path, attachment_cfg: dict[str, object] | None) -> None:

@@ -14,9 +14,9 @@ import json
 import re
 from pathlib import Path
 
-from concurrency import atomic_write_text, path_lock
-from project_artifact_paths import get_active_project_artifacts_dir
-from versioning import get_primary_design_root
+from infrastructure.concurrency import atomic_write_text, path_lock
+from infrastructure.project_artifact_paths import get_active_project_artifacts_dir
+from infrastructure.versioning import get_primary_design_root
 
 ROOT = Path(__file__).resolve().parent.parent
 SPECS_DIR = get_active_project_artifacts_dir(create=True)

@@ -9,7 +9,7 @@ import argparse
 import re
 from pathlib import Path
 
-from concurrency import atomic_write_text, feature_lock
+from infrastructure.concurrency import atomic_write_text, feature_lock
 
 
 ROOT = Path(__file__).resolve().parent.parent

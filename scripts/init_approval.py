@@ -9,8 +9,8 @@ import argparse
 import json
 import re
 
-from concurrency import atomic_write_text, feature_lock
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 def extract_yaml_blocks(text: str) -> list[str]:

@@ -14,8 +14,8 @@ import re
 import sys
 
 from init_approval import main as init_approval_main
-from json_io import read_json
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.json_io import read_json
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 def extract_yaml_blocks(text: str) -> list[str]:

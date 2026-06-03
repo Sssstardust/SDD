@@ -16,9 +16,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from concurrency import atomic_write_text, feature_lock
-from gate_report import write_gate_section
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.gate_report import write_gate_section
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 from domain.attached_project import load_attachment_config, is_fixture_attachment
 from infrastructure.baseline_paths import get_active_baseline_dir
 from domain.baseline import ModuleMapDocument

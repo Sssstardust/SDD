@@ -16,7 +16,7 @@ import re
 import sys
 from pathlib import Path
 
-from json_io import read_json
+from infrastructure.json_io import read_json
 
 
 TAG_TO_FILES = {

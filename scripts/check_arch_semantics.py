@@ -18,10 +18,10 @@ import subprocess
 import os
 from pathlib import Path
 
-from gate_report import write_gate_section
-from gates.gate3_checker import build_rule_modeled_ai_review, evaluate_rule_result
-from gates.gate3_reporter import build_gate3_payload
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.gate_report import write_gate_section
+from application.gates.gate3_checker import build_rule_modeled_ai_review, evaluate_rule_result
+from application.gates.gate3_reporter import build_gate3_payload
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

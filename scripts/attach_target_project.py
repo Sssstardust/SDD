@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 import refresh_module_map
-from attached_project import (
+from domain.attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     build_attachment_payload,
     build_workspace_payload,

@@ -11,10 +11,10 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
-from concurrency import feature_lock
+from infrastructure.concurrency import feature_lock
 from init_approval import main as init_approval_main
-from json_io import read_json, write_json
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.json_io import read_json, write_json
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 def main() -> int:

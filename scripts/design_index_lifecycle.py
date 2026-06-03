@@ -15,9 +15,9 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, path_lock
-from versioning import detect_latest_design_path, resolve_feature_dir
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, path_lock
+from infrastructure.versioning import detect_latest_design_path, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

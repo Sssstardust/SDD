@@ -25,11 +25,11 @@ from baseline_extractors import (
     extract_paths_from_openapi,
     extract_tables_from_data_model,
 )
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, path_lock
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, path_lock
 from design_evidence import resolve_design_pack_dir
-from feature_brief import extract_affected_components
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from application.feature_brief import extract_affected_components
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

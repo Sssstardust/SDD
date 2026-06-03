@@ -48,7 +48,7 @@ from gate_adapters import (
 )
 from application.gate5_admissions import summarize_gate5_admissions
 from infrastructure.gate_report import write_gate_section
-from gates.gate5_reporter import build_gate5_section_payload
+from application.gates.gate5_reporter import build_gate5_section_payload
 from application.traceability_summaries import (
     build_implementation_traceability_report_fields as _build_implementation_traceability_report_fields,
     summarize_method_framework_evidence as _summarize_method_framework_evidence,

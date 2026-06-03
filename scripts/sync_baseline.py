@@ -24,12 +24,12 @@ from baseline_extractors import (
     extract_tables_from_data_model,
 )
 from baseline_governance import refresh_governance_baseline
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, path_lock
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, path_lock
 from design_evidence import evidence_level_for_schema_context, hash_file, hash_tree, resolve_design_pack_dir
-from feature_brief import extract_affected_components
-from gate_report import write_gate_section
-from versioning import reports_dir_for_design, resolve_design_path, resolve_feature_dir
+from application.feature_brief import extract_affected_components
+from infrastructure.gate_report import write_gate_section
+from infrastructure.versioning import reports_dir_for_design, resolve_design_path, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

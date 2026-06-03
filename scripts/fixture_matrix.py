@@ -10,7 +10,7 @@ import shutil
 import uuid
 from pathlib import Path, PurePosixPath
 
-from concurrency import atomic_write_text
+from infrastructure.concurrency import atomic_write_text
 
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 
 from ambiguity_tracker import sync_ambiguity_tracker
-from sdd_yaml import get_list, get_scalar, load_merged_yaml_mapping
+from infrastructure.sdd_yaml import get_list, get_scalar, load_merged_yaml_mapping
 
 
 def extract_requirement_priorities(data: dict[str, object]) -> list[str]:

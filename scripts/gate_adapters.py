@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from concurrency import atomic_write_text
-from traceability_summaries import (
+from infrastructure.concurrency import atomic_write_text
+from application.traceability_summaries import (
     summarize_design_class_reliability as _default_summarize_design_class_reliability,
     summarize_design_class_resolution as _default_summarize_design_class_resolution,
     summarize_schema_table_resolution as _default_summarize_schema_table_resolution,

@@ -12,8 +12,8 @@ import re
 from datetime import date
 from pathlib import Path
 
-from concurrency import atomic_write_text, feature_lock
-from versioning import design_version_number, detect_next_design_path, reports_dir_for_design, resolve_feature_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.versioning import design_version_number, detect_next_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

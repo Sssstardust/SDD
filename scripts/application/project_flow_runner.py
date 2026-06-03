@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
 from infrastructure.json_io import read_json
 from infrastructure.project_artifact_paths import get_active_project_artifacts_dir
 

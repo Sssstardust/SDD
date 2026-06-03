@@ -14,12 +14,12 @@ import sys
 from pathlib import Path
 
 from ambiguity_tracker import sync_ambiguity_tracker
-from concurrency import atomic_write_text
+from infrastructure.concurrency import atomic_write_text
 from design_evidence import freeze_design_pack, hash_file, hash_tree
-from gate_report import write_gate_section
-from gates.gate1_checker import collect_open_ambiguity_errors, summarize_command_results, validate_required_artifacts
-from gates.gate1_reporter import build_gate1_payload
-from versioning import reports_dir_for_design, resolve_feature_dir, resolve_locked_design_path
+from infrastructure.gate_report import write_gate_section
+from application.gates.gate1_checker import collect_open_ambiguity_errors, summarize_command_results, validate_required_artifacts
+from application.gates.gate1_reporter import build_gate1_payload
+from infrastructure.versioning import reports_dir_for_design, resolve_feature_dir, resolve_locked_design_path
 
 
 ROOT = Path(__file__).resolve().parent.parent

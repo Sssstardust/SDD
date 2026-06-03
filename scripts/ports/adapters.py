@@ -5,7 +5,7 @@ Ports-layer bridge exports.
 
 from __future__ import annotations
 
-from attached_project import (
+from domain.attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     build_workspace_payload,
     load_attachment_config,

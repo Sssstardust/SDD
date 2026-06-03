@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from concurrency import atomic_write_text, feature_lock
+from infrastructure.concurrency import atomic_write_text, feature_lock
 
 
 AMBIGUITY_PATTERN = re.compile(r"\[AMBIGUOUS:\s*(.+?)\]")

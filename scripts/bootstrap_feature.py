@@ -16,8 +16,8 @@ from bootstrap_utils import (
     render_bootstrap_file,
     write_scaffold_report,
 )
-from concurrency import atomic_write_text, feature_lock
-from versioning import resolve_feature_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.versioning import resolve_feature_dir
 
 
 def extract_yaml_blocks(text: str) -> list[str]:

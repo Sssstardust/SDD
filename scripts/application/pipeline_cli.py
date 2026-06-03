@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
 from infrastructure.project_artifact_paths import get_active_project_artifacts_dir
 from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 

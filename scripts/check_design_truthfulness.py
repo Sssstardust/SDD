@@ -39,8 +39,8 @@ from infrastructure.design_evidence import hash_file, hash_tree, resolve_design_
 from domain.baseline import ModuleMapDocument, SchemaContextDocument
 from application.feature_brief import extract_affected_components
 from gate_adapters import default_gate_adapter_registry
-from gates.gate2_checker import build_missing_req_error, summarize_req_coverage
-from gates.gate2_reporter import build_gate2_payload
+from application.gates.gate2_checker import build_missing_req_error, summarize_req_coverage
+from application.gates.gate2_reporter import build_gate2_payload
 from gate_adapters import (
     build_schema_table_aliases as _build_schema_table_aliases,
     extract_schema_table_entries as _extract_schema_table_entries,

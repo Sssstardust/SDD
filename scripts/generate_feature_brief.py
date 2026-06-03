@@ -13,8 +13,8 @@ import re
 from datetime import date
 from pathlib import Path
 
-from concurrency import atomic_write_text, feature_lock
-from versioning import resolve_feature_dir
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.versioning import resolve_feature_dir
 from domain.requirement_heuristics import (
     has_greenfield_signal,
     infer_capability_tags,

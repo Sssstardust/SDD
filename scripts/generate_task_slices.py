@@ -14,8 +14,8 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from concurrency import atomic_write_text, feature_lock
-from versioning import detect_latest_design_path, resolve_feature_dir, reports_dir_for_design
+from infrastructure.concurrency import atomic_write_text, feature_lock
+from infrastructure.versioning import detect_latest_design_path, resolve_feature_dir, reports_dir_for_design
 from design_evidence import hash_file, resolve_design_pack_dir
 from domain.feature_brief import FeatureBrief
 

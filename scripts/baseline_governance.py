@@ -13,10 +13,10 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from baseline_paths import get_active_baseline_dir
-from concurrency import atomic_write_text, path_lock
-from flow_state import inspect_feature_state
-from versioning import get_primary_design_root, iter_feature_dirs as iter_attached_feature_dirs
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.concurrency import atomic_write_text, path_lock
+from application.flow_state import inspect_feature_state
+from infrastructure.versioning import get_primary_design_root, iter_feature_dirs as iter_attached_feature_dirs
 
 
 ROOT = Path(__file__).resolve().parent.parent

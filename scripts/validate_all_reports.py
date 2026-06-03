@@ -12,8 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
-from versioning import detect_latest_design_path, iter_feature_dirs, reports_dir_for_design
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
+from infrastructure.versioning import detect_latest_design_path, iter_feature_dirs, reports_dir_for_design
 
 
 ROOT = Path(__file__).resolve().parent.parent

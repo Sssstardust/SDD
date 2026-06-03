@@ -15,15 +15,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from attached_project import (
+from domain.attached_project import (
     DEFAULT_ATTACHMENT_PATH,
     build_attachment_payload,
     load_attachment_seed,
     save_attachment_config,
     validate_components_for_risk_tier,
 )
-from baseline_paths import get_active_baseline_dir
-from project_artifact_paths import get_active_project_artifacts_dir
+from infrastructure.baseline_paths import get_active_baseline_dir
+from infrastructure.project_artifact_paths import get_active_project_artifacts_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent

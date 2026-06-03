@@ -10,9 +10,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from baseline_paths import get_active_baseline_dir
+from infrastructure.baseline_paths import get_active_baseline_dir
 from baseline_governance import DEFAULT_BASELINE_DIR, refresh_governance_baseline
-from versioning import get_primary_design_root
+from infrastructure.versioning import get_primary_design_root
 
 
 def main() -> int:

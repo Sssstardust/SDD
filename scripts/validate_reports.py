@@ -10,10 +10,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from attached_project import DEFAULT_ATTACHMENT_PATH
-from json_io import read_json
-from sdd_yaml import get_scalar, load_merged_yaml_mapping
-from versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from domain.attached_project import DEFAULT_ATTACHMENT_PATH
+from infrastructure.json_io import read_json
+from infrastructure.sdd_yaml import get_scalar, load_merged_yaml_mapping
+from infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent
