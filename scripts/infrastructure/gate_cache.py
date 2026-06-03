@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .baseline_paths import get_active_baseline_dir
 from .versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir, resolve_locked_design_path
-from design_evidence import hash_file
+from infrastructure.design_evidence import hash_file
 
 
 DESIGN_GATE_NAMES = ("gate1", "gate2", "gate3")
