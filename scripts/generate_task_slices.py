@@ -283,14 +283,28 @@ def extract_api_endpoints(design_text: str) -> list[str]:
     return sorted(list(set(apis)))
 
 
+def ensure_design_approval(feature_dir: Path) -> int:
+    """强制检查设计审批状态。"""
+    command = [sys.executable, str(ROOT / "scripts" / "check_approval.py"), str(feature_dir)]
+    return subprocess.run(command, check=False).returncode
+
+
 def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str, object]:
-    feature_brief_path = feature_dir / "feature-brief.md"
+    # 强制审批检查
+    if ensure_design_approval(feature_dir) != 0:
+        return {
+            "result": "FAIL",
+            "errors": ["设计尚未获得批准。请运行 approve-design 命令进行签署后再生成切片。"],
+            "created": [],
+        }
+
+    feature_brief_path = feature_dir / "需求规格.md"
     design_path = detect_latest_design_path(feature_dir)
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
 
     if not feature_brief_path.exists():
-        return {"result": "FAIL", "errors": [f"missing feature-brief.md: {feature_brief_path}"], "created": []}
+        return {"result": "FAIL", "errors": [f"missing 需求规格.md: {feature_brief_path}"], "created": []}
     if not design_path.exists():
         return {"result": "FAIL", "errors": [f"missing design document: {design_path}"], "created": []}
 

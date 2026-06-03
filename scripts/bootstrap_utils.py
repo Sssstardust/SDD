@@ -18,10 +18,10 @@ from concurrency import atomic_write_text
 ROOT = Path(__file__).resolve().parent.parent
 BOOTSTRAP_TEMPLATE_DIR = ROOT / ".spec" / "templates" / "bootstrap"
 BOOTSTRAP_TEMPLATE_MAP = {
-    "constitution.template.md": "constitution.md",
-    "architecture.template.md": "architecture.md",
-    "module-layout.template.md": "module-layout.md",
-    "bootstrap-plan.template.md": "bootstrap-plan.md",
+    "架构宪法.template.md": "架构宪法.md",
+    "架构设计.template.md": "架构设计.md",
+    "模块布局.template.md": "模块布局.md",
+    "启动计划.template.md": "启动计划.md",
 }
 BOOTSTRAP_REQUIRED_FILES = tuple(BOOTSTRAP_TEMPLATE_MAP.values())
 BOOTSTRAP_REPORT_NAME = "scaffold-report.json"
@@ -145,13 +145,13 @@ def render_bootstrap_plan(template_text: str, feature_name: str) -> str:
 
 
 def render_bootstrap_file(target_name: str, template_text: str, feature_name: str) -> str:
-    if target_name == "constitution.md":
+    if target_name == "架构宪法.md":
         return render_constitution(template_text, feature_name)
-    if target_name == "architecture.md":
+    if target_name == "架构设计.md":
         return render_architecture(template_text, feature_name)
-    if target_name == "module-layout.md":
+    if target_name == "模块布局.md":
         return render_module_layout(template_text, feature_name)
-    if target_name == "bootstrap-plan.md":
+    if target_name == "启动计划.md":
         return render_bootstrap_plan(template_text, feature_name)
     return template_text
 

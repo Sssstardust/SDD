@@ -451,9 +451,9 @@ def main() -> int:
         print(f"[ERROR] feature 目录不存在: {feature_dir}")
         return 1
 
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
+        print(f"[ERROR] 缺少 需求规格.md: {feature_brief}")
         return 1
 
     # 解析 Brief 以获取 logic_atoms

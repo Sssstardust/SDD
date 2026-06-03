@@ -68,7 +68,7 @@ def run_check(label: str, command: list[str]) -> dict[str, object]:
 
 
 def gate1(feature_dir: Path) -> dict[str, object]:
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     design_path = resolve_locked_design_path(feature_dir, gate_name="gate1")
 
     errors: list[str] = []

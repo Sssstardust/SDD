@@ -18,7 +18,7 @@
    否则设为 `low`。
 8. 如果核心字段缺失，保留已提取出的部分内容，将 `status` 设为 `clarify`，并填写 `clarify.missing_fields` 与 `clarify.questions`。
 9. 必须执行“逻辑原子建模”：在 `logic_atoms` 中针对每个 `REQ` 明确其涉及的 `component` (类名/模块名)、`method` (方法名) 和 `steps` (核心逻辑步骤)。这有助于下游任务切片的精确生成。
-10. 输出 JSON 时要考虑下游 `feature-brief.md` 的渲染效果，不要只做“刚好过 schema”的最小填充。
+10. 输出 JSON 时要考虑下游 `需求规格.md` 的渲染效果，不要只做“刚好过 schema”的最小填充。
 
 字段质量要求：
 
@@ -28,7 +28,7 @@
   写一句简洁的业务摘要。如果可以总结得更自然，不要机械复用第一条需求原文。
 - `requirements`
   从 PRD 中提取真正的需求列表。
-  `title` 要短、可读，适合直接展示在 `feature-brief.md` 中。
+  `title` 要短、可读，适合直接展示在 `需求规格.md` 中。
   `description` 要完整、具体。
   只有明确属于核心路径、会直接影响功能成立的需求，才标为 `P0`。
 - `ambiguities`

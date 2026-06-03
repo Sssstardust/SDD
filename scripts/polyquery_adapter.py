@@ -351,7 +351,7 @@ def extract_feature_table_names(feature_dir: Path) -> set[str]:
 def extract_feature_keywords(feature_dir: Path) -> set[str]:
     keywords: set[str] = set()
     raw_values = [feature_dir.name]
-    for path_name in ("feature-brief.md", "design-v1.md"):
+    for path_name in ("需求规格.md", "技术方案-v1.md"):
         path = feature_dir / path_name
         if path.exists():
             raw_values.append(path.read_text(encoding="utf-8", errors="ignore"))

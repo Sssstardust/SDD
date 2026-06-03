@@ -37,7 +37,7 @@ def derive_min_risk(tags: set[str]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_brief", help="Path to feature-brief.md")
+    parser.add_argument("feature_brief", help="Path to 需求规格.md")
     args = parser.parse_args(argv)
 
     path = Path(args.feature_brief)

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 
 def build_missing_req_error() -> str:
-    return "No REQ-IDs found in feature-brief.md"
+    return "No REQ-IDs found in 需求规格.md"
 
 
 def summarize_req_coverage(coverage: dict[str, object]) -> list[str]:

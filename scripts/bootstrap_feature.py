@@ -33,7 +33,7 @@ def extract_scalar(yaml_text: str, key: str) -> str | None:
 
 
 def read_feature_name(feature_dir: Path) -> str:
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
         return feature_dir.name
 

@@ -57,7 +57,7 @@ def save_tracker(feature_dir: Path, payload: dict[str, object]) -> Path:
 
 def sync_ambiguity_tracker(feature_dir: Path) -> dict[str, object]:
     with feature_lock(feature_dir, phase="sync-ambiguity-tracker"):
-        feature_brief = feature_dir / "feature-brief.md"
+        feature_brief = feature_dir / "需求规格.md"
         text = feature_brief.read_text(encoding="utf-8")
         discovered = extract_ambiguities(text)
         existing = load_tracker(feature_dir) or {}

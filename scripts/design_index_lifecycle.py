@@ -65,9 +65,9 @@ def extract_scalar(yaml_text: str, key: str) -> str | None:
 
 def resolve_design_intent(feature_dir: Path | str) -> tuple[Path, str, Path, str]:
     resolved_feature_dir = resolve_feature_dir(feature_dir)
-    feature_brief = resolved_feature_dir / "feature-brief.md"
+    feature_brief = resolved_feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        raise FileNotFoundError(f"missing feature-brief.md: {feature_brief}")
+        raise FileNotFoundError(f"missing 需求规格.md: {feature_brief}")
 
     yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8")))
     feature_name = extract_scalar(yaml_text, "feature_name") or resolved_feature_dir.name

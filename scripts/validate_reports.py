@@ -214,10 +214,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     design_path = detect_latest_design_path(feature_dir)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
 
     if not feature_brief.exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
+        print(f"[ERROR] 缺少 需求规格.md: {feature_brief}")
         return 1
 
     risk_high = extract_risk_tier(feature_brief) == "high"

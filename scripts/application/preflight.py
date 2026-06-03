@@ -34,9 +34,9 @@ def missing_feature_prerequisites(
 ) -> list[str]:
     missing: list[str] = []
 
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if require_feature_brief and not feature_brief.exists():
-        missing.append(f"missing feature-brief.md: {feature_brief}")
+        missing.append(f"missing 需求规格.md: {feature_brief}")
 
     design_path = detect_latest_design_path(feature_dir)
     if require_design and not design_path.exists():

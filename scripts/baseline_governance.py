@@ -3,8 +3,8 @@
 baseline_governance.py
 
 生成 Baseline 治理文档：
-- constitution.md：项目级硬约束基线
-- tech-debt.md：当前会影响后续设计/实现的开放债项
+- 架构宪法.md：项目级硬约束基线
+- 技术债卡.md：当前会影响后续设计/实现的开放债项
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ from versioning import get_primary_design_root, iter_feature_dirs as iter_attach
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_BASELINE_DIR = get_active_baseline_dir()
-CONSTITUTION_FILE = "constitution.md"
-TECH_DEBT_FILE = "tech-debt.md"
+CONSTITUTION_FILE = "架构宪法.md"
+TECH_DEBT_FILE = "技术债卡.md"
 DEFAULT_CONSTITUTION_RULES = (
     "所有设计与实现必须遵守分层边界，禁止跨层直连或绕过既有门禁。",
     "P0/P1 需求必须可追溯到测试或验证入口，未覆盖前不得视为完成。",
@@ -45,7 +45,7 @@ def extract_scalar(yaml_text: str, key: str) -> str | None:
 
 
 def read_feature_meta(feature_dir: Path) -> dict[str, str]:
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
         return {
             "feature_name": feature_dir.name,

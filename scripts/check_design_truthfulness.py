@@ -59,10 +59,10 @@ from infrastructure.versioning import detect_latest_design_path, reports_dir_for
 
 
 GREENFIELD_BOOTSTRAP_KEYWORDS = {
-    "constitution.md": ["硬阻断", "测试", "回滚"],
-    "architecture.md": ["接口层", "应用层", "领域层", "基础设施层"],
-    "module-layout.md": ["允许的依赖方向", "禁止的依赖方向"],
-    "bootstrap-plan.md": ["日志", "测试框架", "监控与告警"],
+    "架构宪法.md": ["硬阻断", "测试", "回滚"],
+    "架构设计.md": ["接口层", "应用层", "领域层", "基础设施层"],
+    "模块布局.md": ["允许的依赖方向", "禁止的依赖方向"],
+    "启动计划.md": ["日志", "测试框架", "监控与告警"],
 }
 
 
@@ -576,7 +576,7 @@ def detect_context_missing(feature_dir: Path, design_pack_dir: Path, baseline_di
 
     openapi_operations = extract_operations_from_openapi(design_pack_dir / "接口契约.openapi.yaml")
     data_model_tables = extract_tables_from_data_model(design_pack_dir / "数据模型.md")
-    participants = extract_design_participants((feature_dir / "design-v1.md").read_text(encoding="utf-8", errors="ignore") if (feature_dir / "design-v1.md").exists() else "")
+    participants = extract_design_participants((feature_dir / "技术方案-v1.md").read_text(encoding="utf-8", errors="ignore") if (feature_dir / "技术方案-v1.md").exists() else "")
 
     missing: list[str] = []
     if participants and (not isinstance(module_map, dict) or not module_map.get("classes")):
@@ -1158,10 +1158,10 @@ def write_gate2_report(feature_dir: Path, feature_name: str, report: dict[str, o
 
 def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, object]:
     feature_dir = resolve_feature_dir(feature_path)
-    brief_file = feature_dir / "feature-brief.md"
+    brief_file = feature_dir / "需求规格.md"
 
     if not brief_file.exists():
-        return {"status": "FAIL", "reason": f"Missing feature-brief.md in {feature_path}", "errors": []}
+        return {"status": "FAIL", "reason": f"Missing 需求规格.md in {feature_path}", "errors": []}
 
     brief_content = brief_file.read_text(encoding="utf-8")
     feature_name = extract_feature_name(brief_content, feature_dir)
@@ -1234,7 +1234,7 @@ def check_truthfulness(feature_path: str, *, strict: bool = False) -> dict[str, 
             "checks": checks,
             "warnings": warnings,
             "errors": errors,
-            "reason": "No REQ-IDs found in feature-brief.md",
+            "reason": "No REQ-IDs found in 需求规格.md",
         }
         write_gate2_report(feature_dir, feature_name, report)
         return report

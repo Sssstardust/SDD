@@ -36,7 +36,7 @@ def official_feature_names(
 ) -> set[str]:
     names: set[str] = set()
     for feature_dir in iter_feature_dirs(attachment_path=attachment_path, profile=profile):
-        feature_brief = feature_dir / "feature-brief.md"
+        feature_brief = feature_dir / "需求规格.md"
         if not feature_brief.exists():
             continue
         text = feature_brief.read_text(encoding="utf-8")

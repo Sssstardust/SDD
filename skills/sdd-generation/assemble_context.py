@@ -268,11 +268,11 @@ def load_structured_prd(workspace: Path) -> dict[str, Any]:
         if isinstance(data, dict):
             return data
 
-    feature_brief = workspace / "feature-brief.md"
+    feature_brief = workspace / "需求规格.md"
     if feature_brief.exists():
         return derive_structured_prd_from_feature_brief(feature_brief)
 
-    raise FileNotFoundError(f"缺少 structured-prd.json 和 feature-brief.md: {workspace}")
+    raise FileNotFoundError(f"缺少 structured-prd.json 和 需求规格.md: {workspace}")
 
 
 def load_module_map() -> list[dict[str, Any]]:

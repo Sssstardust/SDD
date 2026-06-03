@@ -1,6 +1,6 @@
 ---
 name: sdd-generation
-description: 基于 `structured-prd.json`、`feature-brief.md`、`module-map.json`、`schema-context.json` 和架构约束生成 `design-v{N}.md` 与最小可用 `design-pack/`。当 Codex 需要从结构化需求和项目事实生成可进入 Gate 的技术设计草稿、按 `capability_tags` 联动设计包、读取 `gate-report.json` 进行定向修复，或通过 `run_pipeline.py generate-design` 自动产出设计文档时使用本 Skill。
+description: 基于 `structured-prd.json`、`需求规格.md`、`module-map.json`、`schema-context.json` 和架构约束生成 `design-v{N}.md` 与最小可用 `design-pack/`。当 Codex 需要从结构化需求和项目事实生成可进入 Gate 的技术设计草稿、按 `capability_tags` 联动设计包、读取 `gate-report.json` 进行定向修复，或通过 `run_pipeline.py generate-design` 自动产出设计文档时使用本 Skill。
 ---
 
 # 设计生成器
@@ -9,7 +9,7 @@ description: 基于 `structured-prd.json`、`feature-brief.md`、`module-map.jso
 
 按以下流程执行：
 
-1. 从工作区读取 `structured-prd.json`；若缺失，则从 `feature-brief.md` 推导最小结构化需求。
+1. 从工作区读取 `structured-prd.json`；若缺失，则从 `需求规格.md` 推导最小结构化需求。
 2. 通过 [assemble_context.py](assemble_context.py) 读取并裁剪 `module-map.json`、`schema-context.json` 和架构约束。
 3. 若配置了 OpenAI 兼容网关，则优先使用 AI 生成设计文档与设计包。
 4. 无论 AI 是否参与，都必须对输出执行确定性补全与最小校验。

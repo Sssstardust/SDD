@@ -215,7 +215,7 @@ def init_feature(
         for directory in [feature_dir, design_pack_dir, tasks_dir, reports_dir]:
             directory.mkdir(parents=True, exist_ok=True)
 
-        feature_brief = feature_dir / "feature-brief.md"
+        feature_brief = feature_dir / "需求规格.md"
         if not feature_brief.exists():
             template = DOC_TEMPLATES / "Feature-Brief-模板.md"
             if template.exists():
@@ -252,7 +252,7 @@ def generate_feature_brief(
     )
     feature_dir.mkdir(parents=True, exist_ok=True)
     structured_prd_path = feature_dir / "structured-prd.json"
-    feature_brief_path = feature_dir / "feature-brief.md"
+    feature_brief_path = feature_dir / "需求规格.md"
     skill_script = ROOT / "skills" / "requirement-analyzer" / "run.py"
 
     if skill_script.exists():
@@ -317,7 +317,7 @@ def generate_design(feature_dir: str, feedback: str | None = None, force: bool =
     skill_script = ROOT / "skills" / "sdd-generation" / "run.py"
     if not skill_script.exists():
         console_print("[WARN] 缺少 sdd-generation skill，回退到 init_design_pack")
-        return init_design_pack(str(feature_dir_path / "feature-brief.md"))
+        return init_design_pack(str(feature_dir_path / "需求规格.md"))
 
     feedback_path = feedback
     if not feedback_path:
@@ -830,7 +830,7 @@ def run_prepare_design_cycle(
             console_print(f"  - missing context: {item}")
         return 1
 
-    feature_brief = str(Path(feature_dir) / "feature-brief.md")
+    feature_brief = str(Path(feature_dir) / "需求规格.md")
     resume_design = detect_latest_design_path(
         Path(
             resolve_feature_dir(
@@ -1044,7 +1044,7 @@ def run_full_flow(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
-    feature_brief = str(Path(feature_dir) / "feature-brief.md")
+    feature_brief = str(Path(feature_dir) / "需求规格.md")
     return run_steps(
         append_post_flow_steps(
             [
@@ -1317,7 +1317,7 @@ def feature_repair_report(feature_dir: str, *, apply_fixes: bool = False) -> dic
     if not feature_path.exists():
         missing.append(f"missing feature directory: {feature_path}")
 
-    feature_brief = feature_path / "feature-brief.md"
+    feature_brief = feature_path / "需求规格.md"
     design_path = detect_latest_design_path(feature_path)
     reports_dir = reports_dir_for_design(feature_path, design_path) if design_path else feature_path / "reports" / "v1"
     approval_path = reports_dir / "approval.json"
@@ -1410,7 +1410,7 @@ def main(argv: list[str] | None = None) -> int:
     p_generate_brief = subparsers.add_parser("generate-feature-brief")
     p_generate_brief.add_argument("source_file", help="PRD/需求文本文件路径")
     p_generate_brief.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")
-    p_generate_brief.add_argument("--force", action="store_true", help="允许覆盖已存在的 feature-brief.md")
+    p_generate_brief.add_argument("--force", action="store_true", help="允许覆盖已存在的 需求规格.md")
     p_generate_brief.add_argument("--attachment-file", default=None, help="attachment config path")
     p_generate_brief.add_argument("--profile", default=None, help="attachment profile name")
 
@@ -1432,7 +1432,7 @@ def main(argv: list[str] | None = None) -> int:
     p_scaffold.add_argument("--force", action="store_true", help="允许覆盖已存在的 bootstrap 产物")
 
     p_verify = subparsers.add_parser("verify")
-    p_verify.add_argument("feature_brief", help="feature-brief.md 文件路径")
+    p_verify.add_argument("feature_brief", help="需求规格.md 文件路径")
 
     p_init_design = subparsers.add_parser("init-design")
     p_init_design.add_argument("feature_dir", help="specs/<feature> 目录路径")
@@ -1447,10 +1447,10 @@ def main(argv: list[str] | None = None) -> int:
     p_check_design.add_argument("design_file", help="design-vN.md 文件路径")
 
     p_init_dp = subparsers.add_parser("init-design-pack")
-    p_init_dp.add_argument("feature_brief", help="feature-brief.md 文件路径")
+    p_init_dp.add_argument("feature_brief", help="需求规格.md 文件路径")
 
     p_check_dp = subparsers.add_parser("check-design-pack")
-    p_check_dp.add_argument("feature_brief", help="feature-brief.md 文件路径")
+    p_check_dp.add_argument("feature_brief", help="需求规格.md 文件路径")
 
     p_gate1 = subparsers.add_parser("gate1")
     p_gate1.add_argument("feature_dir", help="specs/<feature> 目录路径")

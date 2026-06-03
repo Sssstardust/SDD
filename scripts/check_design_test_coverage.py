@@ -68,7 +68,9 @@ def build_implementation_traceability_report_fields(traceability: dict[str, obje
     return _build_implementation_traceability_report_fields(traceability)
 
 
-def trim_output(text: str, limit: int = 1000) -> str:
+def trim_output(text: str | None, limit: int = 1000) -> str:
+    if text is None:
+        return ""
     text = text.strip()
     if len(text) <= limit:
         return text
@@ -1256,7 +1258,7 @@ def main_for_args(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     feature_dir = resolve_feature_dir(args.feature_dir)
-    brief_path = feature_dir / "feature-brief.md"
+    brief_path = feature_dir / "需求规格.md"
     design_path = detect_latest_design_path(feature_dir)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     report_path = reports_dir / "gate4-skeleton.json"

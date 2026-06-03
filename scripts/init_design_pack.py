@@ -102,7 +102,7 @@ def render_machine_file(filename: str, feature_name: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_brief", help="Path to feature-brief.md")
+    parser.add_argument("feature_brief", help="Path to 需求规格.md")
     args = parser.parse_args()
 
     feature_brief = Path(args.feature_brief)

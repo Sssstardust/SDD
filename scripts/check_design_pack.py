@@ -2,7 +2,7 @@
 """
 check_design_pack.py
 
-按 feature-brief.md 中的 capability_tags 对 design-pack 做校验：
+按 需求规格.md 中的 capability_tags 对 design-pack 做校验：
 - 文件存在
 - 文件非空
 - 机器文件的最小 schema / 规则检查
@@ -405,7 +405,7 @@ def main() -> int:
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_brief", help="feature-brief.md 路径")
+    parser.add_argument("feature_brief", help="需求规格.md 路径")
     args = parser.parse_args()
 
     feature_brief = Path(args.feature_brief)

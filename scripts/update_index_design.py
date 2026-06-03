@@ -183,9 +183,9 @@ def find_active_conflicts(
 
 
 def update_design_index(feature_dir: Path, baseline_dir: Path | None = None) -> dict[str, object]:
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        return {"result": "FAIL", "errors": [f"missing feature-brief.md: {feature_brief}"]}
+        return {"result": "FAIL", "errors": [f"missing 需求规格.md: {feature_brief}"]}
 
     yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8")))
     feature_name = extract_scalar(yaml_text, "feature_name") or feature_dir.name

@@ -57,9 +57,9 @@ def main() -> int:
         print(f"[ERROR] feature directory does not exist: {feature_dir}")
         return 1
 
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        print(f"[ERROR] missing feature-brief.md: {feature_brief}")
+        print(f"[ERROR] missing 需求规格.md: {feature_brief}")
         return 1
 
     with feature_lock(feature_dir, phase="init-design"):

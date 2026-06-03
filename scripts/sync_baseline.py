@@ -105,7 +105,7 @@ def sync_feature_to_baseline(
         return 1
 
     verify_report_path = reports_dir_for_design(feature_dir, design_path) / "verify-report.json"
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not verify_report_path.exists():
         print(f"[ERROR] missing verify-report.json: {verify_report_path}")
         return 1
@@ -262,8 +262,8 @@ def sync_feature_to_baseline(
     print("[OK] baseline sync completed")
     print(f"  - design index: {design_index_path}")
     print(f"  - real index:   {real_index_path}")
-    print(f"  - constitution: {effective_baseline_dir / 'constitution.md'}")
-    print(f"  - tech debt:    {effective_baseline_dir / 'tech-debt.md'}")
+    print(f"  - constitution: {effective_baseline_dir / '架构宪法.md'}")
+    print(f"  - tech debt:    {effective_baseline_dir / '技术债卡.md'}")
     return 0
 
 

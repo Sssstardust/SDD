@@ -13,7 +13,7 @@ from ._root import ROOT
 from domain.attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config
 
 
-DESIGN_PATTERN = re.compile(r"^design-v(\d+)\.md$")
+DESIGN_PATTERN = re.compile(r"^(?:design|技术方案)-v(\d+)\.md$")
 SPECS_DIR = ROOT / "specs"
 
 
@@ -23,15 +23,28 @@ def _design_version_number(path: Path) -> int:
 
 
 def list_design_files(feature_dir: Path) -> list[Path]:
+    # 尝试匹配中文或英文前缀
+    candidates = []
+    for pattern in ["技术方案-v*.md", "design-v*.md"]:
+        candidates.extend(feature_dir.glob(pattern))
+    
+    # 去重
+    seen = set()
+    unique_candidates = []
+    for p in candidates:
+        if p.name not in seen:
+            seen.add(p.name)
+            unique_candidates.append(p)
+
     return sorted(
-        (path for path in feature_dir.glob("design-v*.md") if DESIGN_PATTERN.match(path.name)),
+        (path for path in unique_candidates if DESIGN_PATTERN.match(path.name)),
         key=_design_version_number,
     )
 
 
 def detect_latest_design_path(feature_dir: Path) -> Path:
     design_files = list_design_files(feature_dir)
-    return design_files[-1] if design_files else feature_dir / "design-v1.md"
+    return design_files[-1] if design_files else feature_dir / "技术方案-v1.md"
 
 
 def resolve_locked_design_path(feature_dir: Path, gate_name: str | None = None) -> Path:
@@ -61,10 +74,10 @@ def resolve_design_path(feature_dir: Path, design_version: str | None = None) ->
         return feature_dir / value
     version_match = re.match(r"^v(\d+)$", value, re.IGNORECASE)
     if version_match:
-        return feature_dir / f"design-v{version_match.group(1)}.md"
+        return feature_dir / f"技术方案-v{version_match.group(1)}.md"
     number_match = re.match(r"^(\d+)$", value)
     if number_match:
-        return feature_dir / f"design-v{number_match.group(1)}.md"
+        return feature_dir / f"技术方案-v{number_match.group(1)}.md"
     return feature_dir / value
 
 
@@ -72,7 +85,7 @@ def detect_next_design_path(feature_dir: Path) -> Path:
     latest = detect_latest_design_path(feature_dir)
     if latest.exists():
         next_version = design_version_number(latest) + 1
-        return feature_dir / f"design-v{next_version}.md"
+        return feature_dir / f"技术方案-v{next_version}.md"
     return latest
 
 

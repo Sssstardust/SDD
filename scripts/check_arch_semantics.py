@@ -381,9 +381,9 @@ def main_for_args(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     feature_dir = resolve_feature_dir(args.feature_dir)
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
+        print(f"[ERROR] 缺少 需求规格.md: {feature_brief}")
         return 1
 
     feature_name, feature_type, tags = extract_feature_meta(feature_brief)

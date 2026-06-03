@@ -27,10 +27,10 @@ from .flow_state_helpers import (
 
 
 BOOTSTRAP_FILES = (
-    "constitution.md",
-    "architecture.md",
-    "module-layout.md",
-    "bootstrap-plan.md",
+    "架构宪法.md",
+    "架构设计.md",
+    "模块布局.md",
+    "启动计划.md",
     "scaffold-report.json",
 )
 
@@ -136,12 +136,12 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
     if prerequisite_messages:
         state["blockers"].extend(prerequisite_messages)
 
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        state["missing_artifacts"] = ["feature-brief.md"]
+        state["missing_artifacts"] = ["需求规格.md"]
         state["current_stage"] = "uninitialized"
         state["next_command"] = f"python scripts/run_pipeline.py init-feature {feature_dir.name}"
-        state["reason"] = "missing feature-brief.md"
+        state["reason"] = "missing 需求规格.md"
         return state
 
     feature_text = feature_brief.read_text(encoding="utf-8")

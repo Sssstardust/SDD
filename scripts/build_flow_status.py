@@ -127,7 +127,7 @@ def main() -> int:
         state["gate_cache"] = gate_cache
         project_state_json_path = write_project_state(feature_dir, state)
         flow_status_json_path = feature_dir / "flow-status.json"
-        flow_status_md_path = feature_dir / "flow-status.md"
+        flow_status_md_path = feature_dir / "流程看板.md"
 
         write_json(flow_status_json_path, state)
         atomic_write_text(flow_status_md_path, render_markdown(state), encoding="utf-8")

@@ -35,7 +35,7 @@ ROLLBACK_KEYWORDS = ("回滚", "rollback")
 MONITOR_KEYWORDS = ("监控", "monitor", "指标")
 ALERT_KEYWORDS = ("告警", "alert")
 GRAY_KEYWORDS = ("灰度", "canary", "白名单")
-RELEASE_PLAN_NAME = "release-plan.md"
+RELEASE_PLAN_NAME = "发布计划.md"
 RELEASE_EXCEPTION_NAME = "exception.json"
 
 
@@ -177,13 +177,13 @@ def structured_release_plan(feature_dir: Path) -> dict[str, object]:
 
     release = data.get("release")
     if not isinstance(release, dict):
-        return {"result": "MISSING", "path": str(release_plan), "checks": [], "errors": ["release-plan.md 缺少 release YAML 根节点"]}
+        return {"result": "MISSING", "path": str(release_plan), "checks": [], "errors": ["发布计划.md 缺少 release YAML 根节点"]}
 
     for key in ["owner", "approver"]:
         if get_scalar(release, key):
             checks.append(f"release {key} 已声明")
         else:
-            errors.append(f"release-plan.md 缺少 {key}")
+            errors.append(f"发布计划.md 缺少 {key}")
 
     required_ready_sections = ["rollback", "monitoring", "alerting", "rollout"]
     for section in required_ready_sections:
@@ -191,25 +191,25 @@ def structured_release_plan(feature_dir: Path) -> dict[str, object]:
         if isinstance(section_data, dict) and section_data.get("ready") is True:
             checks.append(f"release {section}.ready 已确认")
         else:
-            errors.append(f"release-plan.md 缺少 {section}.ready: true")
+            errors.append(f"发布计划.md 缺少 {section}.ready: true")
 
     monitoring = release.get("monitoring")
     if isinstance(monitoring, dict) and get_list(monitoring, "metrics"):
         checks.append("release monitoring.metrics 已声明")
     else:
-        errors.append("release-plan.md 缺少 monitoring.metrics")
+        errors.append("发布计划.md 缺少 monitoring.metrics")
 
     alerting = release.get("alerting")
     if isinstance(alerting, dict) and get_list(alerting, "rules"):
         checks.append("release alerting.rules 已声明")
     else:
-        errors.append("release-plan.md 缺少 alerting.rules")
+        errors.append("发布计划.md 缺少 alerting.rules")
 
     rollout = release.get("rollout")
     if isinstance(rollout, dict) and get_list(rollout, "batches"):
         checks.append("release rollout.batches 已声明")
     else:
-        errors.append("release-plan.md 缺少 rollout.batches")
+        errors.append("发布计划.md 缺少 rollout.batches")
 
     return {
         "result": "PASS" if not errors else "FAIL",
@@ -227,9 +227,9 @@ def main() -> int:
     strict_mode = args.strict or os.environ.get("SDD_STRICT", "").lower() in {"1", "true", "yes", "on"}
 
     feature_dir = resolve_feature_dir(args.feature_dir)
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {feature_brief}")
+        print(f"[ERROR] 缺少 需求规格.md: {feature_brief}")
         return 1
 
     feature_name, tags, risk_tier = parse_feature_meta(feature_brief)
@@ -324,7 +324,7 @@ def main() -> int:
     if structured_plan_passed:
         checks.extend(str(item) for item in structured_plan.get("checks", []))
     else:
-        errors.append("缺少可通过校验的结构化 release-plan.md YAML，关键词证据不能替代上线计划")
+        errors.append("缺少可通过校验的结构化 发布计划.md YAML，关键词证据不能替代上线计划")
         warnings.extend(str(item) for item in structured_plan.get("errors", []))
 
     rollback_evidence = find_keyword_evidence(feature_dir, ROLLBACK_KEYWORDS)
@@ -339,7 +339,7 @@ def main() -> int:
     elif structured_plan_passed:
         checks.append("回滚方案已就绪")
     elif rollback_evidence:
-        warnings.append("发现回滚关键词证据，但结构化 release-plan.md 未通过，不能作为 PASS 依据")
+        warnings.append("发现回滚关键词证据，但结构化 发布计划.md 未通过，不能作为 PASS 依据")
     else:
         errors.append("未找到回滚方案证据")
 
@@ -350,7 +350,7 @@ def main() -> int:
     if structured_plan_passed:
         checks.append("监控与告警已配置")
     elif monitor_evidence and alert_evidence:
-        warnings.append("发现监控/告警关键词证据，但结构化 release-plan.md 未通过，不能作为 PASS 依据")
+        warnings.append("发现监控/告警关键词证据，但结构化 发布计划.md 未通过，不能作为 PASS 依据")
     else:
         errors.append("未找到完整的监控与告警证据")
 
@@ -359,7 +359,7 @@ def main() -> int:
     if structured_plan_passed:
         checks.append("灰度策略已确认")
     elif gray_evidence:
-        warnings.append("发现灰度关键词证据，但结构化 release-plan.md 未通过，不能作为 PASS 依据")
+        warnings.append("发现灰度关键词证据，但结构化 发布计划.md 未通过，不能作为 PASS 依据")
     else:
         errors.append("未找到灰度策略证据")
 
@@ -374,7 +374,7 @@ def main() -> int:
             if "高风险 feature 要求 Gate 5 attached_execution 为 PASS" in error and "attached_execution" in waived_checks:
                 waived_error_messages.append(error)
                 continue
-            if "缺少可通过校验的结构化 release-plan.md YAML" in error and "release_plan" in waived_checks:
+            if "缺少可通过校验的结构化 发布计划.md YAML" in error and "release_plan" in waived_checks:
                 waived_error_messages.append(error)
                 continue
             if "未找到灰度策略证据" in error and "gray_strategy" in waived_checks:

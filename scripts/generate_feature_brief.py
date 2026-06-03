@@ -2,7 +2,7 @@
 """
 generate_feature_brief.py
 
-根据 PRD / 需求文本生成第一版 feature-brief.md。
+根据 PRD / 需求文本生成第一版 需求规格.md。
 当前版本采用启发式规则，不依赖模型调用。
 """
 
@@ -272,7 +272,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("source_file", help="PRD/需求文本文件路径")
     parser.add_argument("feature_name", help="feature 名称或 specs/<feature> 路径")
-    parser.add_argument("--force", action="store_true", help="允许覆盖已存在的 feature-brief.md")
+    parser.add_argument("--force", action="store_true", help="允许覆盖已存在的 需求规格.md")
     args = parser.parse_args()
 
     source_path = Path(args.source_file)
@@ -282,7 +282,7 @@ def main() -> int:
 
     feature_dir = resolve_feature_dir(args.feature_name)
     feature_dir.mkdir(parents=True, exist_ok=True)
-    output_path = feature_dir / "feature-brief.md"
+    output_path = feature_dir / "需求规格.md"
     if output_path.exists() and not args.force:
         print(f"[ERROR] feature-brief 已存在，若需覆盖请使用 --force: {output_path}")
         return 1

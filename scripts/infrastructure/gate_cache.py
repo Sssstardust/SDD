@@ -26,7 +26,7 @@ def _stable_hash_text(path: Path) -> str:
 
 def _base_design_gate_payload_parts(feature_dir: Path, *, gate_name: str | None = None) -> list[str]:
     feature_dir = resolve_feature_dir(feature_dir)
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     design_path = resolve_locked_design_path(feature_dir, gate_name=gate_name)
     return [
         str(feature_dir),

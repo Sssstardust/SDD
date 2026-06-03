@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helpers for reading structured metadata from feature-brief.md.
+Helpers for reading structured metadata from 需求规格.md.
 """
 
 from __future__ import annotations

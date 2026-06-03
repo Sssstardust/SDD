@@ -467,11 +467,11 @@ def main() -> int:
     payload["tooling_hygiene"] = hygiene_payload
     payload["workspace_hygiene"] = hygiene_payload
 
-    json_path = output_dir / "project-console.json"
-    md_path = output_dir / "project-console.md"
-    html_path = output_dir / "project-console.html"
+    json_path = output_dir / "项目总览.json"
+    md_path = output_dir / "项目总览.md"
+    html_path = output_dir / "项目总览.html"
     with path_lock(output_dir, phase="build-project-console"):
-        write_project_json(output_dir, "project-console.json", payload)
+        write_project_json(output_dir, "项目总览.json", payload)
         atomic_write_text(
             md_path,
             render_markdown(

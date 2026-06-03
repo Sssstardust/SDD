@@ -58,7 +58,7 @@ def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, object]
             create=True,
         )
         project_next_path = artifacts_dir / "project-next.json"
-        project_console_path = artifacts_dir / "project-console.json"
+        project_console_path = artifacts_dir / "项目总览.json"
         if project_next_path.exists():
             artifacts["project_next_path"] = str(project_next_path)
         if project_console_path.exists():

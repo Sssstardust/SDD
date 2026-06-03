@@ -36,9 +36,9 @@ def main() -> int:
     args = parser.parse_args()
 
     feature_dir = resolve_feature_dir(args.feature_dir)
-    feature_brief = feature_dir / "feature-brief.md"
+    feature_brief = feature_dir / "需求规格.md"
     if not feature_brief.exists():
-        print(f"[ERROR] missing feature-brief.md: {feature_brief}")
+        print(f"[ERROR] missing 需求规格.md: {feature_brief}")
         return 1
 
     yaml_text = "\n".join(extract_yaml_blocks(feature_brief.read_text(encoding="utf-8")))

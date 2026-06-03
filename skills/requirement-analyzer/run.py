@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run the requirement-analyzer skill and optionally emit feature-brief.md.
+Run the requirement-analyzer skill and optionally emit 需求规格.md.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("source_file", help="PRD/需求文本文件路径")
     parser.add_argument("output_json", help="输出 structured-prd.json 路径")
-    parser.add_argument("--feature-brief-out", default=None, help="可选：同时输出 feature-brief.md")
+    parser.add_argument("--feature-brief-out", default=None, help="可选：同时输出 需求规格.md")
     parser.add_argument("--feature-name", default=None, help="手工覆盖 feature_name")
     parser.add_argument("--feature-type", default=None, help="手工覆盖 feature_type")
     parser.add_argument(

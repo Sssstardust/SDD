@@ -447,7 +447,7 @@ def render_design_markdown(context: dict, design_version: str, design_pack_files
 **版本:** `{design_version_label(Path(design_version))}`  
 **日期:** `{date.today()}`  
 **状态:** `Draft`  
-**来源 Feature Brief:** `specs/{feature_dir_name}/feature-brief.md`
+**来源 Feature Brief:** `specs/{feature_dir_name}/需求规格.md`
 
 ---
 
@@ -598,7 +598,7 @@ def detect_brownfield_hallucinations(context: dict, design_markdown: str) -> lis
 
 
 def validate_outputs(workspace: Path, design_path: Path) -> tuple[bool, list[dict[str, str]]]:
-    feature_brief = workspace / "feature-brief.md"
+    feature_brief = workspace / "需求规格.md"
     commands = [
         ("check-design-structure", [sys.executable, str(ROOT / "scripts" / "check_design_structure.py"), str(design_path)]),
         ("check-design-pack", [sys.executable, str(ROOT / "scripts" / "check_design_pack.py"), str(feature_brief)]),
@@ -717,8 +717,8 @@ def main() -> int:
     if not workspace.exists():
         print(f"[ERROR] workspace 不存在: {workspace}")
         return 1
-    if not (workspace / "feature-brief.md").exists():
-        print(f"[ERROR] 缺少 feature-brief.md: {workspace / 'feature-brief.md'}")
+    if not (workspace / "需求规格.md").exists():
+        print(f"[ERROR] 缺少 需求规格.md: {workspace / '需求规格.md'}")
         return 1
     if args.resume and not output_path.exists():
         print(f"[ERROR] --resume 模式要求输出设计文件已存在: {output_path}")

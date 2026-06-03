@@ -9,7 +9,7 @@ from __future__ import annotations
 def validate_required_artifacts(*, feature_brief_exists: bool, design_exists: bool, feature_brief_path: str, design_path: str) -> list[str]:
     errors: list[str] = []
     if not feature_brief_exists:
-        errors.append(f"missing feature-brief.md: {feature_brief_path}")
+        errors.append(f"missing 需求规格.md: {feature_brief_path}")
     if not design_exists:
         errors.append(f"missing design document: {design_path}")
     return errors
