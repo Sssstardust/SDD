@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Project Console</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --ink: #1f2933;
+      --muted: #52606d;
+      --line: #d9d2c3;
+      --accent: #8f3b2e;
+      --accent-soft: #f8e8dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      background: linear-gradient(180deg, #f9f4ec 0%, var(--bg) 100%);
+      color: var(--ink);
+      font: 14px/1.5 "Segoe UI", sans-serif;
+    }
+    h1, h2 { margin: 0 0 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 20px 0 28px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(31, 41, 51, 0.06);
+    }
+    .hero {
+      background: radial-gradient(circle at top right, #f8d9b7 0%, var(--panel) 50%);
+    }
+    .metric {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    ul { margin: 0; padding-left: 18px; }
+    .chips { list-style: none; padding: 0; margin: 0; }
+    .chips li {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--accent-soft);
+      color: var(--ink);
+    }
+    code {
+      color: var(--accent);
+      white-space: pre-wrap;
+    }
+    .section { margin-bottom: 28px; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <section class="card hero">
+    <h1>Project Console</h1>
+    <p class="muted">Project ID: <strong>attached-project-b44a1870</strong></p>
+    <p class="muted">Project Name: <strong>attached-project</strong></p>
+    <p class="muted">Artifacts Dir: <code>D:\project\SDD\.spec\project-artifacts\attached-project-b44a1870</code></p>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Feature Count</h2>
+      <div class="metric">3</div>
+    </article>
+    <article class="card">
+      <h2>Stage Distribution</h2>
+      <ul class="chips"><li><strong>release-ready</strong><span>2</span></li><li><strong>uninitialized</strong><span>1</span></li></ul>
+    </article>
+    <article class="card">
+      <h2>State Sources</h2>
+      <ul class="chips"><li><strong>project-state.json</strong><span>3</span></li></ul>
+    </article>
+  </section>
+
+  <section class="section card">
+    <h2>Current Recommendation</h2>
+    <ul><li><strong>Feature:</strong> arc-web</li><li><strong>Stage:</strong> uninitialized</li><li><strong>Source:</strong> project-state.json</li><li><strong>Risk:</strong> low</li><li><strong>Reason:</strong> missing 需求规格.md</li><li><strong>Command:</strong> <code>python scripts/run_pipeline.py init-feature arc-web</code></li></ul>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Latest Execution</h2>
+      <p>{&#x27;at&#x27;: &#x27;2026-04-20T06:48:26.731366+00:00&#x27;, &#x27;op_type&#x27;: &#x27;continue-project-flow&#x27;, &#x27;payload&#x27;: {&#x27;result&#x27;: &#x27;no_candidate&#x27;}}</p>
+    </article>
+    <article class="card">
+      <h2>Tooling Hygiene</h2>
+      <p>No obvious generated-artifact or workspace hygiene issues were found.</p>
+    </article>
+  </section>
+
+  <section class="section card">
+    <h2>Recent Operations</h2>
+    <ul><li><code>2026-05-20T04:36:48.251194+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\attached-project-b44a1870\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 3, &#x27;duration_ms&#x27;: 16, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:15:59.791874+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 76, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:15:26.785152+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 62, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:15:07.931932+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 41, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:14:42.168536+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 38, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:14:08.645926+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 42, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:13:40.529229+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 72, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:12:44.856954+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 38, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:12:22.279847+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 82, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li><li><code>2026-05-20T03:11:48.151910+00:00</code> <strong>schema-context-refresh</strong> {&#x27;result&#x27;: &#x27;ok&#x27;, &#x27;file&#x27;: &#x27;D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json&#x27;, &#x27;source&#x27;: &#x27;attachment&#x27;, &#x27;fallback_from&#x27;: None, &#x27;table_count&#x27;: 5, &#x27;duration_ms&#x27;: 43, &#x27;auto_discover&#x27;: None, &#x27;error&#x27;: None}</li></ul>
+  </section>
+
+  <section class="section">
+    <h2>Features</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Stage</th>
+          <th>Source</th>
+          <th>Risk</th>
+          <th>Approval</th>
+          <th>gate2</th>
+          <th>gate3</th>
+          <th>gate4</th>
+          <th>gate5</th>
+          <th>impl</th>
+          <th>gate3 ai</th>
+          <th>gate5 admission</th>
+          <th>real test admission</th>
+          <th>attached execution</th>
+          <th>component execution</th>
+          <th>framework evidence</th>
+          <th>resource claims</th>
+          <th>Missing</th>
+          <th>Blockers</th>
+          <th>Next</th>
+        </tr>
+      </thead>
+      <tbody><tr><td>arc-web</td><td>uninitialized</td><td>project-state.json</td><td>low</td><td>None</td><td>None</td><td>None</td><td>None</td><td>None</td><td>None</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>1</td><td>0</td><td><code>python scripts/run_pipeline.py init-feature arc-web</code></td></tr><tr><td>payment-review-control</td><td>release-ready</td><td>project-state.json</td><td>high</td><td>APPROVED</td><td>PASS</td><td>PASS</td><td>PASS</td><td>PASS</td><td>PASS</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>0</td><td>0</td><td><code>None</code></td></tr><tr><td>task-board</td><td>release-ready</td><td>project-state.json</td><td>high</td><td>APPROVED</td><td>PASS</td><td>FAIL</td><td>PASS</td><td>PASS</td><td>WARN</td><td>SKIPPED not-configured</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>0</td><td>7</td><td><code>None</code></td></tr></tbody>
+    </table>
+  </section>
+</body>
+</html>

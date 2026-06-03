@@ -1,0 +1,397 @@
+{
+  "project": {
+    "project_id": "arc-web-a602642e",
+    "project_name": "attached-project",
+    "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+    "artifacts_dir": "D:\\project\\SDD\\.spec\\project-artifacts\\arc-web-a602642e",
+    "attachment_path": "D:\\project\\SDD\\.spec\\attached-project.json",
+    "attachment_present": true
+  },
+  "workspace": {
+    "version": 1,
+    "active_profile": "arc-web",
+    "active_project_id": "arc-web-a602642e",
+    "profiles": [
+      {
+        "name": "arc-web",
+        "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+        "scan_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java",
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\test\\java"
+        ],
+        "design_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs"
+        ],
+        "schema_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\resources",
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\database"
+        ],
+        "components": [],
+        "project_id": "arc-web-a602642e",
+        "profile": "arc-web",
+        "active": true,
+        "verification_commands": []
+      },
+      {
+        "name": "attached-project",
+        "project_root": "D:\\project\\SDD",
+        "design_roots": [
+          "D:\\project\\SDD\\specs"
+        ],
+        "components": [],
+        "project_id": "attached-project-b44a1870",
+        "profile": "attached-project",
+        "scan_roots": [],
+        "schema_roots": [],
+        "active": false
+      }
+    ]
+  },
+  "feature_count": 3,
+  "state_source_policy": "prefer_persisted",
+  "state_source_counts": {
+    "project-state.json": 3
+  },
+  "features": [
+    {
+      "feature_dir": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center",
+      "feature_name": "tariff-audit-sync-task-center",
+      "current_stage": "uninitialized",
+      "risk_tier": "low",
+      "strict_recommended": false,
+      "strict_next_step": false,
+      "strict_summary": {},
+      "design_version": null,
+      "reports_dir": null,
+      "approval_status": null,
+      "gate2_result": null,
+      "gate3_result": null,
+      "gate4_result": null,
+      "gate5_result": null,
+      "implementation_result": null,
+      "release_gate_result": null,
+      "release_exception_metadata": {},
+      "next_command": "python scripts/run_pipeline.py init-feature tariff-audit-sync-task-center",
+      "reason": "missing 需求规格.md",
+      "missing_artifacts": [
+        "需求规格.md"
+      ],
+      "blockers": [],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {
+        "gate1": {
+          "status": "PASS",
+          "input_hash": "36ebb2329ecc3cb53f55e92f195ebc705db6951862334a5efebba8def97ee6a0",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate1-report.json",
+          "completed_at": null
+        },
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "f0b77fd4a018dc31a06e7674160b2d7f1081a731fc6a62ffa240f080c85dd427",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "PASS",
+          "input_hash": "f0b77fd4a018dc31a06e7674160b2d7f1081a731fc6a62ffa240f080c85dd427",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate4": {
+          "status": "PASS",
+          "input_hash": "8a429554bf1fdbc31643be48a6b199218663b49fe0231d48934087f80e0ed9a1",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate5": {
+          "status": "PASS",
+          "input_hash": "f055c05fbba3c2a17cf4062ff3bf2c6b67cacc3a72164407c5140d0f011ff15f",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\project-state.json",
+      "project_state_exists": true
+    },
+    {
+      "feature_dir": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\test-naming-convention",
+      "feature_name": "order-create",
+      "current_stage": "feature-brief-ready",
+      "risk_tier": "high",
+      "strict_recommended": true,
+      "strict_next_step": true,
+      "strict_summary": {
+        "recommended": true,
+        "next_step_strict": true,
+        "next_command_has_strict_flag": true,
+        "mode": "strict"
+      },
+      "design_version": null,
+      "reports_dir": null,
+      "approval_status": null,
+      "gate2_result": null,
+      "gate3_result": null,
+      "gate4_result": null,
+      "gate5_result": null,
+      "implementation_result": null,
+      "release_gate_result": null,
+      "release_exception_metadata": {},
+      "next_command": "python scripts/run_pipeline.py design-cycle D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\test-naming-convention --strict",
+      "reason": "design-v{N}.md has not been generated yet",
+      "missing_artifacts": [
+        "design-v{N}.md"
+      ],
+      "blockers": [],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {},
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\test-naming-convention\\project-state.json",
+      "project_state_exists": true
+    },
+    {
+      "feature_dir": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration",
+      "feature_name": "vrm-product-integration",
+      "current_stage": "approved-ready-for-implementation",
+      "risk_tier": "low",
+      "strict_recommended": false,
+      "strict_next_step": false,
+      "strict_summary": {
+        "recommended": false,
+        "next_step_strict": false,
+        "next_command_has_strict_flag": false,
+        "mode": "no"
+      },
+      "design_version": "技术方案-v1.md",
+      "reports_dir": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1",
+      "approval_status": null,
+      "gate2_result": "PASS",
+      "gate3_result": "WARN",
+      "gate4_result": null,
+      "gate5_result": null,
+      "implementation_result": null,
+      "release_gate_result": null,
+      "release_exception_metadata": {},
+      "next_command": "python scripts/run_pipeline.py approved-implementation-cycle D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration",
+      "reason": "design stage is complete, but implementation verification has not started",
+      "missing_artifacts": [
+        "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\verify-report.json",
+        "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\gate4-skeleton.json"
+      ],
+      "blockers": [
+        "gate2: module-map 可信度较低，不能单独支撑高置信实现追溯，unsupported_features=framework-proxy, lombok-generated-methods, mybatis-mapper-binding, reflection",
+        "gate3: 无法识别调用分层: Client -> VRMProductService",
+        "gate3: 无法识别调用分层: VRMProductService -> TOB",
+        "gate3: 无法识别调用分层: VRMProductService -> TOB",
+        "gate3: 无法识别调用分层: VRMProductService -> VRMProductMapper",
+        "missing implementation verification report: D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\verify-report.json",
+        "missing gate4 skeleton report: D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\gate4-skeleton.json"
+      ],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {
+        "resolved_count": 2,
+        "missing_count": 0,
+        "ambiguous_count": 0,
+        "first_ambiguous_class": null,
+        "first_ambiguous_class_components": [],
+        "first_ambiguous_class_resource_keys": []
+      },
+      "schema_table_resolution_brief": {
+        "resolved_count": 0,
+        "missing_count": 0,
+        "ambiguous_count": 0,
+        "first_ambiguous_table": null,
+        "first_ambiguous_table_components": [],
+        "first_ambiguous_table_resource_keys": []
+      },
+      "design_resource_claim_summary": {
+        "total": 0,
+        "kinds": [],
+        "counts_by_kind": {},
+        "names_by_kind": {},
+        "resource_keys_by_kind": {},
+        "component_ids_by_kind": {},
+        "highlights": {}
+      },
+      "design_resource_claim_brief": {
+        "counts_by_kind": {},
+        "operation_components": [],
+        "schema_table_components": [],
+        "operation_resource_keys": [],
+        "schema_table_resource_keys": []
+      },
+      "gate_cache": {
+        "gate1": {
+          "status": "PASS",
+          "input_hash": "9c8f825866529560ba7a62bd9e49be85498b3c9d8b060772813606fbe13b10a0",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\gate1-report.json",
+          "completed_at": null
+        },
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "ad3c6f865b0c869c41fcfcd4469aff0597a1ad74ccbbd441359ccfe84f378464",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "WARN",
+          "input_hash": "ad3c6f865b0c869c41fcfcd4469aff0597a1ad74ccbbd441359ccfe84f378464",
+          "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\project-state.json",
+      "project_state_exists": true
+    }
+  ],
+  "latest_execution": {
+    "at": "2026-04-20T06:48:26.731366+00:00",
+    "op_type": "continue-project-flow",
+    "payload": {
+      "result": "no_candidate"
+    }
+  },
+  "stage_counts": {
+    "uninitialized": 1,
+    "feature-brief-ready": 1,
+    "approved-ready-for-implementation": 1
+  },
+  "strict_recommended_count": 1,
+  "strict_next_step_count": 1,
+  "gate_summary": {
+    "gate2": {
+      "PASS": 1,
+      "WARN": 0,
+      "FAIL": 0
+    },
+    "gate3": {
+      "PASS": 0,
+      "WARN": 1,
+      "FAIL": 0
+    },
+    "gate3_ai": {
+      "WARN": 0,
+      "SKIPPED": 0
+    },
+    "gate5": {
+      "PASS": 0,
+      "WARN": 0,
+      "FAIL": 0
+    }
+  },
+  "project_highlights": {
+    "recommended_feature": "tariff-audit-sync-task-center",
+    "gate3_ai_warn_count": 0,
+    "gate5_fail_count": 0
+  },
+  "candidate": {
+    "feature_dir": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center",
+    "feature_name": "tariff-audit-sync-task-center",
+    "current_stage": "uninitialized",
+    "risk_tier": "low",
+    "strict_recommended": false,
+    "strict_next_step": false,
+    "strict_summary": {},
+    "design_version": null,
+    "reports_dir": null,
+    "approval_status": null,
+    "gate2_result": null,
+    "gate3_result": null,
+    "gate4_result": null,
+    "gate5_result": null,
+    "implementation_result": null,
+    "release_gate_result": null,
+    "release_exception_metadata": {},
+    "next_command": "python scripts/run_pipeline.py init-feature tariff-audit-sync-task-center",
+    "reason": "missing 需求规格.md",
+    "missing_artifacts": [
+      "需求规格.md"
+    ],
+    "blockers": [],
+    "implementation_framework_evidence": {},
+    "implementation_match_highlights": [],
+    "implementation_missing_method_details": [],
+    "implementation_ambiguous_classes": [],
+    "real_test_req_admission": {},
+    "attached_execution_admission": {},
+    "affected_component_execution_admission": {},
+    "gate5_admission_summary": {},
+    "gate3_rule_evaluation": {},
+    "gate3_ai_review": {},
+    "design_class_resolution_brief": {},
+    "schema_table_resolution_brief": {},
+    "design_resource_claim_summary": {},
+    "design_resource_claim_brief": {},
+    "gate_cache": {
+      "gate1": {
+        "status": "PASS",
+        "input_hash": "36ebb2329ecc3cb53f55e92f195ebc705db6951862334a5efebba8def97ee6a0",
+        "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate1-report.json",
+        "completed_at": null
+      },
+      "gate2": {
+        "status": "PASS",
+        "input_hash": "f0b77fd4a018dc31a06e7674160b2d7f1081a731fc6a62ffa240f080c85dd427",
+        "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+        "completed_at": null
+      },
+      "gate3": {
+        "status": "PASS",
+        "input_hash": "f0b77fd4a018dc31a06e7674160b2d7f1081a731fc6a62ffa240f080c85dd427",
+        "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+        "completed_at": null
+      },
+      "gate4": {
+        "status": "PASS",
+        "input_hash": "8a429554bf1fdbc31643be48a6b199218663b49fe0231d48934087f80e0ed9a1",
+        "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+        "completed_at": null
+      },
+      "gate5": {
+        "status": "PASS",
+        "input_hash": "f055c05fbba3c2a17cf4062ff3bf2c6b67cacc3a72164407c5140d0f011ff15f",
+        "report_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\reports\\v1\\gate-report.json",
+        "completed_at": null
+      }
+    },
+    "state_source": "project-state.json",
+    "project_state_path": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\tariff-audit-sync-task-center\\project-state.json",
+    "project_state_exists": true
+  }
+}

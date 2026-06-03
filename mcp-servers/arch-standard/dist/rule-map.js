@@ -68,7 +68,7 @@ exports.RULES = [
         appliesToFeatureTypes: ["sync", "payment", "batch"],
         appliesToTags: ["db-change", "payment"],
         must: ["关键状态切换必须明确事务边界", "数据库变更必须包含回滚策略"],
-        forbidden: ["事务边界缺失", "长耗时外部调用无约束地放进事务"],
+        forbidden: ["事务边界缺失", "长耗时外部调用无约束地放入事务"],
         summary: "约束事务边界、回滚和补偿。",
     },
     {
@@ -100,7 +100,7 @@ exports.RULES = [
         ruleType: "naming",
         appliesToFeatureTypes: ["crud", "sync", "payment", "notification", "batch", "general"],
         appliesToTags: [],
-        must: ["类名使用稳定 CamelCase", "表名使用 t_ 前缀", "状态机命名体现业务含义"],
+        must: ["类名使用标准 CamelCase", "表名使用 t_ 前缀", "状态机命名体现业务含义"],
         forbidden: ["模糊缩写作为核心类名", "表名与领域对象完全无关"],
         summary: "约束设计中的类、表和状态机命名。",
     },
@@ -258,7 +258,7 @@ function getFeatureRules(featureType, capability_tags, ruleFiles) {
         },
     };
 }
-function getLayeringSemantics() {
+function getLayeringSemantics(language) {
     const fallback = {
         layers: {
             ui: { suffixes: ["UI"] },
@@ -281,7 +281,16 @@ function getLayeringSemantics() {
     }
     try {
         const data = JSON.parse(fs.readFileSync(semanticsFile, "utf8"));
-        return typeof data === "object" && data !== null ? data : fallback;
+        if (typeof data !== "object" || data === null) {
+            return fallback;
+        }
+        if (language && data[language.toLowerCase()]) {
+            return data[language.toLowerCase()];
+        }
+        if (data.layers) {
+            return data;
+        }
+        return fallback;
     }
     catch {
         return fallback;

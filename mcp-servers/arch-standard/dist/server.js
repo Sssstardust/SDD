@@ -122,7 +122,8 @@ function toolDispatch(name, argumentsObject) {
         };
     }
     if (name === "get_layering_semantics") {
-        return (0, rule_map_1.getLayeringSemantics)();
+        const language = argumentsObject.language ? String(argumentsObject.language) : undefined;
+        return (0, rule_map_1.getLayeringSemantics)(language);
     }
     throw new Error(`未知工具: ${name}`);
 }
@@ -187,7 +188,9 @@ function toolDefinitions() {
             description: "返回架构分层语义及调用方向规则 (JSON 格式)",
             inputSchema: {
                 type: "object",
-                properties: {},
+                properties: {
+                    language: { type: "string", description: "项目编程语言 (如 java, python)" }
+                },
             },
         },
     ];

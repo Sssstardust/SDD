@@ -1,0 +1,506 @@
+{
+  "project": {
+    "project_id": "attached-project-b44a1870",
+    "project_name": "attached-project",
+    "project_root": "D:\\project\\SDD",
+    "artifacts_dir": "D:\\project\\SDD\\.spec\\project-artifacts\\attached-project-b44a1870",
+    "attachment_path": "D:\\project\\SDD\\.spec\\attached-project.json",
+    "attachment_present": true
+  },
+  "workspace": {
+    "version": 1,
+    "active_profile": "attached-project",
+    "active_project_id": "attached-project-b44a1870",
+    "profiles": [
+      {
+        "name": "arc-web",
+        "project_root": "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web",
+        "scan_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\java",
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\test\\java"
+        ],
+        "design_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs"
+        ],
+        "schema_roots": [
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\src\\main\\resources",
+          "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\database"
+        ],
+        "components": [],
+        "project_id": "arc-web-a602642e",
+        "profile": "arc-web",
+        "active": false,
+        "verification_commands": []
+      },
+      {
+        "name": "attached-project",
+        "project_root": "D:\\project\\SDD",
+        "design_roots": [
+          "D:\\project\\SDD\\specs"
+        ],
+        "components": [],
+        "project_id": "attached-project-b44a1870",
+        "profile": "attached-project",
+        "scan_roots": [],
+        "schema_roots": [],
+        "active": true
+      }
+    ]
+  },
+  "feature_count": 3,
+  "state_source_policy": "prefer_persisted",
+  "state_source_counts": {
+    "project-state.json": 3
+  },
+  "features": [
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\arc-web",
+      "feature_name": "arc-web",
+      "current_stage": "uninitialized",
+      "risk_tier": "low",
+      "strict_recommended": false,
+      "strict_next_step": false,
+      "strict_summary": {},
+      "design_version": null,
+      "reports_dir": null,
+      "approval_status": null,
+      "gate2_result": null,
+      "gate3_result": null,
+      "gate4_result": null,
+      "gate5_result": null,
+      "implementation_result": null,
+      "release_gate_result": null,
+      "release_exception_metadata": {},
+      "next_command": "python scripts/run_pipeline.py init-feature arc-web",
+      "reason": "missing 需求规格.md",
+      "missing_artifacts": [
+        "需求规格.md"
+      ],
+      "blockers": [],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {},
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\SDD\\specs\\arc-web\\project-state.json",
+      "project_state_exists": true
+    },
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\pilot-payment-review",
+      "feature_name": "payment-review-control",
+      "current_stage": "release-ready",
+      "risk_tier": "high",
+      "strict_recommended": true,
+      "strict_next_step": false,
+      "strict_summary": {
+        "recommended": true,
+        "next_step_strict": false,
+        "next_command_has_strict_flag": false,
+        "mode": "recommended"
+      },
+      "design_version": "技术方案-v1.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "PASS",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "implementation_result": "PASS",
+      "release_gate_result": "PASS",
+      "release_exception_metadata": {},
+      "next_command": null,
+      "reason": "feature passed implementation verification and release governance",
+      "missing_artifacts": [],
+      "blockers": [],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {},
+      "gate3_ai_review": {},
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {
+        "gate1": {
+          "status": "PASS",
+          "input_hash": "62d884045405e145a8a499f521537222997efc1a85c67a76342d03bf462e362c",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate1-report.json",
+          "completed_at": null
+        },
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "e3cd72b8dfd47390762d694b211337ccdaa0fdb6c4c9cd926be153bdc5ba4d57",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "PASS",
+          "input_hash": "e3cd72b8dfd47390762d694b211337ccdaa0fdb6c4c9cd926be153bdc5ba4d57",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate4": {
+          "status": "PASS",
+          "input_hash": "753cc59d7451ee6bb4dbd21eb232f03982de5198606e1428220db5633d92d3d2",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        },
+        "gate5": {
+          "status": "PASS",
+          "input_hash": "3a271231dd7dc282797f87b8fb3454f0500cd00da3f15bbbb0bf707a1b9ef493",
+          "report_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\reports\\v1\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\SDD\\specs\\pilot-payment-review\\project-state.json",
+      "project_state_exists": true
+    },
+    {
+      "feature_dir": "D:\\project\\SDD\\specs\\task-board",
+      "feature_name": "task-board",
+      "current_stage": "release-ready",
+      "risk_tier": "high",
+      "strict_recommended": true,
+      "strict_next_step": false,
+      "strict_summary": {
+        "recommended": true,
+        "next_step_strict": false,
+        "next_command_has_strict_flag": false,
+        "mode": "recommended"
+      },
+      "design_version": "技术方案-v2.md",
+      "reports_dir": "D:\\project\\SDD\\specs\\task-board\\reports\\v2",
+      "approval_status": "APPROVED",
+      "gate2_result": "PASS",
+      "gate3_result": "FAIL",
+      "gate4_result": "PASS",
+      "gate5_result": "PASS",
+      "implementation_result": "WARN",
+      "release_gate_result": "PASS",
+      "release_exception_metadata": {},
+      "next_command": null,
+      "reason": "feature passed implementation verification and release governance",
+      "missing_artifacts": [],
+      "blockers": [
+        "gate3: 外部调用策略缺少关键语义：超时 / 重试 / 熔断 / 降级 / fallback",
+        "gate5: REQ-001 仍包含 TODO 占位符",
+        "gate5: REQ-002 仍包含 TODO 占位符",
+        "gate5: REQ-003 仍包含 TODO 占位符",
+        "gate5: REQ-004 仍包含 TODO 占位符",
+        "gate5: REQ-005 仍包含 TODO 占位符",
+        "gate5: implementation traceability=WARN"
+      ],
+      "implementation_framework_evidence": {},
+      "implementation_match_highlights": [],
+      "implementation_missing_method_details": [],
+      "implementation_ambiguous_classes": [],
+      "real_test_req_admission": {},
+      "attached_execution_admission": {},
+      "affected_component_execution_admission": {},
+      "gate5_admission_summary": {},
+      "gate3_rule_evaluation": {
+        "result": "FAIL",
+        "checks": [
+          "序列图分层与依赖方向满足最小约束",
+          "异常处理章节存在有效条目",
+          "事务边界说明已存在"
+        ],
+        "warnings": [],
+        "errors": [
+          "外部调用策略缺少关键语义：超时 / 重试 / 熔断 / 降级 / fallback"
+        ]
+      },
+      "gate3_ai_review": {
+        "result": "SKIPPED",
+        "mode": "not-configured",
+        "confidence": null,
+        "rationale": "AI semantic review is not configured in the current Gate 3 implementation",
+        "evidence_refs": [],
+        "violations": []
+      },
+      "design_class_resolution_brief": {},
+      "schema_table_resolution_brief": {},
+      "design_resource_claim_summary": {},
+      "design_resource_claim_brief": {},
+      "gate_cache": {
+        "gate1": {
+          "status": "PASS",
+          "input_hash": "3c96fbef3bbbd7669957777b1a55cca29fb71808c938d39fd0612d5db03c13e4",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate1-report.json",
+          "completed_at": null
+        },
+        "gate2": {
+          "status": "PASS",
+          "input_hash": "7efd156c250529fa2a926c0cd01e28bf33f90346d4f44dda3a44803bbebdd071",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        },
+        "gate3": {
+          "status": "FAIL",
+          "input_hash": "7efd156c250529fa2a926c0cd01e28bf33f90346d4f44dda3a44803bbebdd071",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        },
+        "gate4": {
+          "status": "PASS",
+          "input_hash": "79520f6f62ce79e3f5b86c785b24e4ee8966711f7ef26673aa9966aaba5db92c",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        },
+        "gate5": {
+          "status": "PASS",
+          "input_hash": "e92f13707887b17a24da2dfcd6bbedba27fa268d9fb4ee5f6c6895c67c6d7635",
+          "report_path": "D:\\project\\SDD\\specs\\task-board\\reports\\v2\\gate-report.json",
+          "completed_at": null
+        }
+      },
+      "state_source": "project-state.json",
+      "project_state_path": "D:\\project\\SDD\\specs\\task-board\\project-state.json",
+      "project_state_exists": true
+    }
+  ],
+  "latest_execution": {
+    "at": "2026-04-20T06:48:26.731366+00:00",
+    "op_type": "continue-project-flow",
+    "payload": {
+      "result": "no_candidate"
+    }
+  },
+  "recent_ops": [
+    {
+      "at": "2026-05-20T03:11:48.151910+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 43,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:12:22.279847+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 82,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:12:44.856954+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 38,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:13:40.529229+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 72,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:14:08.645926+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 42,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:14:42.168536+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 38,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:15:07.931932+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 41,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:15:26.785152+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 62,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T03:15:59.791874+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\arc-web-a602642e\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 5,
+        "duration_ms": 76,
+        "auto_discover": null,
+        "error": null
+      }
+    },
+    {
+      "at": "2026-05-20T04:36:48.251194+00:00",
+      "op_type": "schema-context-refresh",
+      "payload": {
+        "result": "ok",
+        "file": "D:\\project\\SDD\\.spec\\baselines\\attached-project-b44a1870\\schema-context.json",
+        "source": "attachment",
+        "fallback_from": null,
+        "table_count": 3,
+        "duration_ms": 16,
+        "auto_discover": null,
+        "error": null
+      }
+    }
+  ],
+  "stage_counts": {
+    "uninitialized": 1,
+    "release-ready": 2
+  },
+  "strict_recommended_count": 2,
+  "strict_next_step_count": 0,
+  "gate_summary": {
+    "gate2": {
+      "PASS": 2,
+      "WARN": 0,
+      "FAIL": 0
+    },
+    "gate3": {
+      "PASS": 1,
+      "WARN": 0,
+      "FAIL": 1
+    },
+    "gate3_ai": {
+      "WARN": 0,
+      "SKIPPED": 1
+    },
+    "gate5": {
+      "PASS": 2,
+      "WARN": 0,
+      "FAIL": 0
+    }
+  },
+  "strict_summary": {
+    "recommended_count": 2,
+    "next_step_strict_count": 0,
+    "candidate_mode": null
+  },
+  "candidate": {
+    "feature_dir": "D:\\project\\SDD\\specs\\arc-web",
+    "feature_name": "arc-web",
+    "current_stage": "uninitialized",
+    "risk_tier": "low",
+    "strict_recommended": false,
+    "strict_next_step": false,
+    "strict_summary": {},
+    "design_version": null,
+    "reports_dir": null,
+    "approval_status": null,
+    "gate2_result": null,
+    "gate3_result": null,
+    "gate4_result": null,
+    "gate5_result": null,
+    "implementation_result": null,
+    "release_gate_result": null,
+    "release_exception_metadata": {},
+    "next_command": "python scripts/run_pipeline.py init-feature arc-web",
+    "reason": "missing 需求规格.md",
+    "missing_artifacts": [
+      "需求规格.md"
+    ],
+    "blockers": [],
+    "implementation_framework_evidence": {},
+    "implementation_match_highlights": [],
+    "implementation_missing_method_details": [],
+    "implementation_ambiguous_classes": [],
+    "real_test_req_admission": {},
+    "attached_execution_admission": {},
+    "affected_component_execution_admission": {},
+    "gate5_admission_summary": {},
+    "gate3_rule_evaluation": {},
+    "gate3_ai_review": {},
+    "design_class_resolution_brief": {},
+    "schema_table_resolution_brief": {},
+    "design_resource_claim_summary": {},
+    "design_resource_claim_brief": {},
+    "gate_cache": {},
+    "state_source": "project-state.json",
+    "project_state_path": "D:\\project\\SDD\\specs\\arc-web\\project-state.json",
+    "project_state_exists": true
+  },
+  "tooling_hygiene": null,
+  "workspace_hygiene": null
+}
