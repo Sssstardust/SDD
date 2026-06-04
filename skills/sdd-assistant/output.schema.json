@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/skills/sdd-assistant/output.schema.json",
+  "title": "SDD Assistant Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "workspace"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "error", "clarify"]
+    },
+    "workspace": {
+      "type": "string"
+    },
+    "structured_prd": {
+      "type": ["string", "null"],
+      "description": "生成的 structured-prd.json 路径"
+    },
+    "design": {
+      "type": ["string", "null"],
+      "description": "生成的 design-vN.md 路径"
+    },
+    "gate_results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "各阶段 Gate 校验结果"
+    },
+    "error_stage": {
+      "type": ["string", "null"],
+      "description": "发生错误的阶段"
+    },
+    "error_message": {
+      "type": ["string", "null"]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+id: sdd-validate
+label: SDD 架构校验器
+summary: 针对设计文档（design-vN.md）和设计包执行架构规范校验（Gate 1-5）。
+instruction: 使用 $sdd-validate 校验 specs/{{feature_name}} 下的设计方案，重点检查 {{gates}}。

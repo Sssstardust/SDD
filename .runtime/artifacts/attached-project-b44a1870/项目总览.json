@@ -71,7 +71,7 @@
       "implementation_result": null,
       "release_gate_result": null,
       "release_exception_metadata": {},
-      "next_command": "python scripts/run_pipeline.py init-feature arc-web",
+      "next_command": "python sdd_core/run_pipeline.py init-feature arc-web",
       "reason": "missing 需求规格.md",
       "missing_artifacts": [
         "需求规格.md"
@@ -476,7 +476,7 @@
     "implementation_result": null,
     "release_gate_result": null,
     "release_exception_metadata": {},
-    "next_command": "python scripts/run_pipeline.py init-feature arc-web",
+    "next_command": "python sdd_core/run_pipeline.py init-feature arc-web",
     "reason": "missing 需求规格.md",
     "missing_artifacts": [
       "需求规格.md"

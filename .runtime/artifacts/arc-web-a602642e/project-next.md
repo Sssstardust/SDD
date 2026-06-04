@@ -32,12 +32,12 @@
 - Attached Execution: `N/A`
 - Component Execution: `N/A`
 - Reason: missing 需求规格.md
-- Next command: `python scripts/run_pipeline.py init-feature tariff-audit-sync-task-center`
+- Next command: `python sdd_core/run_pipeline.py init-feature tariff-audit-sync-task-center`
 
 ## Candidates
 
 | Feature | Stage | Source | Risk | Strict | impl | Gate3 AI | Gate5 Admission | Real Test Admission | Attached Execution | Component Execution | Framework Evidence | Missing | Blockers | Next |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| tariff-audit-sync-task-center | uninitialized | project-state.json | low | no | None | N/A | N/A | N/A | N/A | N/A | N/A | 1 | 0 | `python scripts/run_pipeline.py init-feature tariff-audit-sync-task-center` |
-| order-create | feature-brief-ready | project-state.json | high | strict | None | N/A | N/A | N/A | N/A | N/A | N/A | 1 | 0 | `python scripts/run_pipeline.py design-cycle D:\project\PDC2\pdc_src\pdc-arc-root\arc-web\specs\test-naming-convention --strict` |
-| vrm-product-integration | approved-ready-for-implementation | project-state.json | low | no | None | N/A | N/A | N/A | N/A | N/A | N/A | 2 | 7 | `python scripts/run_pipeline.py approved-implementation-cycle D:\project\PDC2\pdc_src\pdc-arc-root\arc-web\specs\vrm-product-integration` |
+| tariff-audit-sync-task-center | uninitialized | project-state.json | low | no | None | N/A | N/A | N/A | N/A | N/A | N/A | 1 | 0 | `python sdd_core/run_pipeline.py init-feature tariff-audit-sync-task-center` |
+| order-create | feature-brief-ready | project-state.json | high | strict | None | N/A | N/A | N/A | N/A | N/A | N/A | 1 | 0 | `python sdd_core/run_pipeline.py design-cycle D:\project\PDC2\pdc_src\pdc-arc-root\arc-web\specs\test-naming-convention --strict` |
+| vrm-product-integration | approved-ready-for-implementation | project-state.json | low | no | None | N/A | N/A | N/A | N/A | N/A | N/A | 2 | 7 | `python sdd_core/run_pipeline.py approved-implementation-cycle D:\project\PDC2\pdc_src\pdc-arc-root\arc-web\specs\vrm-product-integration` |

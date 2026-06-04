@@ -1,0 +1,8 @@
+name: sdd-validate
+display_name: SDD 架构校验器
+version: "1.0.0"
+description: "针对设计文档（design-vN.md）和设计包执行架构规范校验（Gate 1-5）。"
+input_schema: "input.schema.json"
+output_schema: "output.schema.json"
+default_prompt_template: "使用 $sdd-validate 校验 specs/{{feature_name}} 下的设计方案，重点检查 {{gates}}。"
+supported_platforms: ["openai", "claude", "gemini"]

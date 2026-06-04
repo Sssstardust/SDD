@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/skills/requirement-analyzer/input.schema.json",
+  "title": "Requirement Analyzer Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_file", "output_json"],
+  "properties": {
+    "source_file": {
+      "type": "string",
+      "description": "PRD/需求文本文件路径",
+      "minLength": 1
+    },
+    "output_json": {
+      "type": "string",
+      "description": "输出 structured-prd.json 路径",
+      "minLength": 1
+    },
+    "feature_brief_out": {
+      "type": ["string", "null"],
+      "description": "可选：同时输出 需求规格.md 的路径"
+    },
+    "feature_name": {
+      "type": ["string", "null"],
+      "description": "手工覆盖 feature_name"
+    },
+    "feature_type": {
+      "type": ["string", "null"],
+      "description": "手工覆盖 feature_type"
+    },
+    "project_mode": {
+      "type": ["string", "null"],
+      "enum": ["brownfield", "greenfield", "hybrid"],
+      "description": "手工覆盖 project_mode"
+    },
+    "confirmed_by": {
+      "type": "string",
+      "default": "zhangsan",
+      "description": "确认人"
+    },
+    "ai_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "仅允许 AI 生成"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/skills/sdd-validate/input.schema.json",
+  "title": "SDD Validate Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workspace"],
+  "properties": {
+    "workspace": {
+      "type": "string",
+      "description": "feature 工作目录路径"
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["gate1", "gate2", "gate3", "gate4", "gate5", "release"]
+      },
+      "description": "需要执行的 Gate 列表。默认执行 [gate1, gate2, gate3]"
+    },
+    "strict": {
+      "type": "boolean",
+      "default": false,
+      "description": "是否启用严格校验模式"
+    },
+    "attachment_file": {
+      "type": ["string", "null"],
+      "description": "可选：附着项目配置文件"
+    },
+    "profile": {
+      "type": ["string", "null"],
+      "description": "可选：配置文件 Profile"
+    }
+  }
+}

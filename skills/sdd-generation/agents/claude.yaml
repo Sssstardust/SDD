@@ -1,0 +1,4 @@
+skill: sdd-generation
+role: expert
+description: 基于结构化需求和项目上下文生成 design-vN.md 与设计包 (design-pack)。
+prompt: 使用 $sdd-generation 为此需求生成技术设计方案，确保对齐存量代码事实。

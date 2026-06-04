@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Run the requirement-analyzer skill and optionally emit 需求规格.md.
+requirement-analyzer: standard Skill facade for SDD.
+Calls sdd_core.application.analyzers.requirement_analyzer.
 """
 
 from __future__ import annotations
@@ -12,12 +13,12 @@ import sys
 from pathlib import Path
 from urllib import error, request
 
+# Ensure sdd_core is importable
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-SKILL_DIR = Path(__file__).resolve().parent
-if str(SKILL_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILL_DIR))
-
-from extract import (  # noqa: E402
+from sdd_core.application.analyzers.requirement_analyzer import (
     apply_overrides,
     build_heuristic_result,
     deep_merge,
@@ -29,9 +30,49 @@ from extract import (  # noqa: E402
 )
 
 
+SKILL_DIR = Path(__file__).resolve().parent
+
 READY_EXIT_CODE = 0
 SYSTEM_ERROR_EXIT_CODE = 1
 CLARIFY_EXIT_CODE = 2
+
+
+def load_schema(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_payload_by_schema(instance: object, schema: dict, *, label: str) -> None:
+    schema_type = schema.get("type")
+    if schema_type == "object":
+        if not isinstance(instance, dict):
+            raise ValueError(f"{label} must be an object")
+        required = schema.get("required", [])
+        if isinstance(required, list):
+            for key in required:
+                if key not in instance:
+                    raise ValueError(f"{label} missing required field: {key}")
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict):
+            for key, child_schema in properties.items():
+                if key in instance and isinstance(child_schema, dict):
+                    validate_payload_by_schema(instance[key], child_schema, label=f"{label}.{key}")
+        return
+    if schema_type == "array":
+        if not isinstance(instance, list):
+            raise ValueError(f"{label} must be an array")
+        child = schema.get("items")
+        if isinstance(child, dict):
+            for index, item in enumerate(instance):
+                validate_payload_by_schema(item, child, label=f"{label}[{index}]")
+        return
+    if schema_type == "string":
+        if not isinstance(instance, str):
+            raise ValueError(f"{label} must be a string")
+        return
+    if schema_type == "boolean":
+        if not isinstance(instance, bool):
+            raise ValueError(f"{label} must be a boolean")
+        return
 
 
 def parse_args() -> argparse.Namespace:
@@ -169,6 +210,21 @@ def ensure_writable(path: Path, force: bool) -> None:
 
 def main() -> int:
     args = parse_args()
+    input_payload = {
+        "source_file": args.source_file,
+        "output_json": args.output_json,
+        "feature_brief_out": args.feature_brief_out,
+        "feature_name": args.feature_name,
+        "feature_type": args.feature_type,
+        "project_mode": args.project_mode,
+        "confirmed_by": args.confirmed_by,
+        "ai_only": args.ai_only,
+    }
+    validate_payload_by_schema(
+        input_payload,
+        load_schema(SKILL_DIR / "input.schema.json"),
+        label="requirement-analyzer.input",
+    )
     source_path = Path(args.source_file)
     output_path = Path(args.output_json)
     feature_brief_path = Path(args.feature_brief_out) if args.feature_brief_out else None
@@ -234,29 +290,32 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(finalized, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    if finalized["status"] == "clarify":
-        missing_fields = finalized.get("clarify", {}).get("missing_fields", [])
-        print("[CLARIFY] PRD 解析仍缺少关键信息")
-        print(f"  - output: {output_path}")
-        print(f"  - missing_fields: {', '.join(missing_fields)}")
-        for question in finalized.get("clarify", {}).get("questions", []):
-            print(f"  - question: {question}")
-        return CLARIFY_EXIT_CODE
-
     if feature_brief_path:
         feature_brief_path.parent.mkdir(parents=True, exist_ok=True)
         feature_brief_path.write_text(render_feature_brief(finalized, source_path), encoding="utf-8")
 
+    output_payload = {
+        "status": finalized["status"],
+        "source": str(source_path),
+        "output": str(output_path),
+        "feature_brief": str(feature_brief_path) if feature_brief_path else None,
+        "capability_tags": list(finalized["capability_tags"]),
+        "risk_tier": finalized["risk_tier"],
+        "ai_used": ai_used,
+    }
+    validate_payload_by_schema(
+        output_payload,
+        load_schema(SKILL_DIR / "output.schema.json"),
+        label="requirement-analyzer.output",
+    )
+
     print("[OK] requirement-analyzer 执行完成")
-    print(f"  - source: {source_path}")
-    print(f"  - output: {output_path}")
-    if feature_brief_path:
-        print(f"  - feature_brief: {feature_brief_path}")
-    print(f"  - status: {finalized['status']}")
-    print(f"  - tags: {', '.join(finalized['capability_tags'])}")
-    print(f"  - risk: {finalized['risk_tier']}")
-    print(f"  - ai_used: {'yes' if ai_used else 'no'}")
-    return READY_EXIT_CODE
+    return READY_EXIT_CODE if finalized["status"] == "ready" else CLARIFY_EXIT_CODE
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
 
 
 if __name__ == "__main__":

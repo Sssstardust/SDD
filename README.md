@@ -1,5 +1,8 @@
 # SDD Team Distribution
 
+> **🎯 定位声明**：本仓库提供 **面向 AI Agent 的标准化 Skill 集合**（通过 MCP 或直接调用）。
+> 核心目标是将 SDD 的「架构门禁 (Gates)」与「设计生成 (Generation)」能力标准化，使机器与人类能共用一套架构语言。
+
 这套仓库用于给项目组共享一套统一的 SDD 流程工具。
 
 仓库本身负责：
@@ -15,7 +18,7 @@
 
 ## 安装前提
 
-- Windows + PowerShell preferred; cross-platform readiness check is available via `python scripts/doctor.py`
+- Windows + PowerShell preferred; cross-platform readiness check is available via `python sdd_core/doctor.py`
 - Python 3.13+
 - Node.js 18+
 - Platform matrix: [docs/platform-support-matrix.md](docs/platform-support-matrix.md)
@@ -28,7 +31,7 @@
 推荐直接使用一条标准入口：
 
 ```powershell
-python scripts/run_pipeline.py onboard-project `
+python sdd_core/run_pipeline.py onboard-project `
   --project-root D:\your-target-project `
   --design-root D:\your-design-root `
   --schema-root D:\your-target-project\src\main\resources
@@ -37,7 +40,7 @@ python scripts/run_pipeline.py onboard-project `
 别名：
 
 ```powershell
-python scripts/run_pipeline.py bootstrap-attached-project `
+python sdd_core/run_pipeline.py bootstrap-attached-project `
   --project-root D:\your-target-project `
   --design-root D:\your-design-root `
   --schema-root D:\your-target-project\src\main\resources
@@ -56,19 +59,19 @@ python scripts/run_pipeline.py bootstrap-attached-project `
 查看当前附着项目：
 
 ```powershell
-python scripts/run_pipeline.py show-attachment
+python sdd_core/run_pipeline.py show-attachment
 ```
 
 刷新 baseline：
 
 ```powershell
-python scripts/run_pipeline.py refresh-baseline --strict
+python sdd_core/run_pipeline.py refresh-baseline --strict
 ```
 
 使用 polyquery MCP 刷新数据库事实：
 
 ```powershell
-python scripts/run_pipeline.py refresh-schema-context --from-polyquery --polyquery-config config\polyquery.json --polyquery-fallback fail
+python sdd_core/run_pipeline.py refresh-schema-context --from-polyquery --polyquery-config config\polyquery.json --polyquery-fallback fail
 ```
 
 说明见 [docs/polyquery-integration.md](docs/polyquery-integration.md)。
@@ -76,46 +79,46 @@ python scripts/run_pipeline.py refresh-schema-context --from-polyquery --polyque
 刷新项目级产物：
 
 ```powershell
-python scripts/run_pipeline.py project-console-cycle
+python sdd_core/run_pipeline.py project-console-cycle
 ```
 
 对单个 feature 跑 Gate：
 
 ```powershell
-python scripts/run_pipeline.py gate1 your-feature
-python scripts/run_pipeline.py gate2 your-feature
-python scripts/run_pipeline.py gate3 your-feature
-python scripts/run_pipeline.py generate-task-slices your-feature
-python scripts/run_pipeline.py gate4 your-feature
-python scripts/run_pipeline.py gate5 your-feature
+python sdd_core/run_pipeline.py gate1 your-feature
+python sdd_core/run_pipeline.py gate2 your-feature
+python sdd_core/run_pipeline.py gate3 your-feature
+python sdd_core/run_pipeline.py generate-task-slices your-feature
+python sdd_core/run_pipeline.py gate4 your-feature
+python sdd_core/run_pipeline.py gate5 your-feature
 ```
 
 同步已验证设计到实现态 baseline 时，推荐显式指定版本：
 
 ```powershell
-python scripts/run_pipeline.py sync-baseline your-feature --design-version v1
+python sdd_core/run_pipeline.py sync-baseline your-feature --design-version v1
 ```
 
 设计阶段完整门禁：
 
 ```powershell
-python scripts/run_pipeline.py design-gates your-feature --strict
+python sdd_core/run_pipeline.py design-gates your-feature --strict
 ```
 
 复核所有已有报告：
 
 ```powershell
-python scripts/run_pipeline.py validate-all-reports --stage all
+python sdd_core/run_pipeline.py validate-all-reports --stage all
 ```
 
 推荐主链路：
 
 ```powershell
-python scripts/run_pipeline.py refresh-baseline --strict --feature-dir specs\your-feature
-python scripts/run_pipeline.py design-gates specs\your-feature --strict
-python scripts/run_pipeline.py implementation-gates specs\your-feature --strict
-python scripts/run_pipeline.py release-gate specs\your-feature --strict
-python scripts/run_pipeline.py validate-all-reports --stage all
+python sdd_core/run_pipeline.py refresh-baseline --strict --feature-dir specs\your-feature
+python sdd_core/run_pipeline.py design-gates specs\your-feature --strict
+python sdd_core/run_pipeline.py implementation-gates specs\your-feature --strict
+python sdd_core/run_pipeline.py release-gate specs\your-feature --strict
+python sdd_core/run_pipeline.py validate-all-reports --stage all
 ```
 
 可直接复用的 GitHub Actions 示例：

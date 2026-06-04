@@ -1,0 +1,8 @@
+name: sdd-assistant
+display_name: SDD 自动驾驶助手
+version: "1.0.0"
+description: "接收原始需求，自动执行分析、生成与架构门禁校验的全量 SDD 流程。"
+input_schema: "input.schema.json"
+output_schema: "output.schema.json"
+default_prompt_template: "使用 $sdd-assistant 处理这份需求，生成完整的设计文档和校验报告。workspace 设为 ./specs/{{feature_name}}。"
+supported_platforms: ["openai", "claude", "gemini"]

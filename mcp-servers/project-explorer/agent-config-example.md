@@ -298,7 +298,7 @@ node D:\project\SDD\mcp-servers\project-explorer\dist\server.js --tool get_class
 刷新 `module-map.json` 快照：
 
 ```powershell
-python D:\project\SDD\scripts\refresh_module_map.py --force-refresh
+python D:\project\SDD\sdd_core\refresh_module_map.py --force-refresh
 ```
 
 ## 8. 连接成功后建议验证的 Tool

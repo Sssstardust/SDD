@@ -1,0 +1,3 @@
+"""
+SDD Core Ports Layer.
+"""

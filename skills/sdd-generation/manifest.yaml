@@ -1,0 +1,8 @@
+name: sdd-generation
+display_name: SDD 设计生成器
+version: "1.0.0"
+description: "基于结构化需求和项目上下文生成 design-vN.md 与设计包 (design-pack)。"
+input_schema: "input.schema.json"
+output_schema: "output.schema.json"
+default_prompt_template: "使用 $sdd-generation 为此需求生成技术设计方案，确保对齐存量代码事实。"
+supported_platforms: ["openai", "claude", "gemini"]

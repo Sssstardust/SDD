@@ -7,7 +7,7 @@
   "bin": {
     "polyquery-mcp": "./dist/index.js"
   },
-  "scripts": {
+  "sdd_core": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",

@@ -14,7 +14,7 @@
     "rules/",
     "tsconfig.json"
   ],
-  "scripts": {
+  "sdd_core": {
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

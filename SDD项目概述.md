@@ -26,7 +26,7 @@ SDD（Spec-Driven Development，规范驱动开发）是一套面向研发团队
 
 ```
 SDD/
-├── scripts/          # Python 自动化脚本（60+个，核心执行引擎）
+├── sdd_core/          # Python 自动化脚本（60+个，核心执行引擎）
 ├── mcp-servers/      # MCP 服务器（4个，AI 工具扩展层）
 │   ├── sdd-pipeline/      # 流程编排 MCP
 │   ├── arch-standard/     # 架构规范 MCP
@@ -387,7 +387,7 @@ MCP（Model Context Protocol）是 AI Agent 与外部工具/数据源交互的�
 **触发条件**：
 
 - 手动触发（`workflow_dispatch`，可指定功能目录和严格模式）
-- PR 提交变更至 `specs/`、`scripts/`、`docs/`、`mcp-servers/`、`examples/` 时自动触发
+- PR 提交变更至 `specs/`、`sdd_core/`、`docs/`、`mcp-servers/`、`examples/` 时自动触发
 
 **流水线步骤**：
 

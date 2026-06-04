@@ -71,7 +71,7 @@
       "implementation_result": null,
       "release_gate_result": null,
       "release_exception_metadata": {},
-      "next_command": "python scripts/run_pipeline.py init-feature tariff-audit-sync-task-center",
+      "next_command": "python sdd_core/run_pipeline.py init-feature tariff-audit-sync-task-center",
       "reason": "missing 需求规格.md",
       "missing_artifacts": [
         "需求规格.md"
@@ -150,7 +150,7 @@
       "implementation_result": null,
       "release_gate_result": null,
       "release_exception_metadata": {},
-      "next_command": "python scripts/run_pipeline.py design-cycle D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\test-naming-convention --strict",
+      "next_command": "python sdd_core/run_pipeline.py design-cycle D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\test-naming-convention --strict",
       "reason": "design-v{N}.md has not been generated yet",
       "missing_artifacts": [
         "design-v{N}.md"
@@ -198,7 +198,7 @@
       "implementation_result": null,
       "release_gate_result": null,
       "release_exception_metadata": {},
-      "next_command": "python scripts/run_pipeline.py approved-implementation-cycle D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration",
+      "next_command": "python sdd_core/run_pipeline.py approved-implementation-cycle D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration",
       "reason": "design stage is complete, but implementation verification has not started",
       "missing_artifacts": [
         "D:\\project\\PDC2\\pdc_src\\pdc-arc-root\\arc-web\\specs\\vrm-product-integration\\reports\\v1\\verify-report.json",
@@ -338,7 +338,7 @@
     "implementation_result": null,
     "release_gate_result": null,
     "release_exception_metadata": {},
-    "next_command": "python scripts/run_pipeline.py init-feature tariff-audit-sync-task-center",
+    "next_command": "python sdd_core/run_pipeline.py init-feature tariff-audit-sync-task-center",
     "reason": "missing 需求规格.md",
     "missing_artifacts": [
       "需求规格.md"
