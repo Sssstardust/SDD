@@ -9,8 +9,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import subprocess
 import sys
+from copy import deepcopy
+from datetime import date, datetime
 from pathlib import Path
+from urllib import error, request
 
 # Ensure sdd_core is importable
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,6 +43,21 @@ SKILL_DIR = Path(__file__).resolve().parent
 MAX_RETRIES = 3
 ESCALATION_EXIT_CODE = 3
 READY_EXIT_CODE = 0
+
+SUPPORTED_FEEDBACK_GATES = {"gate2", "gate3", "check-design-structure", "check-design-pack", "basic-validation"}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workspace", required=True, help="feature 工作目录")
+    parser.add_argument("--output", required=True, help="输出 design-vN.md 路径")
+    parser.add_argument("--feedback", default=None, help="上一轮 gate-report.json 路径")
+    parser.add_argument("--resume", action="store_true", help="人工修改后恢复执行")
+    parser.add_argument("--force", action="store_true", help="允许覆盖已有设计文件和 design-pack")
+    parser.add_argument("--no-ai", action="store_true", help="禁用 AI，直接走确定性生成")
+    parser.add_argument("--ai-only", action="store_true", help="仅允许 AI 生成")
+    return parser.parse_args()
+
 
 def load_schema(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))

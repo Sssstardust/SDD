@@ -233,12 +233,22 @@ def main() -> int:
         print(f"[ERROR] 源文件不存在: {source_path}")
         return SYSTEM_ERROR_EXIT_CODE
 
-    try:
-        ensure_writable(output_path, args.force)
-        if feature_brief_path:
-            ensure_writable(feature_brief_path, args.force)
-    except FileExistsError as exc:
-        print(f"[ERROR] {exc}")
+    # 强化 force 覆盖逻辑：如果开启了 force，则先尝试删除目标文件
+    if args.force:
+        if output_path.exists():
+            try:
+                output_path.unlink()
+            except Exception:
+                pass
+        if feature_brief_path and feature_brief_path.exists():
+            try:
+                feature_brief_path.unlink()
+            except Exception:
+                pass
+
+    # 再次检查，如果不强制覆盖且文件存在则退出
+    if output_path.exists() and not args.force:
+        print(f"[ERROR] 输出文件已存在，若需覆盖请使用 --force: {output_path}")
         return SYSTEM_ERROR_EXIT_CODE
 
     try:
@@ -314,9 +324,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
-
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

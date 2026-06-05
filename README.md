@@ -1,186 +1,97 @@
-# SDD Team Distribution
+# SDD Skill Asset Library
 
-> **🎯 定位声明**：本仓库提供 **面向 AI Agent 的标准化 Skill 集合**（通过 MCP 或直接调用）。
-> 核心目标是将 SDD 的「架构门禁 (Gates)」与「设计生成 (Generation)」能力标准化，使机器与人类能共用一套架构语言。
+> **🚀 定位声明**：本仓库是一个 **标准化的 AI Skill 资产库**。它将 SDD（Schema-Driven Design）的复杂架构能力封装为 AI Agent 可直接调用的原子技能，通过严谨的 I/O 契约实现机器与人类的“架构语言对齐”。
 
-这套仓库用于给项目组共享一套统一的 SDD 流程工具。
-
-仓库本身负责：
-
-- 流程编排
-- 设计模板与 Gate 校验
-- MCP / Skill / 脚本入口
-- 附着外部业务项目后的 baseline 与项目级产物生成
-
-业务源码、SQL、构建配置默认不放在这个工具仓库里，而是通过“附着目标项目”的方式接入。
+本仓库不再仅仅是一个 CLI 工具箱，而是一个**以内核为驱动、以 Skill 为出口**的现代化架构设计中枢。
 
 ---
 
-## 安装前提
+## 🏗️ 核心架构
 
-- Windows + PowerShell preferred; cross-platform readiness check is available via `python sdd_core/doctor.py`
-- Python 3.13+
-- Node.js 18+
-- Platform matrix: [docs/platform-support-matrix.md](docs/platform-support-matrix.md)
-- Java / `javac`（用于 Gate 5 Java 验证测试）
+SDD 采用“内核 + 门面”的双层解耦架构：
 
----
+### 1. 核心库 (`sdd_core/`) - **The Kernel**
+*   **物理形态**：标准 Python Package。
+*   **职责**：承载 DDD 建模、架构语义分析、Gate 门禁算法及设计包渲染等核心业务逻辑。
+*   **特性**：纯净、无状态、支持通过 Python API 直接导入调用，消除了对 Shell 环境的强依赖。
 
-## 首次接入
-
-推荐直接使用一条标准入口：
-
-```powershell
-python sdd_core/run_pipeline.py onboard-project `
-  --project-root D:\your-target-project `
-  --design-root D:\your-design-root `
-  --schema-root D:\your-target-project\src\main\resources
-```
-
-别名：
-
-```powershell
-python sdd_core/run_pipeline.py bootstrap-attached-project `
-  --project-root D:\your-target-project `
-  --design-root D:\your-design-root `
-  --schema-root D:\your-target-project\src\main\resources
-```
-
-这条命令会自动完成：
-
-1. 保存附着项目配置
-2. 刷新 baseline 快照
-3. 生成项目级控制台产物
+### 2. 技能层 (`skills/`) - **The Standard Interface**
+*   **物理形态**：独立的功能门面。
+*   **职责**：为不同 Agent 平台提供统一的接入协议。
+*   **组件**：
+    *   **JSON Schema**: 严格定义的 `input.schema.json` 和 `output.schema.json`。
+    *   **Manifest**: 平台无关的技能元数据 (`manifest.yaml`)。
+    *   **Agent Config**: 自动生成的 OpenAI/Claude/Gemini 配置文件。
 
 ---
 
-## 常用命令
+## 🧩 核心技能矩阵 (Core Skills)
 
-查看当前附着项目：
-
-```powershell
-python sdd_core/run_pipeline.py show-attachment
-```
-
-刷新 baseline：
-
-```powershell
-python sdd_core/run_pipeline.py refresh-baseline --strict
-```
-
-使用 polyquery MCP 刷新数据库事实：
-
-```powershell
-python sdd_core/run_pipeline.py refresh-schema-context --from-polyquery --polyquery-config config\polyquery.json --polyquery-fallback fail
-```
-
-说明见 [docs/polyquery-integration.md](docs/polyquery-integration.md)。
-
-刷新项目级产物：
-
-```powershell
-python sdd_core/run_pipeline.py project-console-cycle
-```
-
-对单个 feature 跑 Gate：
-
-```powershell
-python sdd_core/run_pipeline.py gate1 your-feature
-python sdd_core/run_pipeline.py gate2 your-feature
-python sdd_core/run_pipeline.py gate3 your-feature
-python sdd_core/run_pipeline.py generate-task-slices your-feature
-python sdd_core/run_pipeline.py gate4 your-feature
-python sdd_core/run_pipeline.py gate5 your-feature
-```
-
-同步已验证设计到实现态 baseline 时，推荐显式指定版本：
-
-```powershell
-python sdd_core/run_pipeline.py sync-baseline your-feature --design-version v1
-```
-
-设计阶段完整门禁：
-
-```powershell
-python sdd_core/run_pipeline.py design-gates your-feature --strict
-```
-
-复核所有已有报告：
-
-```powershell
-python sdd_core/run_pipeline.py validate-all-reports --stage all
-```
-
-推荐主链路：
-
-```powershell
-python sdd_core/run_pipeline.py refresh-baseline --strict --feature-dir specs\your-feature
-python sdd_core/run_pipeline.py design-gates specs\your-feature --strict
-python sdd_core/run_pipeline.py implementation-gates specs\your-feature --strict
-python sdd_core/run_pipeline.py release-gate specs\your-feature --strict
-python sdd_core/run_pipeline.py validate-all-reports --stage all
-```
-
-可直接复用的 GitHub Actions 示例：
-
-- [.github/workflows/sdd-pipeline.example.yml](.github/workflows/sdd-pipeline.example.yml)
+| 技能名称 | 核心职责 | 输出产物 |
+| :--- | :--- | :--- |
+| **`requirement-analyzer`** | 需求语义解析 | `structured-prd.json` |
+| **`sdd-generation`** | 架构设计自动生成 | `design-vN.md` + `design-pack/` |
+| **`sdd-validate`** | 架构红线与 Gate 校验 | `gate-report.json` |
+| **`sdd-assistant`** | **全全自动驾驶编排器** | 完整验证后的设计包 |
 
 ---
 
-## 产物位置
+## 🌐 多 Agent 生态支持
 
-附着配置：
+SDD 原生支持多 Agent 平台。通过 `manifest.yaml` 抽象层，您可以一键生成所有主流平台的配置：
 
-- [.spec/attached-project.json](.spec/attached-project.json)
+```powershell
+# 自动为所有 Skill 同步生成最新的 Agent 配置文件
+python sdd_core/generate_agent_configs.py
+```
 
-baseline 分桶目录：
-
-- `.spec/baselines/<attached-project-bucket>/`
-
-项目级产物分桶目录：
-
-- `.spec/project-artifacts/<attached-project-bucket>/`
-
-版本化证据：
-
-- `reports/vN/design-pack.snapshot/`：Gate 1 通过后冻结的 Design Pack
-- `reports/vN/gate-report.json`：Gate 结论、执行命令和证据 hash
-- `.spec/baselines/<attached-project-bucket>/sdd-index-real.json`：实现态记录及同步时证据链
+支持平台：
+- ✅ **OpenAI** (openai.yaml)
+- ✅ **Anthropic Claude** (claude.yaml)
+- ✅ **Google Gemini** (gemini.yaml)
 
 ---
 
-## 常见问题
+## 🛠️ 开发者指南 (For Kernel & Skill)
 
-### 1. 为什么不把业务源码放在这个仓库里？
+### 1. 安装前提
+- Python 3.13+ (推荐使用 `uv` 管理环境)
+- Node.js 20+ (用于运行 MCP 桥接)
+- `python sdd_core/doctor.py`：一键健康检查
 
-因为这个仓库的目标是团队共享的 SDD 工具，不是某个业务项目本身。源码应保留在各自业务仓库，工具仓库通过附着模式去扫描和校验。
+### 2. 库化调用示例
+现在您可以直接在自己的 Python 代码中使用 SDD 能力：
 
-### 2. `gate5` 里的 `implementation_result` 依赖什么？
+```python
+from sdd_core.application.analyzers.requirement_analyzer import run_generate_feature_brief
 
-依赖附着项目源码生成的 `module-map.json`。如果没有先接入目标项目并刷新 `module-map`，真实实现追溯就不会成立。
+# 以纯程序方式生成需求规格
+run_generate_feature_brief(
+    source_file="prd.md",
+    feature_name="new-feature",
+    force=True
+)
+```
 
-### 3. baseline 和 project console 为什么不在 `specs/` 里？
+### 3. 运行自动化测试
+我们为所有 Skill 提供了 100% 的 Schema 契约校验测试：
 
-因为它们已经按附着项目分桶，避免多个业务项目共用同一套工具时互相覆盖。
-
-### 4. 设计目录能放在外部仓库吗？
-
-可以。`onboard-project` 和 `attach-project` 都支持 `--design-root`。
-
-### 5. 当前 MVP 边界是什么？
-
-- `project-explorer` 当前不是编译器级索引，复杂 Lombok、继承和框架生成代码仍可能需要人工确认。
-- `schema-context` 可以来自本地 SQL / design-pack 快照，也可以来自 polyquery；两者可信度不同。
-- `Gate 5` 当前仍以设计验证测试为主，真实业务测试需要在 attached project 中配置 `verification_commands`。
-- `design-pack/` 是草稿区，Gate 1 通过后以后续 `reports/vN/design-pack.snapshot/` 作为版本证据。
-- 多组件、多数据源 baseline 已有分桶基础，但组件级隔离还需要继续演进。
+```powershell
+pytest skills/
+```
 
 ---
 
-## 文档入口
+## ⚠️ 兼容性说明 (CLI Wrapper)
+为了向后兼容现有的 CI/CD 流程，根目录下的 `run_pipeline.py` 仍保留作为 **sdd_core** 的薄包装层，但建议新接入的 Agent 直接调用 `skills/` 下的标准化入口。
 
-- [团队接入入口](docs/team-onboarding.md)
-- [Agent 接入说明](docs/agent-integration.md)
-- [附着模式说明](docs/attached-project-mode.md)
-- [Skill 数据流](docs/skill-data-flow.md)
-- [示例附着项目](examples/fixtures/attached-sample-project/README.md)
+---
+
+## 📂 文档索引
+- [架构重构审计报告](document/SDD_Architecture_Review.md)
+- [Agent 接入深度说明](docs/agent-integration.md)
+- [Skill 数据流协议](docs/skill-data-flow.md)
+- [团队接入规范](docs/team-onboarding.md)
+
+---
+*Powered by SDD Kernel - 使机器理解架构，使人类解放设计。*
