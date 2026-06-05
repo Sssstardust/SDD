@@ -71,6 +71,21 @@ def generate_gemini(manifest: dict) -> dict:
         "instruction": manifest.get("default_prompt_template"),
     }
 
+
+# 每个 skill 必须满足的统一目录契约（P1-7）。
+REQUIRED_SKILL_FILES = [
+    "SKILL.md",
+    "manifest.yaml",
+    "input.schema.json",
+    "output.schema.json",
+]
+
+
+def check_skill_contract(skill_path: Path) -> list[str]:
+    """返回缺失的契约文件列表；为空表示该 skill 结构合规。"""
+    return [name for name in REQUIRED_SKILL_FILES if not (skill_path / name).exists()]
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     skills_dir = root / "skills"
@@ -80,6 +95,7 @@ def main():
         return 1
     
     count = 0
+    contract_violations = 0
     for skill_path in skills_dir.iterdir():
         if not skill_path.is_dir():
             continue
@@ -87,7 +103,12 @@ def main():
         manifest_file = skill_path / "manifest.yaml"
         if not manifest_file.exists():
             continue
-        
+
+        missing = check_skill_contract(skill_path)
+        if missing:
+            contract_violations += 1
+            print(f"[WARN] skill '{skill_path.name}' 目录契约缺失: {', '.join(missing)}")
+
         print(f"[PROCESS] Generating configs for {skill_path.name}...")
         manifest = parse_simple_yaml(manifest_file.read_text(encoding="utf-8"))
         
@@ -109,6 +130,9 @@ def main():
         count += 1
     
     print(f"[OK] Generated configs for {count} skills.")
+    if contract_violations:
+        print(f"[WARN] {contract_violations} 个 skill 不满足统一目录契约，请补齐后重跑。")
+        return 1
     return 0
 
 if __name__ == "__main__":

@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-sdd-assistant: The orchestrator skill for SDD.
-Orchestrates: requirement-analyzer -> sdd-generation -> gate checks.
+sdd-assistant: SDD 的确定性编排子步骤工具。
+
+按统一阶段顺序串联三个原子 Skill（编排只走 skill 这一层）：
+    requirement-analyzer (分析需求)
+        -> sdd-generation (生成设计)
+        -> sdd-validate   (设计门控 Gate 1/2/3)
+
+注意：本脚本是「确定性入口」，用于 CI / 非交互场景。
+交互式的事实决策与门控修复由 SKILL.md 描述的提示词编排承担。
 """
 
 from __future__ import annotations
@@ -157,31 +164,29 @@ def main() -> int:
     
     output_payload["design"] = str(design_doc)
 
-    # Step 3: Gate Checks
-    pipeline_script = ROOT / "sdd_core" / "run_pipeline.py"
-    gates = ["gate2", "gate3"]
-    gate_results = []
-    all_gates_passed = True
-    
-    for gate in gates:
-        gate_cmd = [sys.executable, str(pipeline_script), gate, str(workspace)]
-        if args.strict:
-            gate_cmd.append("--strict")
-        
-        res_gate = run_command(gate_cmd, f"pipeline-{gate}")
-        gate_results.append({
-            "gate": gate,
-            "exit_code": res_gate.returncode,
-            "success": res_gate.returncode == 0
-        })
-        if res_gate.returncode != 0:
-            all_gates_passed = False
+    # Step 3: 设计门控（委托给 sdd-validate 原子 Skill，编排只走 skill 这一层）
+    validate_script = SKILL_DIR.parent / "sdd-validate" / "run.py"
+    validate_cmd = [
+        sys.executable, str(validate_script),
+        str(workspace),
+        "--gates", "gate1", "--gates", "gate2", "--gates", "gate3",
+    ]
+    if args.strict:
+        validate_cmd.append("--strict")
 
-    output_payload["gate_results"] = gate_results
+    res_validate = run_command(validate_cmd, "sdd-validate")
+    all_gates_passed = res_validate.returncode == 0
+    output_payload["gate_results"] = [
+        {
+            "gate": "design-gate",
+            "exit_code": res_validate.returncode,
+            "success": all_gates_passed,
+        }
+    ]
     output_payload["status"] = "ok" if all_gates_passed else "error"
     if not all_gates_passed:
         output_payload["error_stage"] = "validation"
-        output_payload["error_message"] = "One or more gates failed"
+        output_payload["error_message"] = res_validate.stderr or "Design gate failed"
 
     validate_payload_by_schema(
         output_payload,

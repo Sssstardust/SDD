@@ -17,6 +17,15 @@ import time
 from inspect import signature
 from pathlib import Path
 
+PACKAGE_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = PACKAGE_ROOT.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from sdd_core.application.gate_cache_runtime import write_gate_cache_entry
 from sdd_core.application.pipeline_dispatch import dispatch_command as app_dispatch_command
 from sdd_core.application.pipeline_cli import collect_artifacts_for_command
@@ -35,13 +44,23 @@ from sdd_core.infrastructure.baseline_paths import get_active_baseline_dir
 from sdd_core.domain.pipeline import PipelineRunContext
 from sdd_core.application.flow_state import inspect_feature_state
 from sdd_core.infrastructure.ops_log import append_project_op
-from polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
+from sdd_core.infrastructure.polyquery_adapter import DEFAULT_CONFIG_PATH as DEFAULT_POLYQUERY_CONFIG_PATH
 from sdd_core.infrastructure.project_artifact_paths import get_active_project_artifacts_dir
 from sdd_core.application.pipeline_result import build_result, emit_result
 from sdd_core.application.pipeline_orchestration import append_post_flow_steps, build_design_gate_steps, build_feature_cycle_steps, build_implementation_gate_steps, build_refresh_baseline_steps
 from sdd_core.application.project_flow_runner import capture_project_cycle_candidates, dispatch_feature_next_command, load_project_next_candidate, project_next_json_path, run_project_console_refresh_steps
-from install_sdd_runtime import install_runtime as install_local_sdd_runtime
+from sdd_core.application.generators.install_sdd_runtime import install_runtime as install_local_sdd_runtime
 from sdd_core.infrastructure.versioning import detect_latest_design_path, get_primary_design_root, reports_dir_for_design, resolve_feature_dir
+from sdd_core.application.gates.gate_runtime import (
+    check_baseline_keys as check_baseline_keys_runtime,
+    detect_context_missing,
+    refresh_baseline_governance as refresh_baseline_governance_runtime,
+    refresh_module_map as refresh_module_map_runtime,
+    refresh_schema_context as refresh_schema_context_runtime,
+    run_gate1,
+    run_gate2,
+    run_gate3,
+)
 
 # 导入解耦后的语义化动作
 from sdd_core.application.semantic_analyze import run_analyze as run_semantic_analyze
@@ -223,18 +242,15 @@ def check_design_pack(feature_brief: str) -> int:
 
 
 def gate1(feature_dir: str) -> int:
-    script = ROOT / "sdd_core" / "gate1.py"
-    return run_external_command([sys.executable, str(script), feature_dir])
+    return run_gate1(feature_dir)
 
 
 def gate2(feature_dir: str, strict: bool = False) -> int:
-    script = ROOT / "sdd_core" / "check_design_truthfulness.py"
-    return run_external_command([sys.executable, str(script), feature_dir])
+    return run_gate2(feature_dir, strict=strict)
 
 
 def gate3(feature_dir: str) -> int:
-    script = ROOT / "sdd_core" / "check_arch_semantics.py"
-    return run_external_command([sys.executable, str(script), feature_dir])
+    return run_gate3(feature_dir)
 
 
 def init_approval(feature_dir: str) -> int:
@@ -354,13 +370,7 @@ def sync_baseline(feature_dir: str, design_version: str | None = None) -> int:
 
 
 def refresh_module_map(attachment_file: str | None = None, profile: str | None = None) -> int:
-    script = ROOT / "sdd_core" / "refresh_module_map.py"
-    cmd = [sys.executable, str(script)]
-    if attachment_file:
-        cmd.extend(["--attachment-file", attachment_file])
-    if profile:
-        cmd.extend(["--profile", profile])
-    return run_external_command(cmd)
+    return refresh_module_map_runtime(attachment_file=attachment_file, profile=profile)
 
 
 def attach_project(
@@ -443,39 +453,23 @@ def refresh_schema_context(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> int:
-    script = ROOT / "sdd_core" / "refresh_schema_context.py"
-    cmd = [sys.executable, str(script)]
-    if from_polyquery:
-        cmd.append("--from-polyquery")
-    if polyquery_config:
-        cmd.extend(["--polyquery-config", polyquery_config])
-    if polyquery_snapshot:
-        cmd.extend(["--polyquery-snapshot", polyquery_snapshot])
-    if auto_discover:
-        cmd.extend(["--auto-discover", auto_discover])
-    if polyquery_fallback:
-        cmd.extend(["--polyquery-fallback", polyquery_fallback])
-    if attachment_file:
-        cmd.extend(["--attachment-file", attachment_file])
-    if profile:
-        cmd.extend(["--profile", profile])
-    return run_external_command(cmd)
+    return refresh_schema_context_runtime(
+        from_polyquery=from_polyquery,
+        polyquery_config=polyquery_config,
+        polyquery_snapshot=polyquery_snapshot,
+        auto_discover=auto_discover,
+        polyquery_fallback=polyquery_fallback,
+        attachment_file=attachment_file,
+        profile=profile,
+    )
 
 
 def refresh_baseline_governance() -> int:
-    script = ROOT / "sdd_core" / "refresh_baseline_governance.py"
-    return run_external_command([sys.executable, str(script)])
+    return refresh_baseline_governance_runtime()
 
 
 def check_baseline_keys(attachment_file: str | None = None, profile: str | None = None) -> int:
-    script = ROOT / "sdd_core" / "check_baseline_key_partition.py"
-    baseline_dir = get_active_baseline_dir(
-        attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
-        profile=profile,
-        create=True,
-        migrate_legacy=True,
-    )
-    return run_external_command([sys.executable, str(script), "--baseline-dir", str(baseline_dir)])
+    return check_baseline_keys_runtime(attachment_file=attachment_file, profile=profile)
 
 
 def validate_reports(feature_dir: str, stage: str = "all") -> int:
@@ -1144,8 +1138,15 @@ def install_runtime_command(target_root: str, runtime_dir: str, force: bool = Fa
     return 0
 
 
-def feature_repair_report(feature_dir: str, *, apply_fixes: bool = False) -> dict[str, object]:
-    feature_path = Path(resolve_feature_dir(feature_dir))
+def feature_repair_report(
+    feature_dir: str,
+    *,
+    apply_fixes: bool = False,
+    attachment_file: str | None = None,
+    profile: str | None = None,
+) -> dict[str, object]:
+    attachment_path = Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH
+    feature_path = Path(resolve_feature_dir(feature_dir, attachment_path=attachment_path, profile=profile))
     missing = missing_feature_prerequisites(
         feature_path,
         require_feature_brief=True,
@@ -1166,18 +1167,14 @@ def feature_repair_report(feature_dir: str, *, apply_fixes: bool = False) -> dic
     approval_path = reports_dir / "approval.json"
     task_slices_manifest = feature_path / "tasks" / "task-slices.generated.json"
     context_check = None
-    try:
-        from check_design_truthfulness import detect_context_missing
-
-        baseline_dir = get_active_baseline_dir(
-            attachment_path=Path(DEFAULT_ATTACHMENT_PATH),
-            create=True,
-            migrate_legacy=True,
-        )
-        design_pack_dir = resolve_feature_dir(feature_dir, attachment_path=Path(DEFAULT_ATTACHMENT_PATH))
-        context_check = detect_context_missing(feature_path, design_pack_dir / "design-pack", baseline_dir)
-    except Exception as exc:
-        context_check = {"status": "ERROR", "message": str(exc), "missing": []}
+    baseline_dir = get_active_baseline_dir(
+        attachment_path=attachment_path,
+        profile=profile,
+        create=True,
+        migrate_legacy=True,
+    )
+    design_pack_dir = resolve_feature_dir(feature_dir, attachment_path=attachment_path, profile=profile)
+    context_check = detect_context_missing(feature_path, design_pack_dir / "design-pack", baseline_dir)
 
     if apply_fixes and feature_brief.exists() and design_path.exists():
         if not approval_path.exists():

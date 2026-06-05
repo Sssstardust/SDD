@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, path_lock
+from sdd_core.domain.language_profiles import get_language_profile, normalize_language
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ATTACHMENT_PATH = ROOT / ".spec" / "attached-project.json"
@@ -18,7 +19,7 @@ DEFAULT_ATTACHMENTS_DIR = DEFAULT_ATTACHMENT_PATH.parent / "attachments"
 DEFAULT_ATTACHMENT_REGISTRY_PATH = DEFAULT_ATTACHMENTS_DIR / "registry.json"
 DEFAULT_WORKSPACE_PATH = DEFAULT_ATTACHMENT_PATH.parent / "workspace.json"
 COMPONENT_ROOT_FIELDS = {"scan_roots", "design_roots", "schema_roots"}
-COMPONENT_RESERVED_FIELDS = {"component_id", "name", "project_root", *COMPONENT_ROOT_FIELDS}
+COMPONENT_RESERVED_FIELDS = {"component_id", "name", "project_root", "language", *COMPONENT_ROOT_FIELDS}
 ATTACHMENT_ROOT_FIELDS = {"scan_roots", "design_roots", "schema_roots"}
 ATTACHMENT_RESERVED_FIELDS = {"name", "project_root", "components", *ATTACHMENT_ROOT_FIELDS}
 ATTACHMENT_STATE_FIELDS = {"profiles", "active_profile", "active_project_id"}
@@ -117,20 +118,14 @@ def build_profile_project_id(name: str, project_root: str) -> str:
     return f"{sanitize_bucket_name(name)}-{suffix}"
 
 
-def default_scan_roots(project_root: Path) -> list[Path]:
-    return [
-        project_root / "src" / "main" / "java",
-        project_root / "src" / "test" / "java",
-    ]
+def default_scan_roots(project_root: Path, language: str | None = None) -> list[Path]:
+    profile = get_language_profile(language)
+    return [project_root / Path(rel) for rel in profile.scan_roots]
 
 
-def default_schema_roots(project_root: Path) -> list[Path]:
-    return [
-        project_root / "src" / "main" / "resources",
-        project_root / "src" / "test" / "resources",
-        project_root / "db",
-        project_root / "sql",
-    ]
+def default_schema_roots(project_root: Path, language: str | None = None) -> list[Path]:
+    profile = get_language_profile(language)
+    return [project_root / Path(rel) for rel in profile.schema_roots]
 
 
 def build_component_payload(
@@ -141,17 +136,20 @@ def build_component_payload(
     scan_roots: list[Path | str] | None = None,
     design_roots: list[Path | str] | None = None,
     schema_roots: list[Path | str] | None = None,
+    language: str | None = None,
     extra_fields: dict[str, object] | None = None,
 ) -> dict[str, object]:
     project_root_path = Path(project_root).resolve() if project_root is not None else None
-    effective_scan_roots = scan_roots or (default_scan_roots(project_root_path) if project_root_path else [])
+    resolved_language = normalize_language(language)
+    effective_scan_roots = scan_roots or (default_scan_roots(project_root_path, resolved_language) if project_root_path else [])
     effective_design_roots = design_roots or [ROOT / "specs"]
-    effective_schema_roots = schema_roots or (default_schema_roots(project_root_path) if project_root_path else [])
+    effective_schema_roots = schema_roots or (default_schema_roots(project_root_path, resolved_language) if project_root_path else [])
     payload: dict[str, object] = dict(extra_fields or {})
     payload.update(
         {
             "component_id": component_id,
             "name": name or component_id,
+            "language": resolved_language,
             "scan_roots": [normalize_path(path) for path in effective_scan_roots],
             "design_roots": [normalize_path(path) for path in effective_design_roots],
             "schema_roots": [normalize_path(path) for path in effective_schema_roots],
@@ -187,6 +185,7 @@ def normalize_components(raw_components: object) -> list[dict[str, object]]:
                 scan_roots=list(raw_component.get("scan_roots", [])) if isinstance(raw_component.get("scan_roots"), list) else None,
                 design_roots=list(raw_component.get("design_roots", [])) if isinstance(raw_component.get("design_roots"), list) else None,
                 schema_roots=list(raw_component.get("schema_roots", [])) if isinstance(raw_component.get("schema_roots"), list) else None,
+                language=str(raw_component.get("language")) if raw_component.get("language") is not None else None,
                 extra_fields=extra_fields,
             )
         )

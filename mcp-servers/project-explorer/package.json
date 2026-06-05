@@ -15,7 +15,7 @@
     "agent-config-example.md",
     "tsconfig.json"
   ],
-  "sdd_core": {
+  "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc -p tsconfig.json",
     "test": "npm run build && node dist/scanner.test.js",
@@ -35,6 +35,9 @@
     "code-explorer",
     "repository-scanner",
     "java-scanner",
+    "python-scanner",
+    "typescript-scanner",
+    "multi-language-scanner",
     "design-scanner",
     "brownfield",
     "sdd"

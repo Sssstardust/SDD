@@ -6,9 +6,27 @@
 
 ---
 
+## 🚀 快速上手（唯一推荐接入路径）
+
+> 对 Agent 而言，**SDD 的唯一对外出口是 `skills/`**。MCP 与 CLI 是实现层，除非原子 Skill 未覆盖，否则不直接调用。
+
+1. 让 Agent 加载 `skills/sdd-assistant`（编排出口），它会按统一阶段推进整条链路：
+   **分析需求 → 生成设计 → 设计门控 → 生成切片 → 实现门控 → 发布门控**。
+2. 编排过程中，`sdd-assistant` 会调用三个原子 Skill：
+   `requirement-analyzer`（分析需求）、`sdd-generation`（生成设计）、`sdd-validate`（门控校验）。
+3. 非交互 / CI 场景，可直接执行确定性入口：
+
+```powershell
+python skills/sdd-assistant/run.py <PRD路径> ./specs/<feature_name> <feature_name>
+```
+
+接入细节见 [Agent 接入说明](docs/agent-integration.md)；数据流与产物契约见 [Skill 数据流协议](docs/skill-data-flow.md)。
+
+---
+
 ## 🏗️ 核心架构
 
-SDD 采用“内核 + 门面”的双层解耦架构：
+SDD 采用“内核 + 门面”的双层解耦架构，对外只暴露 Skill 一层：
 
 ### 1. 核心库 (`sdd_core/`) - **The Kernel**
 *   **物理形态**：标准 Python Package。
@@ -27,12 +45,14 @@ SDD 采用“内核 + 门面”的双层解耦架构：
 
 ## 🧩 核心技能矩阵 (Core Skills)
 
-| 技能名称 | 核心职责 | 输出产物 |
+| 技能名称 | 核心职责 | 输出产物（中文显示名） |
 | :--- | :--- | :--- |
-| **`requirement-analyzer`** | 需求语义解析 | `structured-prd.json` |
-| **`sdd-generation`** | 架构设计自动生成 | `design-vN.md` + `design-pack/` |
-| **`sdd-validate`** | 架构红线与 Gate 校验 | `gate-report.json` |
-| **`sdd-assistant`** | **全全自动驾驶编排器** | 完整验证后的设计包 |
+| **`requirement-analyzer`** | 需求语义解析（分析需求） | `结构化需求.json` + `需求规格.md` |
+| **`sdd-generation`** | 架构设计自动生成（生成设计） | `技术方案-v{N}.md` + `设计包/` |
+| **`sdd-validate`** | 架构红线与门控校验（设计门控） | `门控报告.json` |
+| **`sdd-assistant`** | **唯一编排出口** | 完整验证后的设计包 |
+
+> 产物命名以中文显示名为准，物理文件名遵循统一映射（单一真相源：`sdd_core/infrastructure/artifact_names.py`）。完整命名词表见 [架构与功能改进建议](docs/SDD架构与功能改进建议.md)。
 
 ---
 
@@ -82,16 +102,17 @@ pytest skills/
 
 ---
 
-## ⚠️ 兼容性说明 (CLI Wrapper)
-为了向后兼容现有的 CI/CD 流程，根目录下的 `run_pipeline.py` 仍保留作为 **sdd_core** 的薄包装层，但建议新接入的 Agent 直接调用 `skills/` 下的标准化入口。
+## ⚠️ 实现层说明 (MCP / CLI)
+`mcp-servers/sdd-pipeline` 与 `sdd_core/run_pipeline.py` 属于**实现层**，供 Skill 内部或高级用法调用。新接入的 Agent 应优先使用 `skills/` 下的标准化入口，而非直接驱动 MCP/CLI，以避免回到“多入口发散”的状态。
 
 ---
 
 ## 📂 文档索引
-- [架构重构审计报告](document/SDD_Architecture_Review.md)
-- [Agent 接入深度说明](docs/agent-integration.md)
+- [架构与功能改进建议](docs/SDD架构与功能改进建议.md)
+- [Agent 接入说明](docs/agent-integration.md)
 - [Skill 数据流协议](docs/skill-data-flow.md)
 - [团队接入规范](docs/team-onboarding.md)
+- [阶段三重构总结](docs/refactoring/phase3-summary.md)
 
 ---
 *Powered by SDD Kernel - 使机器理解架构，使人类解放设计。*

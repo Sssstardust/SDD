@@ -22,6 +22,11 @@ tests
 
 src
 
+!mcp-servers/project-explorer/src/
+!mcp-servers/project-explorer/src/**
+!mcp-servers/project-explorer/dist/
+!mcp-servers/project-explorer/dist/**
+
 .tmp*
 *.log
 

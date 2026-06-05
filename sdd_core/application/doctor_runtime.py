@@ -21,6 +21,36 @@ from sdd_core.infrastructure.doctor_checks import (
     test_version,
     validate_attachment_shape,
 )
+from sdd_core.application.gates.gate_runtime import check_baseline_keys as check_baseline_keys_runtime
+
+
+def attached_languages_include_java() -> bool:
+    """判断当前附着项目是否涉及 Java（决定是否需要 javac）。
+
+    - 无附着配置时回退 True（兼容历史默认的 Java 行为）。
+    - 有附着配置时，仅当任一组件未声明 language 或声明为 java 时返回 True。
+    """
+    try:
+        from sdd_core.domain.attached_project import load_attachment_config
+        from sdd_core.domain.language_profiles import normalize_language
+    except Exception:
+        return True
+
+    attachment = load_attachment_config()
+    if not isinstance(attachment, dict):
+        return True
+
+    components = attachment.get("components")
+    if not isinstance(components, list) or not components:
+        return normalize_language(attachment.get("language")) == "java"
+
+    for component in components:
+        if not isinstance(component, dict):
+            continue
+        language = component.get("language")
+        if language is None or normalize_language(language) == "java":
+            return True
+    return False
 
 
 def run_polyquery_governance(root: Path) -> tuple[bool, str]:
@@ -34,13 +64,10 @@ def run_polyquery_governance(root: Path) -> tuple[bool, str]:
 
 
 def run_baseline_key_partition_governance(root: Path) -> tuple[bool, str]:
-    script = root / "sdd_core" / "check_baseline_key_partition.py"
-    if not script.exists():
-        return False, f"baseline key partition script is missing: {script}"
-    exit_code, output = run_capture(["python", str(script)], cwd=root)
+    exit_code = check_baseline_keys_runtime()
     if exit_code == 0:
-        return True, output or "baseline key partition validation passed"
-    return False, output or "baseline key partition validation failed"
+        return True, "baseline key partition validation passed"
+    return False, "baseline key partition validation failed"
 
 
 def run_doctor(
@@ -75,6 +102,7 @@ def run_doctor(
     print_check("OK" if node_ok else "FAIL", node_message)
     record("toolchain", "OK" if node_ok else "FAIL", "Node.js")
     structured["toolchain"] = {"python": python_ok, "node": node_ok}
+    needs_java = attached_languages_include_java()
     if shutil.which("javac"):
         exit_code, output = run_capture(["javac", "--version"])
         if exit_code == 0:
@@ -82,9 +110,11 @@ def run_doctor(
         else:
             print_check("WARN", f"javac exists, but version check failed: {output}")
             record("toolchain", "WARN", "javac")
-    else:
+    elif needs_java:
         print_check("WARN", "javac was not found; Gate 5 Java verification may be unavailable.")
         record("toolchain", "WARN", "javac missing")
+    else:
+        print_check("OK", "javac not required (attached project language is not Java).")
 
     print()
     print("== Workspace ==")

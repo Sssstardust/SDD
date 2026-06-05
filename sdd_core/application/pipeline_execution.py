@@ -8,12 +8,17 @@ from __future__ import annotations
 import os
 import subprocess
 from collections.abc import Callable
+from pathlib import Path
 
 
 def build_subprocess_env() -> dict[str, str]:
     env = os.environ.copy()
     env.setdefault("PYTHONIOENCODING", "utf-8")
     env.setdefault("PYTHONUTF8", "1")
+    root = Path(__file__).resolve().parents[2]
+    extra_paths = [str(root), str(root / "sdd_core" / "infrastructure")]
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = os.pathsep.join(extra_paths + ([existing] if existing else []))
     return env
 
 

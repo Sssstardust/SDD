@@ -15,11 +15,11 @@
     },
     "structured_prd": {
       "type": ["string", "null"],
-      "description": "生成的 structured-prd.json 路径"
+      "description": "生成的 结构化需求.json（物理名 structured-prd.json）路径"
     },
     "design": {
       "type": ["string", "null"],
-      "description": "生成的 design-vN.md 路径"
+      "description": "生成的 技术方案-v{N}.md 路径"
     },
     "gate_results": {
       "type": "array",

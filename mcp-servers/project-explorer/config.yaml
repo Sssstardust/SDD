@@ -3,6 +3,29 @@
     "src/main/java",
     "src/test/java"
   ],
+  "language": "java",
+  "language_profiles": {
+    "java": {
+      "scan_roots": ["src/main/java", "src/test/java"],
+      "source_extensions": [".java"]
+    },
+    "python": {
+      "scan_roots": ["src", "."],
+      "source_extensions": [".py"]
+    },
+    "typescript": {
+      "scan_roots": ["src"],
+      "source_extensions": [".ts", ".tsx"]
+    },
+    "javascript": {
+      "scan_roots": ["src"],
+      "source_extensions": [".js", ".jsx", ".mjs", ".cjs"]
+    },
+    "go": {
+      "scan_roots": ["."],
+      "source_extensions": [".go"]
+    }
+  },
   "design_roots": [
     "specs"
   ],

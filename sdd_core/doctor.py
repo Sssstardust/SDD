@@ -7,9 +7,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
+PACKAGE_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = PACKAGE_ROOT.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from sdd_core.application.doctor_runtime import run_doctor
+from sdd_core.application.gates.gate_runtime import check_baseline_keys as check_baseline_keys_runtime
 from sdd_core.infrastructure.doctor_checks import (
     count_baseline_buckets,
     find_security_warnings,
@@ -44,13 +55,10 @@ def emit_json_result(status: str, sections: list[dict[str, object]]) -> None:
 
 
 def run_baseline_key_partition_governance(root: Path) -> tuple[bool, str]:
-    script = root / "sdd_core" / "check_baseline_key_partition.py"
-    if not script.exists():
-        return False, f"baseline key partition script is missing: {script}"
-    exit_code, output = run_capture(["python", str(script)], cwd=root)
+    exit_code = check_baseline_keys_runtime()
     if exit_code == 0:
-        return True, output or "baseline key partition validation passed"
-    return False, output or "baseline key partition validation failed"
+        return True, "baseline key partition validation passed"
+    return False, "baseline key partition validation failed"
 
 
 def main(argv: list[str] | None = None) -> int:
