@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "required": [
+    "feature_name",
+    "design_version",
+    "checked_at",
+    "result",
+    "checks",
+    "warnings",
+    "errors",
+    "evidence"
+  ],
+  "properties": {
+    "feature_name": { "type": "string" },
+    "design_version": { "type": "string" },
+    "checked_at": { "type": "string" },
+    "result": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "checks": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "rollback": { "type": "array", "items": { "type": "string" } },
+        "monitoring_alert": { "type": "array", "items": { "type": "string" } },
+        "gray_strategy": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

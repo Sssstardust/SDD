@@ -58,3 +58,78 @@ def summarize_gate5_admissions_from_report(report: object) -> dict[str, Any]:
         attached_execution_admission=payload.get("attached_execution_admission"),
         affected_component_execution_admission=payload.get("affected_component_execution_admission"),
     )
+
+
+def main() -> int:
+    import argparse
+    import json
+    import sys
+    from pathlib import Path
+    from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("feature_dir", help="specs/<feature> directory path")
+    parser.add_argument("--require-attached-execution", action="store_true")
+    parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--attachment-file", default=None)
+    parser.add_argument("--profile", default=None)
+    args = parser.parse_args()
+
+    feature_dir = resolve_feature_dir(args.feature_dir)
+    if not feature_dir.exists():
+        print(f"[FAIL] feature directory does not exist: {feature_dir}")
+        return 1
+
+    design_path = detect_latest_design_path(feature_dir)
+    if not design_path.exists():
+        print(f"[FAIL] missing design document: {design_path}")
+        return 1
+
+    reports_dir = reports_dir_for_design(feature_dir, design_path)
+    verify_path = reports_dir / "verify-report.json"
+    if not verify_path.exists():
+        print(f"[FAIL] missing verify-report.json: {verify_path}")
+        return 1
+
+    try:
+        report_data = json.loads(verify_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        print(f"[FAIL] failed to parse verify-report.json: {exc}")
+        return 1
+
+    summary = summarize_gate5_admissions_from_report(report_data)
+
+    if summary.get("result") == "FAIL":
+        print("[FAIL] Gate 5 admissions check failed")
+        print(f"  - verify report: {verify_path}")
+        print(f"  - admission results: {summary.get('admission_results')}")
+        print(f"  - failing admissions: {summary.get('failing_admissions')}")
+        return 1
+
+    print("[OK] Gate 5 admissions check passed")
+    print(f"  - result: {summary.get('result')}")
+    print(f"  - admission results: {summary.get('admission_results')}")
+
+    # Write gate5 section to gate-report.json
+    from sdd_core.infrastructure.gate_report import write_gate_section
+    gate5_payload = report_data.copy()
+    if "gate5_admission_summary" not in gate5_payload:
+        gate5_payload["gate5_admission_summary"] = summary
+    try:
+        write_gate_section(
+            reports_dir,
+            gate_name="gate5",
+            feature_name=feature_dir.name,
+            design_version=design_path.name,
+            payload=gate5_payload,
+        )
+    except Exception as exc:
+        print(f"[WARN] failed to write gate5 section to gate-report.json: {exc}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
+

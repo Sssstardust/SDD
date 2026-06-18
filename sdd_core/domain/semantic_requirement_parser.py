@@ -19,7 +19,7 @@ BUSINESS_RULE_HINTS = (
     "必须", "不能", "严禁", "规则", "逻辑", "校验", "限制",
     "当", "如果", "否则", "流程", "步骤",
 )
-ATTACHED_PROJECT_PATH = Path(__file__).resolve().parents[2] / ".spec" / "attached-project.json"
+from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH as ATTACHED_PROJECT_PATH
 
 def normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()

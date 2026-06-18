@@ -73,7 +73,9 @@ def run_mcp_smoke(root: Path, server_path: Path, tool: str, arguments_json: str)
 
 
 def validate_attachment_shape(root: Path) -> tuple[bool, str]:
-    attachment_path = root / ".spec" / "attached-project.json"
+    # attachment config 始终在 SDD 工作区的固定位置 — 这是引导入口
+    from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH
+    attachment_path = DEFAULT_ATTACHMENT_PATH
     if not attachment_path.exists():
         return False, f"attached project config is missing: {attachment_path}"
     try:
@@ -88,7 +90,8 @@ def validate_attachment_shape(root: Path) -> tuple[bool, str]:
 
 
 def count_baseline_buckets(root: Path) -> tuple[str, int]:
-    baseline_root = root / ".spec" / "baselines"
+    from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
+    baseline_root = get_active_spec_dir(root=root) / "baselines"
     if not baseline_root.exists():
         return "missing", 0
     buckets = [path for path in baseline_root.iterdir() if path.is_dir()]
@@ -103,7 +106,9 @@ def find_security_warnings(root: Path) -> list[str]:
         r"AKIA[0-9A-Z]{16}",
         r"secret[_-]?key\s*[:=]\s*['\"]?[^'\"\s]+",
     ]
-    roots = [root / "config", root / ".spec"]
+    from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
+    spec_dir = get_active_spec_dir(root=root)
+    roots = [root / "config", spec_dir]
     files: list[Path] = []
     for candidate in roots:
         if candidate.exists():

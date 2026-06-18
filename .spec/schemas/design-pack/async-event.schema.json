@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "required": ["event", "topic", "producer", "consumer"],
+  "properties": {
+    "event": { "type": "string" },
+    "topic": { "type": "string" },
+    "producer": { "type": "string" },
+    "consumer": { "type": "string" },
+    "payload": { "type": "object" },
+    "retry": { "type": "object" },
+    "dlq": { "type": "string" }
+  }
+}

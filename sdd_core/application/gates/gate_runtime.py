@@ -101,6 +101,14 @@ def run_gate1(feature_dir: str | Path) -> int:
     report_path = reports_dir / "gate1-report.json"
     with feature_lock(feature_path, phase="gate1"):
         atomic_write_text(report_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    from sdd_core.infrastructure.gate_report import write_gate_section
+    write_gate_section(
+        reports_dir,
+        gate_name="gate1",
+        feature_name=feature_path.name,
+        design_version=design_path.name,
+        payload=payload,
+    )
     return _print_result("Gate 1 validation completed" if not errors else "Gate 1 validation failed", report_path, errors)
 
 

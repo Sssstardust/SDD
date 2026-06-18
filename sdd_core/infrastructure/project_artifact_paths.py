@@ -40,7 +40,9 @@ def get_active_project_artifacts_dir(
         name = str(attachment.get("name") or "attached-project")
         project_root = str(attachment.get("project_root") or "")
         bucket_name = build_baseline_bucket_name(name, project_root)
-    target = (root / ".spec" / "project-artifacts" / bucket_name).resolve()
+    from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
+    spec_dir = get_active_spec_dir(root=root, attachment_path=attachment_path, profile=profile)
+    target = (spec_dir / "project-artifacts" / bucket_name).resolve()
     if create:
         target.mkdir(parents=True, exist_ok=True)
     return target
