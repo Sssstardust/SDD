@@ -49,7 +49,7 @@ class FeatureBrief:
             logic_atoms=tuple(logic_atoms),
         )
 
-    def to_payload(self) -> dict[str, object]:
+    def to_payload(self) -> dict[str, Any]:
         return {
             "feature_name": self.feature_name,
             "risk_tier": self.risk_tier,

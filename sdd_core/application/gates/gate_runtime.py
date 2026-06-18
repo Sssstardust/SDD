@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import re
 import shutil
@@ -146,7 +148,7 @@ def run_gate2(feature_dir: str | Path, *, strict: bool = False) -> int:
     return _print_result("Gate 2 validation completed" if not errors else "Gate 2 validation failed", report_path, errors)
 
 
-def detect_context_missing(feature_dir: str | Path, design_pack_dir: str | Path, baseline_dir: str | Path) -> dict[str, object]:
+def detect_context_missing(feature_dir: str | Path, design_pack_dir: str | Path, baseline_dir: str | Path) -> dict[str, Any]:
     missing: list[str] = []
     feature_path = Path(feature_dir)
     pack_path = Path(design_pack_dir)
@@ -246,7 +248,7 @@ def refresh_module_map(
     language = str(attachment.get("language") or "")
     language_profile = get_language_profile(language)
     scan_roots = [Path(str(item)) for item in settings.get("scan_roots", []) if isinstance(item, str)]
-    classes: list[dict[str, object]] = []
+    classes: list[dict[str, Any]] = []
     for scan_root in scan_roots:
         root_language = language_profile
         for source_file in _iter_source_files(scan_root, root_language.source_extensions):
@@ -300,7 +302,7 @@ def refresh_schema_context(
         create=True,
         migrate_legacy=True,
     )
-    payload = {
+    payload = {  # type: ignore
         "source": "local-fallback",
         "requested_source": "polyquery" if from_polyquery else "local",
         "polyquery_config": polyquery_config,

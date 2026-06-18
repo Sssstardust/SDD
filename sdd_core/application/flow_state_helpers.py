@@ -5,11 +5,13 @@ Helpers for feature flow state normalization and summary assembly.
 
 from __future__ import annotations
 
+from typing import Any
+
 import re
 from pathlib import Path
 
 
-def base_state(feature_dir: Path) -> dict[str, object]:
+def base_state(feature_dir: Path) -> dict[str, Any]:
     return {
         "feature_dir": str(feature_dir),
         "feature_name": feature_dir.name,
@@ -50,7 +52,7 @@ def base_state(feature_dir: Path) -> dict[str, object]:
     }
 
 
-def normalize_feature_state_payload(feature_dir: Path, raw_state: object, state_keys: tuple[str, ...]) -> dict[str, object]:
+def normalize_feature_state_payload(feature_dir: Path, raw_state: object, state_keys: tuple[str, ...]) -> dict[str, Any]:
     state = base_state(feature_dir)
     if not isinstance(raw_state, dict):
         return state
@@ -103,7 +105,7 @@ def normalize_feature_state_payload(feature_dir: Path, raw_state: object, state_
     return state
 
 
-def build_design_resource_claim_brief(summary: object) -> dict[str, object]:
+def build_design_resource_claim_brief(summary: object) -> dict[str, Any]:
     if not isinstance(summary, dict):
         return {}
     counts = summary.get("counts_by_kind")
@@ -128,7 +130,7 @@ def build_design_resource_claim_brief(summary: object) -> dict[str, object]:
     }
 
 
-def build_class_resolution_brief(summary: object) -> dict[str, object]:
+def build_class_resolution_brief(summary: object) -> dict[str, Any]:
     if not isinstance(summary, dict):
         return {}
     ambiguous = summary.get("ambiguous_classes")
@@ -145,7 +147,7 @@ def build_class_resolution_brief(summary: object) -> dict[str, object]:
     }
 
 
-def build_schema_table_resolution_brief(summary: object) -> dict[str, object]:
+def build_schema_table_resolution_brief(summary: object) -> dict[str, Any]:
     if not isinstance(summary, dict):
         return {}
     ambiguous = summary.get("ambiguous_tables")
@@ -183,7 +185,7 @@ def command_requires_strict(command: object) -> bool:
     return isinstance(command, str) and "--strict" in command.split()
 
 
-def build_strict_summary(state: dict[str, object]) -> dict[str, object]:
+def build_strict_summary(state: dict[str, Any]) -> dict[str, Any]:
     next_command = state.get("next_command")
     strict_next_step = bool(state.get("strict_next_step"))
     strict_recommended = bool(state.get("strict_recommended"))

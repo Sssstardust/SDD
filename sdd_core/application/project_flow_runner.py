@@ -5,6 +5,8 @@ Helpers for project-level orchestration in run_pipeline.py.
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections.abc import Callable
 from pathlib import Path
 
@@ -32,7 +34,7 @@ def load_project_next_candidate(
     *,
     attachment_file: str | None = None,
     profile: str | None = None,
-) -> tuple[dict[str, object] | None, dict[str, object] | object]:
+) -> tuple[dict[str, Any] | None, dict[str, Any] | object]:
     path = project_next_json_path(attachment_file=attachment_file, profile=profile)
     payload = read_json(path) if path.exists() else {}
     candidate = payload.get("candidate") if isinstance(payload, dict) else None
@@ -46,7 +48,7 @@ def run_project_console_refresh_steps(
     build_project_next: Callable[..., int],
     build_tooling_hygiene: Callable[[], int],
     build_project_console: Callable[..., int],
-    append_project_op: Callable[[str, dict[str, object]], None],
+    append_project_op: Callable[[str, dict[str, Any]], None],
     console_print: Callable[[str], None],
     attachment_file: str | None = None,
     profile: str | None = None,
@@ -92,7 +94,7 @@ def capture_project_cycle_candidates(
     *,
     attachment_file: str | None = None,
     profile: str | None = None,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     candidate, _payload = load_project_next_candidate(attachment_file=attachment_file, profile=profile)
     return {"candidate": candidate}
 
@@ -141,7 +143,7 @@ def dispatch_feature_next_command(
             ),
         )
     if "release-gate" in next_command:
-        return ("release-gate", lambda: release_gate(feature_dir, strict=strict))
+        return ("release-gate", lambda: release_gate(feature_dir, strict=strict))  # type: ignore
     return (
         "full-flow",
         lambda: run_full_flow(

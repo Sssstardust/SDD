@@ -5,6 +5,8 @@ Cross-platform doctor entrypoint.
 
 from __future__ import annotations
 
+from typing import Any
+
 import argparse
 import json
 import sys
@@ -40,25 +42,8 @@ def print_check(level: str, message: str) -> None:
 
 
 
-def run_polyquery_governance(root: Path) -> tuple[bool, str]:
-    script = root / "sdd_core" / "check_polyquery_config.py"
-    if not script.exists():
-        return False, f"polyquery governance script is missing: {script}"
-    exit_code, output = run_capture(["python", str(script), "--config", str(root / "config" / "polyquery.example.json")], cwd=root)
-    if exit_code == 0:
-        return True, output or "polyquery governance passed"
-    return False, output or "polyquery governance failed"
-
-
-def emit_json_result(status: str, sections: list[dict[str, object]]) -> None:
+def emit_json_result(status: str, sections: list[dict[str, Any]]) -> None:
     print(json.dumps({"status": status, "sections": sections}, ensure_ascii=False))
-
-
-def run_baseline_key_partition_governance(root: Path) -> tuple[bool, str]:
-    exit_code = check_baseline_keys_runtime()
-    if exit_code == 0:
-        return True, "baseline key partition validation passed"
-    return False, "baseline key partition validation failed"
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -11,7 +11,7 @@ from sdd_core.domain.attached_project import (
     load_attachment_config,
     save_attachment_config,
 )
-from gate_adapters import (
+from gate_adapters import (  # type: ignore[import-not-found]
     GateAdapter,
     GateAdapterContext,
     GateAdapterRegistry,
@@ -20,7 +20,7 @@ from gate_adapters import (
     PythonGateAdapter,
     default_gate_adapter_registry,
 )
-from polyquery_adapter import (
+from polyquery_adapter import (  # type: ignore[import-not-found]
     DEFAULT_CONFIG_PATH,
     polyquery_list_tables,
     polyquery_schema_for_feature,

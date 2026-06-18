@@ -24,20 +24,20 @@ def _design_version_number(path: Path) -> int:
 
 def list_design_files(feature_dir: Path) -> list[Path]:
     # 尝试匹配中文或英文前缀
-    candidates = []
+    candidates: list[str] = []
     for pattern in ["技术方案-v*.md", "design-v*.md"]:
-        candidates.extend(feature_dir.glob(pattern))
+        candidates.extend(feature_dir.glob(pattern))  # type: ignore
     
     # 去重
     seen = set()
-    unique_candidates = []
+    unique_candidates: list[str] = []
     for p in candidates:
-        if p.name not in seen:
-            seen.add(p.name)
+        if p.name not in seen:  # type: ignore
+            seen.add(p.name)  # type: ignore
             unique_candidates.append(p)
 
     return sorted(
-        (path for path in unique_candidates if DESIGN_PATTERN.match(path.name)),
+        (path for path in unique_candidates if DESIGN_PATTERN.match(path.name)),  # type: ignore
         key=_design_version_number,
     )
 

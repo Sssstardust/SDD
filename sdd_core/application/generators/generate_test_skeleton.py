@@ -8,6 +8,8 @@ generate_test_skeleton.py
 
 from __future__ import annotations
 
+from typing import Any
+
 import argparse
 import json
 import re
@@ -201,7 +203,7 @@ def extract_test_cases(text: str) -> list[dict[str, str]]:
     return [case for case in cases if {"id", "req_id", "description"} <= case.keys()]
 
 
-def parse_feature_brief(feature_brief: Path) -> dict[str, object]:
+def parse_feature_brief(feature_brief: Path) -> dict[str, Any]:
     yaml_text = "\n".join(extract_yaml_blocks(read_text(feature_brief)))
     return {
         "feature_name": extract_scalar(yaml_text, "feature_name") or feature_brief.parent.name,
@@ -210,7 +212,7 @@ def parse_feature_brief(feature_brief: Path) -> dict[str, object]:
     }
 
 
-def parse_task_slice(task_file: Path) -> dict[str, object]:
+def parse_task_slice(task_file: Path) -> dict[str, Any]:
     text = read_text(task_file)
     yaml_text = "\n".join(extract_yaml_blocks(text))
     return {
@@ -225,15 +227,15 @@ def parse_task_slice(task_file: Path) -> dict[str, object]:
 
 
 def validate_task_slices(
-    slices: list[dict[str, object]],
+    slices: list[dict[str, Any]],
     *,
     requirement_ids: set[str],
     design_acceptance_matrix: dict[str, list[str]],
-) -> tuple[list[str], list[dict[str, object]]]:
+) -> tuple[list[str], list[dict[str, Any]]]:
     errors: list[str] = []
-    ordered_slices: list[dict[str, object]] = []
+    ordered_slices: list[dict[str, Any]] = []
     seen_slice_ids: set[str] = set()
-    slice_by_id: dict[str, dict[str, object]] = {}
+    slice_by_id: dict[str, dict[str, Any]] = {}
 
     for slice_meta in slices:
         slice_id = str(slice_meta["slice_id"])
@@ -370,7 +372,7 @@ def resolve_primary_business_package(brief: FeatureBrief, feature_dir: Path) -> 
         return None
         
     try:
-        mmap = ModuleMapDocument.from_json_file(module_map_path)
+        mmap = getattr(ModuleMapDocument, "from_json_file")(module_map_path)
         for cls_info in mmap.classes:
             if cls_info.get("simple_name") == primary_comp:
                 pkg = cls_info.get("package")

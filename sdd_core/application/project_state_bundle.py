@@ -5,6 +5,8 @@ Shared project-level state collection helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections import Counter
 from pathlib import Path
 
@@ -20,11 +22,11 @@ def collect_project_state_bundle(
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     profile: str | None = None,
     include_recent_ops: bool = False,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     states = [inspect_feature_state(feature_dir) for feature_dir in iter_feature_dirs(attachment_path=attachment_path, profile=profile)]
     project_context = describe_active_project_artifacts(attachment_path=attachment_path, profile=profile, create=True)
     workspace = build_workspace_payload(attachment_path)
-    payload: dict[str, object] = {
+    payload: dict[str, Any] = {
         "project": project_context,
         "workspace": workspace,
         "feature_count": len(states),

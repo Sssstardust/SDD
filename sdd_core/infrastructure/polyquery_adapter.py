@@ -589,7 +589,7 @@ def descriptions_to_schema_context(
         ),
     }
     if discovery_report is not None:
-        payload["discovery"] = discovery_report
+        payload["discovery"] = discovery_report  # type: ignore
     return payload
 
 

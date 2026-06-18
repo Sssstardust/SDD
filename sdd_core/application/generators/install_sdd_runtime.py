@@ -5,6 +5,8 @@ Install a self-contained SDD runtime into a target project.
 
 from __future__ import annotations
 
+from typing import Any
+
 import argparse
 import json
 import shutil
@@ -96,7 +98,7 @@ MCP 配置示例见：
     return target
 
 
-def install_runtime(target_root: Path, runtime_dir_name: str, force: bool) -> dict[str, object]:
+def install_runtime(target_root: Path, runtime_dir_name: str, force: bool) -> dict[str, Any]:
     runtime_root = (target_root / runtime_dir_name).resolve()
     if runtime_root.exists() and force:
         shutil.rmtree(runtime_root)

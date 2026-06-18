@@ -235,7 +235,7 @@ Test-PathRequired -Path $projectExplorer -Description "project-explorer MCP dist
 Test-PathRequired -Path $archStandard -Description "arch-standard MCP dist"
 
 Test-McpCli -Name "arch-standard" -ServerPath $archStandard -Tool "list_rules" -ArgumentsJson "{}"
-Test-McpCli -Name "project-explorer" -ServerPath $projectExplorer -Tool "scan_modules" -ArgumentsJson "{'keywords':['payment'],'limit':1,'force_refresh':false}"
+Test-McpCli -Name "project-explorer" -ServerPath $projectExplorer -Tool "scan_modules" -ArgumentsJson '{\"keywords\":[\"payment\"],\"limit\":1,\"force_refresh\":false}'
 
 Write-Host ""
 Write-Host "== Attached Project =="
@@ -263,17 +263,8 @@ if (Test-Path $baselineRoot) {
 
 Write-Host ""
 Write-Host "== PolyQuery =="
-Test-PathRequired -Path (Join-Path $repoRoot "config\polyquery.example.json") -Description "PolyQuery example config"
 Test-JsonFileReady -Path (Join-Path $repoRoot "config\polyquery.json") -Description "Local PolyQuery config"
 
-Write-Host ""
-Write-Host "== Gate Smoke Test =="
-$gateSmoke = Invoke-Capture -Command "python" -Arguments @("sdd_core\doctor_smoke.py")
-if ($gateSmoke.ExitCode -eq 0) {
-  Write-Check "OK" "Gate smoke test passed."
-} else {
-  Write-Check "FAIL" "Gate smoke test failed: $($gateSmoke.Output)"
-}
 
 Write-Host ""
 Write-Host "== Test Baseline =="

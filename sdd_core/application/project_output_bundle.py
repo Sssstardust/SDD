@@ -5,6 +5,8 @@ Shared helpers for project-level output commands.
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections import Counter
 from pathlib import Path
 
@@ -34,7 +36,7 @@ def build_project_level_payload(
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     profile: str | None = None,
     include_recent_ops: bool = False,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     payload = collect_project_state_bundle(
         attachment_path=attachment_path,
         profile=profile,
@@ -61,7 +63,7 @@ def build_project_level_payload(
     return payload
 
 
-def write_project_json(output_dir: Path, file_name: str, payload: dict[str, object]) -> Path:
+def write_project_json(output_dir: Path, file_name: str, payload: dict[str, Any]) -> Path:
     json_path = output_dir / file_name
     write_json(json_path, payload)
     return json_path

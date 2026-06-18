@@ -5,6 +5,8 @@ Gate 3 report building helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def build_gate3_payload(
     *,
@@ -13,8 +15,8 @@ def build_gate3_payload(
     checks: list[str],
     warnings: list[str],
     errors: list[str],
-    ai_review: dict[str, object],
-) -> dict[str, object]:
+    ai_review: dict[str, Any],
+) -> dict[str, Any]:
     return {
         "result": result,
         "rule_evaluation": {

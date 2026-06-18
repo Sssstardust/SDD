@@ -5,12 +5,14 @@ Shared baseline freshness and signature validators.
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH, resolve_module_map_scan_settings, source_signature
-from refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature
+from refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature  # type: ignore[import-not-found]
 
 
 def parse_ttl(value: object) -> timedelta | None:
@@ -45,10 +47,10 @@ def parse_datetime(value: object) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def validate_baseline_freshness(label: str, path: Path, *, strict: bool) -> tuple[list[str], list[str], dict[str, object]]:
+def validate_baseline_freshness(label: str, path: Path, *, strict: bool) -> tuple[list[str], list[str], dict[str, Any]]:
     warnings: list[str] = []
     errors: list[str] = []
-    metadata: dict[str, object] = {"freshness": "unknown"}
+    metadata: dict[str, Any] = {"freshness": "unknown"}
     if not path.exists():
         return warnings, errors, metadata
     try:
@@ -82,10 +84,10 @@ def validate_attached_project_signature(
     *,
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
+) -> tuple[list[str], list[str], dict[str, Any]]:
     warnings: list[str] = []
     errors: list[str] = []
-    metadata: dict[str, object] = {"attachment_signature_status": "unknown"}
+    metadata: dict[str, Any] = {"attachment_signature_status": "unknown"}
     if not attachment_path.exists():
         metadata["attachment_signature_status"] = "no-attachment"
         return warnings, errors, metadata
@@ -127,10 +129,10 @@ def validate_schema_context_signature(
     *,
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     strict: bool,
-) -> tuple[list[str], list[str], dict[str, object]]:
+) -> tuple[list[str], list[str], dict[str, Any]]:
     warnings: list[str] = []
     errors: list[str] = []
-    metadata: dict[str, object] = {"schema_context_signature_status": "unknown"}
+    metadata: dict[str, Any] = {"schema_context_signature_status": "unknown"}
     if not attachment_path.exists():
         metadata["schema_context_signature_status"] = "no-attachment"
         return warnings, errors, metadata

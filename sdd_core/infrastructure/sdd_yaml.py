@@ -35,7 +35,7 @@ def load_merged_yaml_mapping(text: str) -> dict[str, Any]:
 
 def load_yaml_mapping(yaml_text: str) -> dict[str, Any]:
     try:
-        import yaml  # type: ignore[import-not-found]
+        import yaml  # type: ignore  # type: ignore[import-not-found]
 
         loaded = yaml.safe_load(yaml_text)
         return loaded if isinstance(loaded, dict) else {}

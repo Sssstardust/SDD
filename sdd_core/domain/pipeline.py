@@ -5,6 +5,8 @@ Domain model for pipeline run context.
 
 from __future__ import annotations
 
+from typing import Any
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,7 +23,7 @@ class PipelineRunContext:
     def feature_name(self) -> str | None:
         return self.feature_dir.name if isinstance(self.feature_dir, Path) else None
 
-    def to_payload(self) -> dict[str, object]:
+    def to_payload(self) -> dict[str, Any]:
         return {
             "command": self.command,
             "feature_dir": str(self.feature_dir) if isinstance(self.feature_dir, Path) else None,

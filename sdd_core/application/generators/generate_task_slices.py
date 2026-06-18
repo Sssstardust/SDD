@@ -8,15 +8,19 @@ acceptance matrix.
 
 from __future__ import annotations
 
+from typing import Any
+
 import argparse
 import json
+import sys
+import subprocess
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
 from sdd_core.infrastructure.versioning import detect_latest_design_path, resolve_feature_dir, reports_dir_for_design
-from design_evidence import hash_file, resolve_design_pack_dir
+from design_evidence import hash_file, resolve_design_pack_dir  # type: ignore[import-not-found]
 from sdd_core.domain.feature_brief import FeatureBrief
 
 
@@ -289,7 +293,7 @@ def ensure_design_approval(feature_dir: Path) -> int:
     return subprocess.run(command, check=False).returncode
 
 
-def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str, object]:
+def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str, Any]:
     # 强制审批检查
     if ensure_design_approval(feature_dir) != 0:
         return {
@@ -384,7 +388,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             
             guide_lines = []
             if req_id in logic_map:
-                for logic_step in logic_map[req_id]:
+                for logic_step in logic_map[req_id]:  # type: ignore
                     comp = logic_step.get("component", "Unknown")
                     meth = logic_step.get("method", "unknown")
                     steps = logic_step.get("steps", [])

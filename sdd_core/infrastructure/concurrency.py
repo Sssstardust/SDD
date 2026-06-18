@@ -5,6 +5,8 @@ Lightweight file locking and atomic write helpers for local-first workflows.
 
 from __future__ import annotations
 
+from typing import Any
+
 import hashlib
 import json
 import os
@@ -52,11 +54,11 @@ def path_lock_path(path: Path) -> Path:
     return LOCKS_DIR / _lock_name_for_path(path, prefix="path")
 
 
-def _serialize_lock_payload(payload: dict[str, object]) -> str:
+def _serialize_lock_payload(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
-def _read_lock_payload(lock_path: Path) -> dict[str, object] | None:
+def _read_lock_payload(lock_path: Path) -> dict[str, Any] | None:
     if not lock_path.exists():
         return None
     try:
@@ -65,7 +67,7 @@ def _read_lock_payload(lock_path: Path) -> dict[str, object] | None:
         return None
 
 
-def _is_expired(payload: dict[str, object] | None) -> bool:
+def _is_expired(payload: dict[str, Any] | None) -> bool:
     if not isinstance(payload, dict):
         return True
     expires_at = payload.get("expires_at")
@@ -77,7 +79,7 @@ def _is_expired(payload: dict[str, object] | None) -> bool:
         return True
 
 
-def _lock_payload(resource: dict[str, object], owner: str, *, ttl_seconds: int, phase: str) -> dict[str, object]:
+def _lock_payload(resource: dict[str, Any], owner: str, *, ttl_seconds: int, phase: str) -> dict[str, Any]:
     locked_at = _utc_now()
     expires_at = locked_at + timedelta(seconds=ttl_seconds)
     return {
@@ -92,7 +94,7 @@ def _lock_payload(resource: dict[str, object], owner: str, *, ttl_seconds: int, 
 @contextmanager
 def _acquire_lock(
     lock_path: Path,
-    payload: dict[str, object],
+    payload: dict[str, Any],
     *,
     timeout_seconds: float,
     poll_interval_seconds: float,

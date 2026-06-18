@@ -5,6 +5,8 @@ Gate report writing helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +15,7 @@ from .concurrency import atomic_write_text, feature_lock
 from sdd_core.domain.gate_report import GateSection
 
 
-def build_violations(gate_name: str, payload: dict) -> list[dict[str, object]]:
+def build_violations(gate_name: str, payload: dict) -> list[dict[str, Any]]:
     return GateSection.from_payload(gate_name, payload).to_payload()["violations"]
 
 

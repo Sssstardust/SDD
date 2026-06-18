@@ -5,8 +5,10 @@ Gate 2 report building helpers.
 
 from __future__ import annotations
 
+from typing import Any
 
-def build_gate2_payload(report: dict[str, object]) -> dict[str, object]:
+
+def build_gate2_payload(report: dict[str, Any]) -> dict[str, Any]:
     summary = report.get("design_resource_claim_summary", {})
     return {
         "result": "PASS" if report.get("status") == "OK" else "FAIL",

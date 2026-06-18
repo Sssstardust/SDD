@@ -5,6 +5,8 @@ Pure Gate 1 checking helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def validate_required_artifacts(*, feature_brief_exists: bool, design_exists: bool, feature_brief_path: str, design_path: str) -> list[str]:
     errors: list[str] = []
@@ -29,7 +31,7 @@ def collect_open_ambiguity_errors(tracker: object) -> list[str]:
     return errors
 
 
-def summarize_command_results(command_results: list[dict[str, object]]) -> tuple[list[str], list[str]]:
+def summarize_command_results(command_results: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     checks: list[str] = []
     errors: list[str] = []
     for command_result in command_results:

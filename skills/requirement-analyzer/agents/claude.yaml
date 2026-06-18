@@ -1,4 +1,0 @@
-skill: requirement-analyzer
-role: expert
-description: 将自然语言 PRD 解析为结构化 JSON (structured-prd.json)，并提取关键架构事实。
-prompt: 使用 $requirement-analyzer 把这份 PRD 转成 structured-prd.json，并显式列出歧义和待澄清项。

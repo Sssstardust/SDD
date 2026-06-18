@@ -5,6 +5,8 @@ Shared extractors for SDD baseline resources.
 
 from __future__ import annotations
 
+from typing import Any
+
 import re
 from pathlib import Path
 
@@ -112,12 +114,12 @@ def parse_nullable_value(header: str, value: str) -> bool | None:
     return None
 
 
-def extract_table_field_specs_from_data_model(path: Path) -> dict[str, dict[str, dict[str, object]]]:
+def extract_table_field_specs_from_data_model(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
     if not path.exists():
         return {}
     text = path.read_text(encoding="utf-8", errors="ignore")
     tables = extract_tables_from_data_model(path)
-    specs_by_table: dict[str, dict[str, dict[str, object]]] = {table: {} for table in tables}
+    specs_by_table: dict[str, dict[str, dict[str, Any]]] = {table: {} for table in tables}
 
     for table_name, column_name in re.findall(
         r"\b(t_[a-zA-Z0-9_]+)\.([a-z_][a-z0-9_]*)\b",
@@ -358,7 +360,7 @@ def build_design_resource_claims_for_pack(
     )
 
 
-def summarize_resource_claims(resource_claims: list[dict[str, str]]) -> dict[str, object]:
+def summarize_resource_claims(resource_claims: list[dict[str, str]]) -> dict[str, Any]:
     names_by_kind: dict[str, list[str]] = {}
     resource_keys_by_kind: dict[str, list[str]] = {}
     component_ids_by_kind: dict[str, list[str]] = {}

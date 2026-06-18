@@ -9,7 +9,7 @@ import argparse
 import re
 from pathlib import Path
 
-from bootstrap_utils import (
+from bootstrap_utils import (  # type: ignore[import-not-found]
     BOOTSTRAP_REQUIRED_FILES,
     BOOTSTRAP_TEMPLATE_DIR,
     BOOTSTRAP_TEMPLATE_MAP,

@@ -22,7 +22,7 @@ def parse_simple_yaml(text: str) -> dict:
             key = key.strip()
             value = value.strip().strip('"').strip("'")
             if value.startswith("[") and value.endswith("]"):
-                value = [v.strip().strip('"').strip("'") for v in value[1:-1].split(",")]
+                value = [v.strip().strip('"').strip("'") for v in value[1:-1].split(",")]  # type: ignore
             data[key] = value
     return data
 

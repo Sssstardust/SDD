@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from dataclasses import dataclass
 
 
@@ -91,7 +93,7 @@ def physical_name(key: str) -> str:
     return ARTIFACTS[key].physical
 
 
-def describe_naming_map() -> list[dict[str, object]]:
+def describe_naming_map() -> list[dict[str, Any]]:
     """返回完整命名映射，便于校验脚本/文档生成器消费。"""
     return [
         {

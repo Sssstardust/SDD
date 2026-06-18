@@ -5,6 +5,8 @@ Domain-level attachment payload normalization helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 import hashlib
 import json
 import re
@@ -71,13 +73,13 @@ def workspace_path_for(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> Path:
     return effective.parent / "workspace.json"
 
 
-def write_attachment_json(path: Path, payload: dict[str, object]) -> Path:
+def write_attachment_json(path: Path, payload: dict[str, Any]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
 
-def build_workspace_payload(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> dict[str, object]:
+def build_workspace_payload(attachment_path: Path = DEFAULT_ATTACHMENT_PATH) -> dict[str, Any]:
     profiles = list_attachment_profiles(attachment_path)
     active = next((item for item in profiles if item.get("active") is True), None)
     if active is None and profiles:
@@ -137,14 +139,14 @@ def build_component_payload(
     design_roots: list[Path | str] | None = None,
     schema_roots: list[Path | str] | None = None,
     language: str | None = None,
-    extra_fields: dict[str, object] | None = None,
-) -> dict[str, object]:
+    extra_fields: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     project_root_path = Path(project_root).resolve() if project_root is not None else None
     resolved_language = normalize_language(language)
     effective_scan_roots = scan_roots or (default_scan_roots(project_root_path, resolved_language) if project_root_path else [])
     effective_design_roots = design_roots or [ROOT / "specs"]
     effective_schema_roots = schema_roots or (default_schema_roots(project_root_path, resolved_language) if project_root_path else [])
-    payload: dict[str, object] = dict(extra_fields or {})
+    payload: dict[str, Any] = dict(extra_fields or {})
     payload.update(
         {
             "component_id": component_id,
@@ -162,10 +164,10 @@ def build_component_payload(
     return payload
 
 
-def normalize_components(raw_components: object) -> list[dict[str, object]]:
+def normalize_components(raw_components: object) -> list[dict[str, Any]]:
     if not isinstance(raw_components, list):
         return []
-    normalized: list[dict[str, object]] = []
+    normalized: list[dict[str, Any]] = []
     for index, raw_component in enumerate(raw_components, start=1):
         if not isinstance(raw_component, dict):
             continue
@@ -192,7 +194,7 @@ def normalize_components(raw_components: object) -> list[dict[str, object]]:
     return normalized
 
 
-def collect_component_roots(components: list[dict[str, object]], field_name: str) -> list[str]:
+def collect_component_roots(components: list[dict[str, Any]], field_name: str) -> list[str]:
     collected: list[str] = []
     for component in components:
         values = component.get(field_name)
@@ -201,9 +203,9 @@ def collect_component_roots(components: list[dict[str, object]], field_name: str
     return dedupe_preserve_order(collected)
 
 
-def normalize_attachment_payload(payload: dict[str, object]) -> dict[str, object]:
+def normalize_attachment_payload(payload: dict[str, Any]) -> dict[str, Any]:
     components = normalize_components(payload.get("components"))
-    normalized: dict[str, object] = dict(payload)
+    normalized: dict[str, Any] = dict(payload)
     normalized["components"] = components
     project_root = normalized.get("project_root")
     if isinstance(project_root, str) and project_root:
@@ -235,7 +237,7 @@ def is_fixture_attachment(path: Path | str) -> bool:
     return "\\examples\\fixtures\\" in lowered or "attached-sample-project" in lowered
 
 
-def build_attachment_project_id(payload: dict[str, object]) -> str:
+def build_attachment_project_id(payload: dict[str, Any]) -> str:
     explicit = payload.get("project_id")
     if isinstance(explicit, str) and explicit.strip():
         return explicit.strip()
@@ -244,7 +246,7 @@ def build_attachment_project_id(payload: dict[str, object]) -> str:
     return build_profile_project_id(name, project_root)
 
 
-def build_attachment_profile_name(payload: dict[str, object], profile: str | None = None) -> str:
+def build_attachment_profile_name(payload: dict[str, Any], profile: str | None = None) -> str:
     if profile and profile.strip():
         return sanitize_profile_name(profile)
     payload_profile = payload.get("profile")
@@ -258,7 +260,7 @@ def build_attachment_profile_name(payload: dict[str, object], profile: str | Non
 
 def component_id_for_path(
     path: Path | str | None,
-    source_settings: dict[str, object] | None = None,
+    source_settings: dict[str, Any] | None = None,
     *,
     preferred_fields: tuple[str, ...] = ("scan_roots", "design_roots", "schema_roots"),
 ) -> str:
@@ -291,7 +293,7 @@ def resolve_module_map_scan_settings(
     schema_roots: list[Path | str] | None = None,
     project_root: Path | str | None = None,
     profile: str | None = None,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     attachment = load_attachment_config(attachment_path, profile=profile) or {}
     resolved_scan_roots = scan_roots
     if resolved_scan_roots is None and isinstance(attachment.get("scan_roots"), list):
@@ -317,7 +319,7 @@ def resolve_module_map_scan_settings(
     return payload
 
 
-def source_signature(payload: dict[str, object] | None = None) -> str:
+def source_signature(payload: dict[str, Any] | None = None) -> str:
     data = json.dumps(payload or {}, ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
@@ -329,10 +331,10 @@ def build_attachment_payload(
     scan_roots: list[Path | str] | None = None,
     design_roots: list[Path | str] | None = None,
     schema_roots: list[Path | str] | None = None,
-    components: list[dict[str, object]] | None = None,
-    extra_fields: dict[str, object] | None = None,
-) -> dict[str, object]:
-    payload: dict[str, object] = dict(extra_fields or {})
+    components: list[dict[str, Any]] | None = None,
+    extra_fields: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = dict(extra_fields or {})
     payload["name"] = name or payload.get("name") or "attached-project"
     if project_root is not None:
         payload["project_root"] = normalize_path(project_root)
@@ -350,11 +352,11 @@ def build_attachment_payload(
     return normalize_attachment_payload(payload)
 
 
-def normalize_attachment_json(payload: object) -> dict[str, object]:
+def normalize_attachment_json(payload: object) -> dict[str, Any]:
     return normalize_attachment_payload(payload if isinstance(payload, dict) else {})
 
 
-def load_attachment_config(path: Path = DEFAULT_ATTACHMENT_PATH, *, profile: str | None = None) -> dict[str, object] | None:
+def load_attachment_config(path: Path = DEFAULT_ATTACHMENT_PATH, *, profile: str | None = None) -> dict[str, Any] | None:
     config_path = path if path.is_absolute() else (ROOT / path).resolve()
     if not config_path.exists():
         return None
@@ -376,10 +378,10 @@ def load_attachment_config(path: Path = DEFAULT_ATTACHMENT_PATH, *, profile: str
 
 
 def save_attachment_config(
-    payload_or_path: dict[str, object] | Path | None = None,
+    payload_or_path: dict[str, Any] | Path | None = None,
     path: Path = DEFAULT_ATTACHMENT_PATH,
     *,
-    payload: dict[str, object] | None = None,
+    payload: dict[str, Any] | None = None,
     profile: str | None = None,
     project_id: str | None = None,
     set_active: bool = True,
@@ -424,7 +426,7 @@ def save_attachment_config(
     return effective_path
 
 
-def load_attachment_seed(path: Path) -> dict[str, object]:
+def load_attachment_seed(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
@@ -496,13 +498,13 @@ def set_active_attachment_profile(profile: str, path: Path = DEFAULT_ATTACHMENT_
     save_attachment_config(payload_or_path=config_path, payload=output)
 
 
-def list_attachment_profiles(path: Path = DEFAULT_ATTACHMENT_PATH) -> list[dict[str, object]]:
+def list_attachment_profiles(path: Path = DEFAULT_ATTACHMENT_PATH) -> list[dict[str, Any]]:
     config = load_attachment_config(path)
     return _attachment_profile_entries(config)
 
 
 def validate_components_for_risk_tier(
-    components: list[dict[str, object]] | None,
+    components: list[dict[str, Any]] | None,
     risk_tier: str,
 ) -> list[str]:
     warnings: list[str] = []
@@ -523,12 +525,12 @@ def validate_components_for_risk_tier(
     return warnings
 
 
-def _attachment_profile_entries(payload: object) -> list[dict[str, object]]:
+def _attachment_profile_entries(payload: object) -> list[dict[str, Any]]:
     if not isinstance(payload, dict):
         return []
     profiles = payload.get("profiles")
     if isinstance(profiles, list) and profiles:
-        result: list[dict[str, object]] = []
+        result: list[dict[str, Any]] = []
         for item in profiles:
             if not isinstance(item, dict):
                 continue

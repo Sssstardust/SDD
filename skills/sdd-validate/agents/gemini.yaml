@@ -1,4 +1,0 @@
-id: sdd-validate
-label: SDD 架构校验器
-summary: 针对技术方案-v{N}.md 和设计包执行架构门控校验（设计门控 Gate 1/2/3，可选实现门控 Gate 4/5）。
-instruction: 使用 $sdd-validate 校验 specs/{{feature_name}} 下的设计方案，重点检查 {{gates}}。

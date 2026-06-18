@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pathlib import Path
 
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design
 
 
-def assert_feature_within_attachment(feature_dir: Path, attachment_cfg: dict[str, object] | None) -> None:
+def assert_feature_within_attachment(feature_dir: Path, attachment_cfg: dict[str, Any] | None) -> None:
     if not isinstance(attachment_cfg, dict):
         return
     design_roots = attachment_cfg.get("design_roots")

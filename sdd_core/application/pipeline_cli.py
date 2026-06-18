@@ -5,6 +5,8 @@ Application-layer CLI payload helpers for run_pipeline.
 
 from __future__ import annotations
 
+from typing import Any
+
 import argparse
 from pathlib import Path
 
@@ -22,8 +24,8 @@ def latest_report_artifact(feature_dir: str, filename: str) -> str | None:
     return str(report_path) if report_path.exists() else None
 
 
-def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, object]:
-    artifacts: dict[str, object] = {}
+def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, Any]:
+    artifacts: dict[str, Any] = {}
     cmd = getattr(args, "cmd", "")
     attachment_file = getattr(args, "attachment_file", None)
     profile = getattr(args, "profile", None)
@@ -33,14 +35,14 @@ def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, object]
     if profile:
         resolve_kwargs["profile"] = profile
     if cmd == "flow-status":
-        flow_status_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "flow-status.json"
-        project_state_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "project-state.json"
+        flow_status_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "flow-status.json"  # type: ignore
+        project_state_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "project-state.json"  # type: ignore
         if project_state_path.exists():
             artifacts["project_state_path"] = str(project_state_path)
         if flow_status_path.exists():
             artifacts["flow_status_path"] = str(flow_status_path)
     elif cmd == "generate-task-slices":
-        task_slices_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "tasks" / "task-slices.generated.json"
+        task_slices_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "tasks" / "task-slices.generated.json"  # type: ignore
         if task_slices_path.exists():
             artifacts["task_slices_path"] = str(task_slices_path)
     elif cmd == "gate5":

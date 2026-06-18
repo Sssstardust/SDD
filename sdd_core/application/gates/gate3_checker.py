@@ -5,6 +5,8 @@ Pure Gate 3 checking helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def evaluate_rule_result(*, warnings: list[str], errors: list[str]) -> str:
     if errors:
@@ -14,8 +16,8 @@ def evaluate_rule_result(*, warnings: list[str], errors: list[str]) -> str:
     return "PASS"
 
 
-def normalize_ai_review_violations(violations: list[dict[str, object]]) -> list[dict[str, object]]:
-    normalized: list[dict[str, object]] = []
+def normalize_ai_review_violations(violations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
     for violation in violations:
         if not isinstance(violation, dict):
             continue
@@ -31,7 +33,7 @@ def normalize_ai_review_violations(violations: list[dict[str, object]]) -> list[
     return normalized
 
 
-def build_rule_modeled_ai_review(violations: list[dict[str, object]]) -> dict[str, object]:
+def build_rule_modeled_ai_review(violations: list[dict[str, Any]]) -> dict[str, Any]:
     normalized = normalize_ai_review_violations(violations)
     return {
         "result": "WARN" if normalized else "SKIPPED",

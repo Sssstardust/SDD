@@ -5,6 +5,8 @@ Helpers for lightweight gate cache state.
 
 from __future__ import annotations
 
+from typing import Any
+
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -78,7 +80,7 @@ def build_gate_cache_entry(
     input_hash: str,
     report_path: str,
     completed_at: str | None = None,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return {
         "status": status,
         "input_hash": input_hash,
@@ -87,13 +89,13 @@ def build_gate_cache_entry(
     }
 
 
-def read_design_gate_cache_from_state(state: object) -> dict[str, dict[str, object]]:
+def read_design_gate_cache_from_state(state: object) -> dict[str, dict[str, Any]]:
     if not isinstance(state, dict):
         return {}
     raw_cache = state.get("gate_cache")
     if not isinstance(raw_cache, dict):
         return {}
-    normalized: dict[str, dict[str, object]] = {}
+    normalized: dict[str, dict[str, Any]] = {}
     for gate_name in (*DESIGN_GATE_NAMES, *IMPLEMENTATION_GATE_NAMES):
         raw_entry = raw_cache.get(gate_name)
         if isinstance(raw_entry, dict):
@@ -102,14 +104,14 @@ def read_design_gate_cache_from_state(state: object) -> dict[str, dict[str, obje
 
 
 def update_design_gate_cache(
-    existing: dict[str, dict[str, object]],
+    existing: dict[str, dict[str, Any]],
     *,
     gate_name: str,
     status: str,
     input_hash: str,
     report_path: str,
     completed_at: str | None = None,
-) -> dict[str, dict[str, object]]:
+) -> dict[str, dict[str, Any]]:
     updated = dict(existing)
     updated[gate_name] = build_gate_cache_entry(
         status=status,
@@ -121,7 +123,7 @@ def update_design_gate_cache(
 
 
 def should_skip_design_gate(
-    gate_cache: dict[str, dict[str, object]],
+    gate_cache: dict[str, dict[str, Any]],
     *,
     gate_name: str,
     input_hash: str,

@@ -5,13 +5,15 @@ Shared Gate 5 admission summary helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def summarize_gate5_admissions(
     *,
     real_test_req_admission: object,
     attached_execution_admission: object,
     affected_component_execution_admission: object,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     admissions = {
         "real_test_req": real_test_req_admission if isinstance(real_test_req_admission, dict) else {},
         "attached_execution": attached_execution_admission if isinstance(attached_execution_admission, dict) else {},
@@ -49,7 +51,7 @@ def summarize_gate5_admissions(
     }
 
 
-def summarize_gate5_admissions_from_report(report: object) -> dict[str, object]:
+def summarize_gate5_admissions_from_report(report: object) -> dict[str, Any]:
     payload = report if isinstance(report, dict) else {}
     return summarize_gate5_admissions(
         real_test_req_admission=payload.get("real_test_req_admission"),

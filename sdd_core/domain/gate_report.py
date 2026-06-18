@@ -5,6 +5,8 @@ Domain model for gate report sections.
 
 from __future__ import annotations
 
+from typing import Any
+
 from dataclasses import dataclass
 
 
@@ -15,7 +17,7 @@ class Violation:
     location: str | None
     detail: str
 
-    def to_payload(self) -> dict[str, object]:
+    def to_payload(self) -> dict[str, Any]:
         return {
             "rule": self.rule,
             "severity": self.severity,
@@ -27,11 +29,11 @@ class Violation:
 @dataclass(frozen=True)
 class GateSection:
     gate_name: str
-    payload: dict[str, object]
+    payload: dict[str, Any]
     violations: tuple[Violation, ...]
 
     @classmethod
-    def from_payload(cls, gate_name: str, payload: dict[str, object]) -> "GateSection":
+    def from_payload(cls, gate_name: str, payload: dict[str, Any]) -> "GateSection":
         existing = payload.get("violations")
         violations: list[Violation] = []
         if isinstance(existing, list):
@@ -63,7 +65,7 @@ class GateSection:
                     )
         return cls(gate_name=gate_name, payload=dict(payload), violations=tuple(violations))
 
-    def to_payload(self) -> dict[str, object]:
+    def to_payload(self) -> dict[str, Any]:
         payload = dict(self.payload)
         payload["violations"] = [item.to_payload() for item in self.violations]
         return payload

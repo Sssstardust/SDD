@@ -5,6 +5,8 @@ Domain model for persisted feature flow state.
 
 from __future__ import annotations
 
+from typing import Any
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +17,7 @@ class FlowStateSnapshot:
     feature_name: str
     current_stage: str
     risk_tier: str
-    values: dict[str, object]
+    values: dict[str, Any]
 
     @classmethod
     def from_payload(
@@ -26,7 +28,7 @@ class FlowStateSnapshot:
         allowed_keys: tuple[str, ...],
     ) -> "FlowStateSnapshot":
         raw = payload if isinstance(payload, dict) else {}
-        normalized: dict[str, object] = {"feature_dir": str(feature_dir)}
+        normalized: dict[str, Any] = {"feature_dir": str(feature_dir)}
         for key in allowed_keys:
             if key in raw:
                 normalized[key] = raw[key]
@@ -45,6 +47,6 @@ class FlowStateSnapshot:
             values=normalized,
         )
 
-    def to_payload(self) -> dict[str, object]:
+    def to_payload(self) -> dict[str, Any]:
         return dict(self.values)
 

@@ -5,6 +5,8 @@ Shared orchestration helpers for run_pipeline flows.
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections.abc import Callable
 from pathlib import Path
 
@@ -21,7 +23,7 @@ def _build_skippable_design_gate_step(
     def _run() -> int:
         feature_path = Path(feature_dir).resolve()
         project_state_path = feature_path / "project-state.json"
-        gate_cache: dict[str, dict[str, object]] = {}
+        gate_cache: dict[str, dict[str, Any]] = {}
         if project_state_path.exists():
             raw_state = read_json(project_state_path)
             if isinstance(raw_state, dict) and isinstance(raw_state.get("gate_cache"), dict):
@@ -49,7 +51,7 @@ def _build_skippable_implementation_gate_step(
     def _run() -> int:
         feature_path = Path(feature_dir).resolve()
         project_state_path = feature_path / "project-state.json"
-        gate_cache: dict[str, dict[str, object]] = {}
+        gate_cache: dict[str, dict[str, Any]] = {}
         if project_state_path.exists():
             raw_state = read_json(project_state_path)
             if isinstance(raw_state, dict) and isinstance(raw_state.get("gate_cache"), dict):
@@ -124,7 +126,7 @@ def build_design_gate_steps(
             ),
         ),
         _build_skippable_design_gate_step("gate1", feature_dir=feature_dir, action=lambda: gate1(feature_dir)),
-        _build_skippable_design_gate_step("gate2", feature_dir=feature_dir, action=lambda: gate2(feature_dir, strict=strict)),
+        _build_skippable_design_gate_step("gate2", feature_dir=feature_dir, action=lambda: gate2(feature_dir, strict=strict)),  # type: ignore
         _build_skippable_design_gate_step("gate3", feature_dir=feature_dir, action=lambda: gate3(feature_dir)),
         ("check-approval", lambda: check_approval(feature_dir)),
         ("update-design-index", lambda: update_design_index(feature_dir)),
@@ -146,7 +148,7 @@ def build_implementation_gate_steps(
 ) -> list[tuple[str, Callable[[], int]]]:
     return [
         _build_skippable_implementation_gate_step("gate4", feature_dir=feature_dir, action=lambda: gate4(feature_dir)),
-        _build_skippable_implementation_gate_step("gate5", feature_dir=feature_dir, action=lambda: gate5(feature_dir, require_attached_execution=strict, strict=strict)),
+        _build_skippable_implementation_gate_step("gate5", feature_dir=feature_dir, action=lambda: gate5(feature_dir, require_attached_execution=strict, strict=strict)),  # type: ignore
         ("update-design-index", lambda: update_design_index(feature_dir)),
         ("sync-baseline", lambda: sync_baseline(feature_dir)),
         ("validate-reports(implementation)", lambda: validate_reports(feature_dir, "implementation")),
@@ -161,7 +163,7 @@ def build_refresh_baseline_steps(
     check_baseline_keys: Callable[[str | None, str | None], int],
     attachment_file: str | None = None,
     profile: str | None = None,
-    refresh_strategy: dict[str, object] | None = None,
+    refresh_strategy: dict[str, Any] | None = None,
 ) -> list[tuple[str, Callable[[], int]]]:
     strategy = refresh_strategy or {}
     return [
@@ -181,7 +183,7 @@ def build_refresh_baseline_steps(
             ),
         ),
         ("refresh-baseline-governance", refresh_baseline_governance),
-        ("check-baseline-keys", lambda: check_baseline_keys(attachment_file=attachment_file, profile=profile)),
+        ("check-baseline-keys", lambda: check_baseline_keys(attachment_file=attachment_file, profile=profile)),  # type: ignore
     ]
 
 

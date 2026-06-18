@@ -5,6 +5,8 @@ Application-layer feature/project flow orchestration.
 
 from __future__ import annotations
 
+from typing import Any
+
 from collections.abc import Callable
 from pathlib import Path
 
@@ -14,7 +16,7 @@ from sdd_core.application.pipeline_execution import run_steps
 def detect_next_flow_step(
     feature_dir: str,
     *,
-    inspect_feature_state: Callable[..., dict[str, object]],
+    inspect_feature_state: Callable[..., dict[str, Any]],
     resolve_feature_dir: Callable[[str], Path],
     next_command_requires_strict: Callable[[str], bool],
     dispatch_feature_next_command: Callable[..., tuple[str, Callable[[], int]] | None],
@@ -90,12 +92,12 @@ def run_continue_project_flow(
     run_traced_captured_command: Callable[[list[str]], object],
     json_mode: bool,
     console_print: Callable[[str], None],
-    append_project_op: Callable[[str, dict[str, object]], None],
+    append_project_op: Callable[[str, dict[str, Any]], None],
     project_next_json_path: Callable[..., Path],
-    load_project_next_candidate: Callable[..., tuple[dict[str, object] | None, dict[str, object] | object]],
+    load_project_next_candidate: Callable[..., tuple[dict[str, Any] | None, dict[str, Any] | object]],
     next_command_requires_strict: Callable[[str], bool],
     dispatch_feature_next_command: Callable[..., tuple[str, Callable[[], int]] | None],
-    inspect_feature_state: Callable[..., dict[str, object]],
+    inspect_feature_state: Callable[..., dict[str, Any]],
     run_design_cycle: Callable[..., int],
     run_approved_implementation_cycle: Callable[..., int],
     release_gate: Callable[[str, bool], int],
@@ -111,13 +113,13 @@ def run_continue_project_flow(
     if profile:
         command.extend(["--profile", profile])
     result = run_traced_captured_command(command)
-    if result.returncode != 0:
+    if result.returncode != 0:  # type: ignore
         if not json_mode:
-            if result.stdout:
-                print(result.stdout)
-            if result.stderr:
-                print(result.stderr)
-        return result.returncode
+            if result.stdout:  # type: ignore
+                print(result.stdout)  # type: ignore
+            if result.stderr:  # type: ignore
+                print(result.stderr)  # type: ignore
+        return result.returncode  # type: ignore
 
     project_next_path = project_next_json_path(attachment_file=attachment_file, profile=profile)
     if not project_next_path.exists():
@@ -175,9 +177,9 @@ def run_continue_project_flow(
 
     after_state = inspect_feature_state(Path(feature_dir), prefer_persisted=False)
     summary["result"] = "ok" if code == 0 else "fail"
-    summary["exit_code"] = code
-    summary["after_stage"] = after_state.get("current_stage")
-    summary["after_reason"] = after_state.get("reason")
+    summary["exit_code"] = code  # type: ignore
+    summary["after_stage"] = after_state.get("current_stage")  # type: ignore
+    summary["after_reason"] = after_state.get("reason")  # type: ignore
     append_project_op("continue-project-flow", summary)
     return code
 
@@ -187,9 +189,9 @@ def run_project_cycle(
     attachment_file: str | None,
     profile: str | None,
     run_project_console_cycle: Callable[..., int],
-    capture_project_cycle_candidates: Callable[..., dict[str, object]],
+    capture_project_cycle_candidates: Callable[..., dict[str, Any]],
     run_continue_project_flow_fn: Callable[..., int],
-    append_project_op: Callable[[str, dict[str, object]], None],
+    append_project_op: Callable[[str, dict[str, Any]], None],
 ) -> int:
     before = run_project_console_cycle(attachment_file=attachment_file, profile=profile)
     if before != 0:

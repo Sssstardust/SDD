@@ -5,6 +5,8 @@ Compute and persist feature flow state snapshots.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pathlib import Path
 
 from sdd_core.domain.feature_brief import FeatureBrief
@@ -78,7 +80,7 @@ STATE_SOURCE_COMPUTED_FALLBACK = "computed-fallback"
 STATE_SOURCE_COMPUTED_LIVE = "computed-live"
 
 
-def normalize_feature_state(feature_dir: Path, raw_state: object) -> dict[str, object]:
+def normalize_feature_state(feature_dir: Path, raw_state: object) -> dict[str, Any]:
     normalized = normalize_feature_state_payload(feature_dir, raw_state, STATE_KEYS)
     return FlowStateSnapshot.from_payload(feature_dir, normalized, allowed_keys=STATE_KEYS).to_payload()
 
@@ -87,20 +89,20 @@ def project_state_path(feature_dir: Path) -> Path:
     return feature_dir / "project-state.json"
 
 
-def load_project_state(feature_dir: Path) -> dict[str, object] | None:
+def load_project_state(feature_dir: Path) -> dict[str, Any] | None:
     path = project_state_path(feature_dir)
     if not path.exists():
         return None
     return normalize_feature_state(feature_dir, read_json(path))
 
 
-def write_project_state(feature_dir: Path, state: dict[str, object]) -> Path:
+def write_project_state(feature_dir: Path, state: dict[str, Any]) -> Path:
     path = project_state_path(feature_dir)
     write_json(path, normalize_feature_state(feature_dir, state))
     return path
 
 
-def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, object]:
+def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, Any]:
     path = project_state_path(feature_dir)
     path_exists = path.exists()
 
@@ -122,7 +124,7 @@ def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = Tr
     return state
 
 
-def compute_feature_state(feature_dir: Path) -> dict[str, object]:
+def compute_feature_state(feature_dir: Path) -> dict[str, Any]:
     state = base_state(feature_dir)
 
     prerequisite_messages = missing_feature_prerequisites(
@@ -262,10 +264,10 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
             gate5_admission_summary = verify.get("gate5_admission_summary")
             if isinstance(gate5_admission_summary, dict):
                 state["gate5_admission_summary"] = gate5_admission_summary
-            gate3_rule_evaluation = gate_report.get("gate3", {}).get("rule_evaluation") if isinstance(gate_report.get("gate3"), dict) else None
+            gate3_rule_evaluation = gate_report.get("gate3", {}).get("rule_evaluation") if isinstance(gate_report.get("gate3"), dict) else None  # type: ignore
             if isinstance(gate3_rule_evaluation, dict):
                 state["gate3_rule_evaluation"] = gate3_rule_evaluation
-            gate3_ai_review = gate_report.get("gate3", {}).get("ai_review") if isinstance(gate_report.get("gate3"), dict) else None
+            gate3_ai_review = gate_report.get("gate3", {}).get("ai_review") if isinstance(gate_report.get("gate3"), dict) else None  # type: ignore
             if isinstance(gate3_ai_review, dict):
                 state["gate3_ai_review"] = gate3_ai_review
             execution = verify.get("execution")
@@ -369,5 +371,5 @@ def compute_feature_state(feature_dir: Path) -> dict[str, object]:
     return state
 
 
-def inspect_feature_state(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, object]:
+def inspect_feature_state(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, Any]:
     return build_feature_state_record(feature_dir, prefer_persisted=prefer_persisted)

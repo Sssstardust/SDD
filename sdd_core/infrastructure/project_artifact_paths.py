@@ -5,6 +5,8 @@ Infrastructure helpers for project artifact directory resolution.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pathlib import Path
 
 from ._root import ROOT
@@ -50,7 +52,7 @@ def describe_active_project_artifacts(
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     profile: str | None = None,
     create: bool = False,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     effective_attachment_path = attachment_path if attachment_path.is_absolute() else (root / attachment_path).resolve()
     attachment = load_attachment_config(effective_attachment_path, profile=profile)
     artifacts_dir = get_active_project_artifacts_dir(

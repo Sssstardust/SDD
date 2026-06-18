@@ -5,6 +5,8 @@ Gate 5 report building helpers.
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def build_gate5_section_payload(
     *,
@@ -12,27 +14,27 @@ def build_gate5_section_payload(
     test_file: str,
     risk_tier: str,
     coverage_result: str,
-    execution: dict[str, object],
-    attached_execution: dict[str, object],
+    execution: dict[str, Any],
+    attached_execution: dict[str, Any],
     attached_execution_required: bool,
     attached_execution_requirement_reason: str,
-    attached_execution_admission: dict[str, object],
-    affected_component_execution_admission: dict[str, object],
+    attached_execution_admission: dict[str, Any],
+    affected_component_execution_admission: dict[str, Any],
     uncovered_p0: list[str],
     uncovered_p1: list[str],
-    design_resource_claim_summary: dict[str, object],
+    design_resource_claim_summary: dict[str, Any],
     implementation_result: str,
-    implementation_report_fields: dict[str, object],
-    implementation_traceability: dict[str, object],
+    implementation_report_fields: dict[str, Any],
+    implementation_traceability: dict[str, Any],
     real_test_req_coverage_result: str,
-    real_test_req_admission: dict[str, object],
-    gate5_admission_summary: dict[str, object],
+    real_test_req_admission: dict[str, Any],
+    gate5_admission_summary: dict[str, Any],
     strict: bool,
     warnings: list[str],
     errors: list[str],
-    evidence: dict[str, object],
+    evidence: dict[str, Any],
     report_file: str,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return {
         "result": result,
         "test_file": test_file,
