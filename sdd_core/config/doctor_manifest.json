@@ -1,0 +1,113 @@
+{
+  "name": "SDD Doctor Diagnostics",
+  "categories": [
+    {
+      "id": "toolchain",
+      "name": "Toolchain",
+      "rules": [
+        {
+          "type": "command_version",
+          "id": "python",
+          "command": [
+            "python",
+            "--version"
+          ],
+          "required_major": 3,
+          "required_minor": 13,
+          "description": "Python"
+        },
+        {
+          "type": "command_version",
+          "id": "node",
+          "command": [
+            "node",
+            "--version"
+          ],
+          "required_major": 18,
+          "required_minor": 0,
+          "description": "Node.js"
+        },
+        {
+          "type": "command_version",
+          "id": "javac",
+          "command": [
+            "javac",
+            "--version"
+          ],
+          "required_major": 0,
+          "required_minor": 0,
+          "condition": "needs_java",
+          "severity": "WARN",
+          "description": "javac"
+        }
+      ]
+    },
+    {
+      "id": "workspace",
+      "name": "Workspace",
+      "rules": [
+        {
+          "type": "path_exists",
+          "path": "README.md",
+          "description": "README"
+        },
+        {
+          "type": "path_exists",
+          "path": "skills/sdd-assistant/SKILL.md",
+          "description": "sdd-assistant Skill"
+        },
+        {
+          "type": "path_exists",
+          "path": "docs/agent-integration.md",
+          "description": "Agent integration doc"
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "name": "MCP",
+      "rules": [
+        {
+          "type": "mcp_smoke_test",
+          "path": "mcp-servers/project-explorer/dist/server.js",
+          "tool": "scan_modules",
+          "arguments": "{\"keywords\":[\"payment\"],\"limit\":1,\"force_refresh\":false}",
+          "description": "project-explorer MCP dist"
+        },
+        {
+          "type": "mcp_smoke_test",
+          "path": "mcp-servers/arch-standard/dist/server.js",
+          "tool": "list_rules",
+          "arguments": "{}",
+          "description": "arch-standard MCP dist"
+        }
+      ]
+    },
+    {
+      "id": "custom_checks",
+      "name": "Custom Checks",
+      "rules": [
+        {
+          "type": "custom_pytest_baseline",
+          "description": "Test Baseline"
+        },
+        {
+          "type": "custom_polyquery",
+          "description": "PolyQuery"
+        },
+        {
+          "type": "custom_attached_project",
+          "description": "Attached Project"
+        },
+        {
+          "type": "custom_baseline_governance",
+          "description": "Baseline Governance"
+        },
+        {
+          "type": "custom_security",
+          "description": "Security Secrets Scan"
+        }
+      ]
+    }
+  ]
+}
