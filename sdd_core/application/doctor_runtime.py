@@ -86,7 +86,7 @@ class DoctorEngine:
         if rule_type == "command_version":
             command = rule.get("command", [])
             if command[0] == "javac" and not shutil.which("javac"):
-                self.print_check("WARN", f"javac was not found; Gate 5 Java verification may be unavailable.")
+                self.print_check("WARN", "javac was not found; Gate 5 Java verification may be unavailable.")
                 self.record(category_id, "WARN", "javac missing")
                 return
             ok, message = test_version(

@@ -12,6 +12,8 @@ from sdd_core.domain.semantic_requirement_parser import (
     detect_project_mode, extract_apis, extract_entities, extract_business_rules,
     extract_dependencies, extract_ambiguities, normalize_whitespace
 )
+from sdd_core.domain.design_common import unique_preserve
+
 
 REQUIRED_CLARIFY_FIELDS = ("feature_name", "feature_type", "entities", "business_rules")
 
@@ -69,16 +71,8 @@ def normalize_api(item: Any) -> dict[str, str]:
 
 
 def unique_strings(items: list[str]) -> list[str]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for item in items:
-        cleaned = clean_sentence(item)
-        if not cleaned:
-            continue
-        if cleaned not in seen:
-            seen.add(cleaned)
-            result.append(cleaned)
-    return result
+    cleaned_items = [clean_sentence(x) for x in items]
+    return unique_preserve([x for x in cleaned_items if x])
 
 
 def unique_dict_items(items: list[dict[str, str]], key_fields: tuple[str, ...]) -> list[dict[str, str]]:

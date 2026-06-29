@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH, resolve_module_map_scan_settings, source_signature
-from refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature  # type: ignore[import-not-found]
+from sdd_core.application.generators.refresh_schema_context import resolve_schema_context_sources, source_signature as schema_context_source_signature
 
 
 def parse_ttl(value: object) -> timedelta | None:

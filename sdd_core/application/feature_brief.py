@@ -6,7 +6,6 @@ Helpers for reading structured metadata from 需求规格.md.
 from __future__ import annotations
 
 from sdd_core.domain.feature_brief import FeatureBrief
-from sdd_core.infrastructure.sdd_yaml import get_list, get_scalar, load_merged_yaml_mapping
 
 
 def extract_affected_components(brief_content: str) -> list[str]:

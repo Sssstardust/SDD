@@ -20,7 +20,7 @@ def sanitize_bucket_name(value: str) -> str:
 
 
 def build_baseline_bucket_name(name: str, project_root: str) -> str:
-    suffix = hashlib.sha1(project_root.encode("utf-8")).hexdigest()[:8]
+    suffix = hashlib.sha256(project_root.encode("utf-8")).hexdigest()[:8]
     return f"{sanitize_bucket_name(name)}-{suffix}"
 
 

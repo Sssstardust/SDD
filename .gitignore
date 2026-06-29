@@ -39,3 +39,7 @@ src
 .aspirecode
 
 **/lib
+
+# Java compiled classes
+*.class
+

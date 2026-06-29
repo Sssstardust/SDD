@@ -83,7 +83,7 @@ def run_steps_resilient(
             break
 
     if final_exit_code != 0 and diagnostic_steps:
-        console_print(f"[DIAGNOSE] Execution failed at step, running diagnostics...")
+        console_print("[DIAGNOSE] Execution failed at step, running diagnostics...")
         for diag_label, diag_step in diagnostic_steps:
             console_print(f"[RUN DIAGNOSTIC] {diag_label}")
             diag_step()  # We ignore diagnostic step exit codes as they are best-effort

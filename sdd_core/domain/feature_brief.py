@@ -7,7 +7,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sdd_core.infrastructure.sdd_yaml import get_list, get_scalar, load_merged_yaml_mapping
+from sdd_core.domain.repositories import YamlReader
+
+_yaml_reader: YamlReader | None = None
+
+def get_yaml_reader() -> YamlReader:
+    global _yaml_reader
+    if _yaml_reader is None:
+        from sdd_core.infrastructure.attachment_config_repo import InfrastructureYamlReader
+        _yaml_reader = InfrastructureYamlReader()
+    return _yaml_reader
+
+def set_yaml_reader(reader: YamlReader) -> None:
+    global _yaml_reader
+    _yaml_reader = reader
 
 
 from typing import Any
@@ -23,21 +36,22 @@ class FeatureBrief:
 
     @classmethod
     def from_text(cls, text: str, *, feature_dir_name: str = "") -> "FeatureBrief":
-        data = load_merged_yaml_mapping(text)
-        feature_name = (get_scalar(data, "feature_name", feature_dir_name) or feature_dir_name).strip()
-        risk_tier = (get_scalar(data, "risk_tier", "low") or "low").strip().lower()
-        project_mode = (get_scalar(data, "project_mode", "brownfield") or "brownfield").strip().lower()
+        reader = get_yaml_reader()
+        data = reader.load_mapping(text)
+        feature_name = (reader.get_scalar(data, "feature_name", feature_dir_name) or feature_dir_name).strip()
+        risk_tier = (reader.get_scalar(data, "risk_tier", "low") or "low").strip().lower()
+        project_mode = (reader.get_scalar(data, "project_mode", "brownfield") or "brownfield").strip().lower()
 
         seen: set[str] = set()
         affected_components: list[str] = []
-        for item in get_list(data, "affected_components"):
+        for item in reader.get_list(data, "affected_components"):
             normalized = str(item).strip()
             if normalized and normalized not in seen:
                 seen.add(normalized)
                 affected_components.append(normalized)
 
         logic_atoms = []
-        for atom in get_list(data, "logic_atoms"):
+        for atom in reader.get_list(data, "logic_atoms"):
             if isinstance(atom, dict):
                 logic_atoms.append(atom)
 

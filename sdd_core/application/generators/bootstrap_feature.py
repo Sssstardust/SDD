@@ -9,7 +9,7 @@ import argparse
 import re
 from pathlib import Path
 
-from sdd_core.application.generators.bootstrap_utils import (  # type: ignore[import-not-found]
+from sdd_core.application.generators.bootstrap_utils import (
     BOOTSTRAP_REQUIRED_FILES,
     _bootstrap_template_dir,
     BOOTSTRAP_TEMPLATE_MAP,

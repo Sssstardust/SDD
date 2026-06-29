@@ -6,7 +6,6 @@ SDD Semantic Action: Design (Requirements -> Technical Solution)
 import sys
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
 import argparse
 
 from .pipeline_execution import run_steps

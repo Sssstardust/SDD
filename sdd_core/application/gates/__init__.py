@@ -10,10 +10,11 @@ from .gate2_checker import build_missing_req_error, summarize_req_coverage
 from .gate2_reporter import build_gate2_payload
 from .gate3_checker import build_rule_modeled_ai_review, evaluate_rule_result, normalize_ai_review_violations
 from .gate3_reporter import build_gate3_payload
-from .gate5_reporter import build_gate5_section_payload
+from .gate5_reporter import Gate5Input, build_gate5_section_payload
 
 __all__ = [
     "GATE_ENTRYPOINTS",
+    "Gate5Input",
     "build_gate1_payload",
     "build_gate2_payload",
     "build_gate3_payload",

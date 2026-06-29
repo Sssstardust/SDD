@@ -2,11 +2,12 @@ from __future__ import annotations
 import re
 import json
 from pathlib import Path
-from typing import Any
+import logging
+
+logger = logging.getLogger(__name__)
 from sdd_core.domain.attached_project import is_fixture_attachment
 from sdd_core.domain.requirement_heuristics import (
     ENTITY_TERMS, DEPENDENCY_TERMS, has_greenfield_signal,
-    infer_capability_tags, infer_feature_type, infer_risk_tier,
 )
 
 HTTP_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
@@ -65,7 +66,8 @@ def load_attached_project_root() -> Path | None:
         return None
     try:
         payload = json.loads(ATTACHED_PROJECT_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.debug("Failed to load attached project root: %s", exc)
         return None
     project_root = payload.get("project_root")
     if not isinstance(project_root, str) or not project_root.strip():
@@ -137,13 +139,13 @@ def infer_requirement_priority(text: str, index: int) -> str:
     return "P0" if index == 1 else "P1"
 
 
-def extract_requirements(text: str) -> list[dict[str, str]]:
+def extract_requirements(text: str, *, max_items: int = 8, dedupe_limit: int = 120) -> list[dict[str, str]]:
     candidates = [clean_sentence(item) for item in split_candidate_items(text)]
     candidates = [item for item in candidates if len(item) >= 8]
     deduped: list[str] = []
     seen: set[str] = set()
     for item in candidates:
-        key = re.sub(r"\s+", "", item[:120])
+        key = re.sub(r"\s+", "", item[:dedupe_limit])
         if key not in seen:
             seen.add(key)
             deduped.append(item)
@@ -152,7 +154,7 @@ def extract_requirements(text: str) -> list[dict[str, str]]:
         deduped = ["补充需求说明，当前源文本未能自动抽取出清晰需求项"]
 
     requirements: list[dict[str, str]] = []
-    for index, item in enumerate(deduped[:8], start=1):
+    for index, item in enumerate(deduped[:max_items], start=1):
         requirements.append(
             {
                 "req_id": f"REQ-{index:03d}",
@@ -166,10 +168,10 @@ def extract_requirements(text: str) -> list[dict[str, str]]:
     return requirements
 
 
-def build_one_liner(title: str, requirements: list[dict[str, str]]) -> str:
+def build_one_liner(title: str, requirements: list[dict[str, str]], limit: int = 120) -> str:
     if requirements:
-        return requirements[0]["description"][:120]
-    return title[:120]
+        return requirements[0]["description"][:limit]
+    return title[:limit]
 
 
 def infer_entity_kind(name: str) -> str:

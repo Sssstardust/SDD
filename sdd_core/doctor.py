@@ -22,17 +22,6 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from sdd_core.application.doctor_runtime import run_doctor
-from sdd_core.application.gates.gate_runtime import check_baseline_keys as check_baseline_keys_runtime
-from sdd_core.infrastructure.doctor_checks import (
-    count_baseline_buckets,
-    find_security_warnings,
-    path_required,
-    run_capture,
-    run_mcp_smoke,
-    test_json_file,
-    test_version,
-    validate_attachment_shape,
-)
 
 ROOT = Path(__file__).resolve().parent.parent
 

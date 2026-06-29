@@ -21,8 +21,6 @@ from .flow_state_helpers import (
     build_schema_table_resolution_brief,
     build_strict_summary,
     command_requires_strict,
-    extract_scalar,
-    extract_yaml_blocks,
     format_next_command,
     normalize_feature_state_payload,
 )
@@ -124,6 +122,182 @@ def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = Tr
     return state
 
 
+def _build_stage_result(
+    state: dict[str, Any],
+    stage: str,
+    reason: str,
+    next_cmd_type: str | None,
+    feature_dir: Path,
+    strict_recommended: bool,
+) -> dict[str, Any]:
+    state["current_stage"] = stage
+    if next_cmd_type == "build-approval-summary":
+        state["next_command"] = f"python sdd_core/run_pipeline.py build-approval-summary {feature_dir}"
+    elif next_cmd_type:
+        state["next_command"] = format_next_command(next_cmd_type, feature_dir, strict=strict_recommended)
+    else:
+        state["next_command"] = None
+    state["strict_next_step"] = command_requires_strict(state["next_command"]) if state["next_command"] else False
+    state["reason"] = reason
+    state["strict_summary"] = build_strict_summary(state)
+    return state
+
+
+def _parse_gate_report(state: dict[str, Any], reports_dir: Path) -> None:
+    gate_report_path = reports_dir / "gate-report.json"
+    if not gate_report_path.exists():
+        state["missing_artifacts"].append(str(gate_report_path))
+        return
+
+    gate_report = read_json(gate_report_path)
+    if not isinstance(gate_report, dict):
+        return
+
+    for gate_name in ("gate2", "gate3", "gate4", "gate5", "release_gate"):
+        gate = gate_report.get(gate_name)
+        if isinstance(gate, dict):
+            state[f"{gate_name}_result"] = gate.get("result")
+            warnings = gate.get("warnings", [])
+            if isinstance(warnings, list):
+                state["blockers"].extend(f"{gate_name}: {warning}" for warning in warnings)
+            errors = gate.get("errors", [])
+            if isinstance(errors, list):
+                state["blockers"].extend(f"{gate_name}: {error}" for error in errors)
+            if gate_name == "release_gate":
+                exception_metadata = gate.get("release_exception_metadata")
+                if isinstance(exception_metadata, dict):
+                    state["release_exception_metadata"] = exception_metadata
+
+    for gate_name in ("release_gate", "gate5", "gate2"):
+        gate = gate_report.get(gate_name)
+        if not isinstance(gate, dict):
+            continue
+        summary = gate.get("design_resource_claim_summary")
+        if isinstance(summary, dict):
+            state["design_resource_claim_summary"] = summary
+            state["design_resource_claim_brief"] = build_design_resource_claim_brief(summary)
+        if gate_name == "gate2":
+            truthfulness_report = gate.get("truthfulness_report")
+            if isinstance(truthfulness_report, dict):
+                evidence = truthfulness_report.get("evidence")
+                if isinstance(evidence, dict):
+                    module_map_evidence = evidence.get("module_map")
+                    if isinstance(module_map_evidence, dict):
+                        class_resolution = module_map_evidence.get("class_resolution")
+                        if isinstance(class_resolution, dict):
+                            state["design_class_resolution_brief"] = build_class_resolution_brief(class_resolution)
+                    schema_context_evidence = evidence.get("schema_context")
+                    if isinstance(schema_context_evidence, dict):
+                        table_resolution = schema_context_evidence.get("table_resolution")
+                        if isinstance(table_resolution, dict):
+                            state["schema_table_resolution_brief"] = build_schema_table_resolution_brief(table_resolution)
+        if state.get("design_resource_claim_summary"):
+            break
+
+
+def _parse_verify_report(state: dict[str, Any], reports_dir: Path) -> Any:
+    verify_path = reports_dir / "verify-report.json"
+    if not verify_path.exists():
+        state["missing_artifacts"].append(str(verify_path))
+        state["blockers"].append(f"missing implementation verification report: {verify_path}")
+        return None
+
+    verify = read_json(verify_path)
+    if not isinstance(verify, dict):
+        return None
+
+    verify_result = verify.get("result")
+    state["gate5_result"] = verify_result
+    state["implementation_result"] = verify.get("implementation_result")
+    framework_evidence = verify.get("implementation_method_framework_evidence")
+    if isinstance(framework_evidence, dict):
+        state["implementation_framework_evidence"] = framework_evidence
+    match_highlights = verify.get("implementation_method_match_highlights")
+    if isinstance(match_highlights, list):
+        state["implementation_match_highlights"] = match_highlights
+    missing_method_details = verify.get("implementation_missing_method_details")
+    if isinstance(missing_method_details, list):
+        state["implementation_missing_method_details"] = missing_method_details
+    ambiguous_classes = verify.get("implementation_ambiguous_classes")
+    if isinstance(ambiguous_classes, list):
+        state["implementation_ambiguous_classes"] = ambiguous_classes
+    real_test_req_admission = verify.get("real_test_req_admission")
+    if isinstance(real_test_req_admission, dict):
+        state["real_test_req_admission"] = real_test_req_admission
+    attached_execution_admission = verify.get("attached_execution_admission")
+    if isinstance(attached_execution_admission, dict):
+        state["attached_execution_admission"] = attached_execution_admission
+    component_execution_admission = verify.get("affected_component_execution_admission")
+    if isinstance(component_execution_admission, dict):
+        state["affected_component_execution_admission"] = component_execution_admission
+    gate5_admission_summary = verify.get("gate5_admission_summary")
+    if isinstance(gate5_admission_summary, dict):
+        state["gate5_admission_summary"] = gate5_admission_summary
+
+    gate_report_path = reports_dir / "gate-report.json"
+    gate_report = read_json(gate_report_path) if gate_report_path.exists() else None
+    if isinstance(gate_report, dict):
+        gate3_rule_evaluation = gate_report.get("gate3", {}).get("rule_evaluation") if isinstance(gate_report.get("gate3"), dict) else None  # type: ignore
+        if isinstance(gate3_rule_evaluation, dict):
+            state["gate3_rule_evaluation"] = gate3_rule_evaluation
+        gate3_ai_review = gate_report.get("gate3", {}).get("ai_review") if isinstance(gate_report.get("gate3"), dict) else None  # type: ignore
+        if isinstance(gate3_ai_review, dict):
+            state["gate3_ai_review"] = gate3_ai_review
+
+    execution = verify.get("execution")
+    if isinstance(execution, dict) and execution.get("status") == "FAIL":
+        state["blockers"].append("gate5: execution phase failed")
+    implementation_result = verify.get("implementation_result")
+    if implementation_result and implementation_result != "PASS":
+        state["blockers"].append(f"gate5: implementation traceability={implementation_result}")
+    admission = state.get("real_test_req_admission")
+    if isinstance(admission, dict):
+        admission_result = admission.get("result")
+        if admission_result and admission_result != "PASS":
+            state["blockers"].append(f"gate5: real-test admission={admission_result}")
+    attached_admission = state.get("attached_execution_admission")
+    if isinstance(attached_admission, dict):
+        attached_result = attached_admission.get("result")
+        if attached_result and attached_result not in {"PASS", "SKIPPED"}:
+            state["blockers"].append(f"gate5: attached-execution admission={attached_result}")
+    component_admission = state.get("affected_component_execution_admission")
+    if isinstance(component_admission, dict):
+        component_result = component_admission.get("result")
+        if component_result and component_result != "PASS":
+            state["blockers"].append(f"gate5: affected-component execution={component_result}")
+
+    return verify_result
+
+
+def _determine_current_stage(
+    state: dict[str, Any],
+    verify_result: Any,
+    strict_recommended: bool,
+    feature_dir: Path,
+) -> dict[str, Any]:
+    risk_high = state["risk_tier"] == "high"
+
+    if state["gate2_result"] is None or state["gate3_result"] is None:
+        return _build_stage_result(state, "design-in-progress", "design-stage gates are not fully complete", "design-cycle", feature_dir, strict_recommended)
+
+    if risk_high and state["approval_status"] != "APPROVED":
+        return _build_stage_result(state, "awaiting-approval", "high-risk design is still waiting for approval", "build-approval-summary", feature_dir, strict_recommended)
+
+    if state["gate4_result"] == "FAIL" or state["gate5_result"] == "FAIL":
+        return _build_stage_result(state, "implementation-needs-attention", "implementation-stage gates contain failures", "approved-implementation-cycle", feature_dir, strict_recommended)
+
+    if verify_result is None:
+        return _build_stage_result(state, "approved-ready-for-implementation", "design stage is complete, but implementation verification has not started", "approved-implementation-cycle", feature_dir, strict_recommended)
+
+    if verify_result == "PASS" and state["release_gate_result"] != "PASS":
+        return _build_stage_result(state, "verified-ready-for-release", "implementation verification passed, but release governance is not finished", "release-gate", feature_dir, strict_recommended)
+
+    if verify_result == "PASS":
+        return _build_stage_result(state, "release-ready", "feature passed implementation verification and release governance", None, feature_dir, strict_recommended)
+
+    return _build_stage_result(state, "implementation-needs-attention", "implementation stage still has unresolved items", "approved-implementation-cycle", feature_dir, strict_recommended)
+
+
 def compute_feature_state(feature_dir: Path) -> dict[str, Any]:
     state = base_state(feature_dir)
 
@@ -177,51 +351,7 @@ def compute_feature_state(feature_dir: Path) -> dict[str, Any]:
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     state["reports_dir"] = str(reports_dir)
 
-    gate_report_path = reports_dir / "gate-report.json"
-    if gate_report_path.exists():
-        gate_report = read_json(gate_report_path)
-        if isinstance(gate_report, dict):
-            for gate_name in ("gate2", "gate3", "gate4", "gate5", "release_gate"):
-                gate = gate_report.get(gate_name)
-                if isinstance(gate, dict):
-                    state[f"{gate_name}_result"] = gate.get("result")
-                    warnings = gate.get("warnings", [])
-                    if isinstance(warnings, list):
-                        state["blockers"].extend(f"{gate_name}: {warning}" for warning in warnings)
-                    errors = gate.get("errors", [])
-                    if isinstance(errors, list):
-                        state["blockers"].extend(f"{gate_name}: {error}" for error in errors)
-                    if gate_name == "release_gate":
-                        exception_metadata = gate.get("release_exception_metadata")
-                        if isinstance(exception_metadata, dict):
-                            state["release_exception_metadata"] = exception_metadata
-            for gate_name in ("release_gate", "gate5", "gate2"):
-                gate = gate_report.get(gate_name)
-                if not isinstance(gate, dict):
-                    continue
-                summary = gate.get("design_resource_claim_summary")
-                if isinstance(summary, dict):
-                    state["design_resource_claim_summary"] = summary
-                    state["design_resource_claim_brief"] = build_design_resource_claim_brief(summary)
-                if gate_name == "gate2":
-                    truthfulness_report = gate.get("truthfulness_report")
-                    if isinstance(truthfulness_report, dict):
-                        evidence = truthfulness_report.get("evidence")
-                        if isinstance(evidence, dict):
-                            module_map_evidence = evidence.get("module_map")
-                            if isinstance(module_map_evidence, dict):
-                                class_resolution = module_map_evidence.get("class_resolution")
-                                if isinstance(class_resolution, dict):
-                                    state["design_class_resolution_brief"] = build_class_resolution_brief(class_resolution)
-                            schema_context_evidence = evidence.get("schema_context")
-                            if isinstance(schema_context_evidence, dict):
-                                table_resolution = schema_context_evidence.get("table_resolution")
-                                if isinstance(table_resolution, dict):
-                                    state["schema_table_resolution_brief"] = build_schema_table_resolution_brief(table_resolution)
-                if state.get("design_resource_claim_summary"):
-                    break
-    else:
-        state["missing_artifacts"].append(str(gate_report_path))
+    _parse_gate_report(state, reports_dir)
 
     approval_path = reports_dir / "approval.json"
     if approval_path.exists():
@@ -232,68 +362,7 @@ def compute_feature_state(feature_dir: Path) -> dict[str, Any]:
         state["missing_artifacts"].append(str(approval_path))
         state["blockers"].append(f"missing approval prerequisite: {approval_path}")
 
-    verify_path = reports_dir / "verify-report.json"
-    verify_result = None
-    if verify_path.exists():
-        verify = read_json(verify_path)
-        if isinstance(verify, dict):
-            verify_result = verify.get("result")
-            state["gate5_result"] = verify_result
-            state["implementation_result"] = verify.get("implementation_result")
-            framework_evidence = verify.get("implementation_method_framework_evidence")
-            if isinstance(framework_evidence, dict):
-                state["implementation_framework_evidence"] = framework_evidence
-            match_highlights = verify.get("implementation_method_match_highlights")
-            if isinstance(match_highlights, list):
-                state["implementation_match_highlights"] = match_highlights
-            missing_method_details = verify.get("implementation_missing_method_details")
-            if isinstance(missing_method_details, list):
-                state["implementation_missing_method_details"] = missing_method_details
-            ambiguous_classes = verify.get("implementation_ambiguous_classes")
-            if isinstance(ambiguous_classes, list):
-                state["implementation_ambiguous_classes"] = ambiguous_classes
-            real_test_req_admission = verify.get("real_test_req_admission")
-            if isinstance(real_test_req_admission, dict):
-                state["real_test_req_admission"] = real_test_req_admission
-            attached_execution_admission = verify.get("attached_execution_admission")
-            if isinstance(attached_execution_admission, dict):
-                state["attached_execution_admission"] = attached_execution_admission
-            component_execution_admission = verify.get("affected_component_execution_admission")
-            if isinstance(component_execution_admission, dict):
-                state["affected_component_execution_admission"] = component_execution_admission
-            gate5_admission_summary = verify.get("gate5_admission_summary")
-            if isinstance(gate5_admission_summary, dict):
-                state["gate5_admission_summary"] = gate5_admission_summary
-            gate3_rule_evaluation = gate_report.get("gate3", {}).get("rule_evaluation") if isinstance(gate_report.get("gate3"), dict) else None  # type: ignore
-            if isinstance(gate3_rule_evaluation, dict):
-                state["gate3_rule_evaluation"] = gate3_rule_evaluation
-            gate3_ai_review = gate_report.get("gate3", {}).get("ai_review") if isinstance(gate_report.get("gate3"), dict) else None  # type: ignore
-            if isinstance(gate3_ai_review, dict):
-                state["gate3_ai_review"] = gate3_ai_review
-            execution = verify.get("execution")
-            if isinstance(execution, dict) and execution.get("status") == "FAIL":
-                state["blockers"].append("gate5: execution phase failed")
-            implementation_result = verify.get("implementation_result")
-            if implementation_result and implementation_result != "PASS":
-                state["blockers"].append(f"gate5: implementation traceability={implementation_result}")
-            admission = state.get("real_test_req_admission")
-            if isinstance(admission, dict):
-                admission_result = admission.get("result")
-                if admission_result and admission_result != "PASS":
-                    state["blockers"].append(f"gate5: real-test admission={admission_result}")
-            attached_admission = state.get("attached_execution_admission")
-            if isinstance(attached_admission, dict):
-                attached_result = attached_admission.get("result")
-                if attached_result and attached_result not in {"PASS", "SKIPPED"}:
-                    state["blockers"].append(f"gate5: attached-execution admission={attached_result}")
-            component_admission = state.get("affected_component_execution_admission")
-            if isinstance(component_admission, dict):
-                component_result = component_admission.get("result")
-                if component_result and component_result != "PASS":
-                    state["blockers"].append(f"gate5: affected-component execution={component_result}")
-    else:
-        state["missing_artifacts"].append(str(verify_path))
-        state["blockers"].append(f"missing implementation verification report: {verify_path}")
+    verify_result = _parse_verify_report(state, reports_dir)
 
     gate4_path = reports_dir / "gate4-skeleton.json"
     if not gate4_path.exists():
@@ -305,70 +374,7 @@ def compute_feature_state(feature_dir: Path) -> dict[str, Any]:
         state["missing_artifacts"].append(str(task_slices_manifest))
         state["blockers"].append(f"missing task slices manifest: {task_slices_manifest}")
 
-    risk_high = state["risk_tier"] == "high"
-
-    if state["gate2_result"] is None or state["gate3_result"] is None:
-        state["current_stage"] = "design-in-progress"
-        state["next_command"] = format_next_command("design-cycle", feature_dir, strict=strict_recommended)
-        state["strict_next_step"] = command_requires_strict(state["next_command"])
-        state["reason"] = "design-stage gates are not fully complete"
-        state["strict_summary"] = build_strict_summary(state)
-        return state
-
-    if risk_high and state["approval_status"] != "APPROVED":
-        state["current_stage"] = "awaiting-approval"
-        state["next_command"] = f"python sdd_core/run_pipeline.py build-approval-summary {feature_dir}"
-        state["strict_next_step"] = command_requires_strict(state["next_command"])
-        state["reason"] = "high-risk design is still waiting for approval"
-        state["strict_summary"] = build_strict_summary(state)
-        return state
-
-    if state["gate4_result"] == "FAIL" or state["gate5_result"] == "FAIL":
-        state["current_stage"] = "implementation-needs-attention"
-        state["next_command"] = format_next_command(
-            "approved-implementation-cycle",
-            feature_dir,
-            strict=strict_recommended,
-        )
-        state["strict_next_step"] = command_requires_strict(state["next_command"])
-        state["reason"] = "implementation-stage gates contain failures"
-        state["strict_summary"] = build_strict_summary(state)
-        return state
-
-    if verify_result is None:
-        state["current_stage"] = "approved-ready-for-implementation"
-        state["next_command"] = format_next_command(
-            "approved-implementation-cycle",
-            feature_dir,
-            strict=strict_recommended,
-        )
-        state["strict_next_step"] = command_requires_strict(state["next_command"])
-        state["reason"] = "design stage is complete, but implementation verification has not started"
-        state["strict_summary"] = build_strict_summary(state)
-        return state
-
-    if verify_result == "PASS" and state["release_gate_result"] != "PASS":
-        state["current_stage"] = "verified-ready-for-release"
-        state["next_command"] = format_next_command("release-gate", feature_dir, strict=strict_recommended)
-        state["strict_next_step"] = command_requires_strict(state["next_command"])
-        state["reason"] = "implementation verification passed, but release governance is not finished"
-        state["strict_summary"] = build_strict_summary(state)
-        return state
-
-    if verify_result == "PASS":
-        state["current_stage"] = "release-ready"
-        state["next_command"] = None
-        state["strict_next_step"] = False
-        state["reason"] = "feature passed implementation verification and release governance"
-        state["strict_summary"] = build_strict_summary(state)
-        return state
-
-    state["current_stage"] = "implementation-needs-attention"
-    state["next_command"] = format_next_command("approved-implementation-cycle", feature_dir, strict=strict_recommended)
-    state["strict_next_step"] = command_requires_strict(state["next_command"])
-    state["reason"] = "implementation stage still has unresolved items"
-    state["strict_summary"] = build_strict_summary(state)
-    return state
+    return _determine_current_stage(state, verify_result, strict_recommended, feature_dir)
 
 
 def inspect_feature_state(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, Any]:

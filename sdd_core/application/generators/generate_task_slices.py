@@ -20,7 +20,7 @@ from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
 from sdd_core.infrastructure.versioning import detect_latest_design_path, resolve_feature_dir, reports_dir_for_design
-from design_evidence import hash_file, resolve_design_pack_dir  # type: ignore[import-not-found]
+from sdd_core.infrastructure.design_evidence import hash_file, resolve_design_pack_dir
 from sdd_core.domain.feature_brief import FeatureBrief
 
 
@@ -349,7 +349,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
                 slice_id=slice_id,
                 title=f"领域实体实现: {entity}",
                 req_ids=[r["req_id"] for r in requirements[:1]], # Default to first req as anchor
-                acceptance_checks=[f"实体 {entity} 结构符合设计", f"CRUD 基础逻辑通过"],
+                acceptance_checks=[f"实体 {entity} 结构符合设计", "CRUD 基础逻辑通过"],
             )
             if target.exists() and not force:
                 skipped.append(str(target))
@@ -368,7 +368,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
                 slice_id=slice_id,
                 title=f"接口契约实现: {api}",
                 req_ids=[r["req_id"] for r in requirements[:1]],
-                acceptance_checks=[f"接口 {api} 响应符合定义", f"输入校验逻辑生效"],
+                acceptance_checks=[f"接口 {api} 响应符合定义", "输入校验逻辑生效"],
                 depends_on=entity_ids[:1] if entity_ids else [],
             )
             if target.exists() and not force:

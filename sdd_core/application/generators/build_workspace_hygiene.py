@@ -16,7 +16,6 @@ from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, path_lock
 from sdd_core.infrastructure.project_artifact_paths import get_active_project_artifacts_dir
-from sdd_core.infrastructure.versioning import get_primary_design_root
 
 ROOT = Path(__file__).resolve().parent.parent
 SPECS_DIR = get_active_project_artifacts_dir(create=True)

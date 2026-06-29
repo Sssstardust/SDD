@@ -11,7 +11,7 @@ import argparse
 from pathlib import Path
 
 from sdd_core.infrastructure.baseline_paths import get_active_baseline_dir
-from sdd_core.application.generators.baseline_governance import DEFAULT_BASELINE_DIR, refresh_governance_baseline
+from sdd_core.application.generators.baseline_governance import refresh_governance_baseline
 from sdd_core.infrastructure.versioning import get_primary_design_root
 
 

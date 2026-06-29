@@ -5,8 +5,11 @@ Small YAML loading helpers used by SDD scripts.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def extract_yaml_blocks(text: str) -> list[str]:
@@ -39,7 +42,8 @@ def load_yaml_mapping(yaml_text: str) -> dict[str, Any]:
 
         loaded = yaml.safe_load(yaml_text)
         return loaded if isinstance(loaded, dict) else {}
-    except Exception:
+    except Exception as exc:
+        logger.warning("YAML parse failed, falling back: %s", exc)
         return parse_simple_yaml_mapping(yaml_text)
 
 

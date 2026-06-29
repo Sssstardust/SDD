@@ -3,15 +3,12 @@
 SDD Semantic Action: Analyze (PRD -> Structured Requirements)
 """
 
-import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 import argparse
 
 from .pipeline_execution import run_steps
 from sdd_core.infrastructure.versioning import resolve_feature_dir, DEFAULT_ATTACHMENT_PATH
-from sdd_core.application.generators.generate_feature_brief import render_feature_brief
-from sdd_core.application.gates.gate1_checker import validate_required_artifacts
 
 # 注入打印函数
 def console_print(message: str) -> None:

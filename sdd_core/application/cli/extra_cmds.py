@@ -1,6 +1,4 @@
 import argparse
-import json
-from pathlib import Path
 from sdd_core.application.cli.core import registry
 
 from sdd_core.application.pipeline_facade import (

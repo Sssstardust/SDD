@@ -6,7 +6,6 @@ Ensures consistency between local scripts and Agent skills.
 
 from __future__ import annotations
 
-import re
 
 # --- Constants ---
 

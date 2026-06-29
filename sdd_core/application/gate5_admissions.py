@@ -63,8 +63,6 @@ def summarize_gate5_admissions_from_report(report: object) -> dict[str, Any]:
 def main() -> int:
     import argparse
     import json
-    import sys
-    from pathlib import Path
     from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
     parser = argparse.ArgumentParser()

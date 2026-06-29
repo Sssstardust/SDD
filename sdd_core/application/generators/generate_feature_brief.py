@@ -34,7 +34,7 @@ def read_source(path: Path) -> str:
 
 def detect_project_mode(text: str) -> tuple[str, list[str], float]:
     if has_greenfield_signal(text):
-        return "greenfield", [f"需求文本命中 greenfield 信号"], 0.85
+        return "greenfield", ["需求文本命中 greenfield 信号"], 0.85
 
     evidence: list[str] = []
     if (ROOT / "src" / "main" / "java").exists():

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import re
-from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
 from sdd_core.infrastructure.json_io import read_json

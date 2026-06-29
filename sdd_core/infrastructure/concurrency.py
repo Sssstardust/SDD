@@ -9,7 +9,10 @@ from typing import Any
 
 import hashlib
 import json
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 import re
 import tempfile
 import time
@@ -36,7 +39,7 @@ def _sanitize_lock_label(value: str) -> str:
 
 def _lock_name_for_path(path: Path, *, prefix: str) -> str:
     resolved = path.resolve()
-    suffix = hashlib.sha1(str(resolved).encode("utf-8")).hexdigest()[:8]
+    suffix = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:8]
     return f"{prefix}-{_sanitize_lock_label(resolved.name or 'root')}-{suffix}.lock"
 
 
@@ -63,7 +66,8 @@ def _read_lock_payload(lock_path: Path) -> dict[str, Any] | None:
         return None
     try:
         return json.loads(lock_path.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.debug("Failed to read lock payload from %s: %s", lock_path, exc)
         return None
 
 

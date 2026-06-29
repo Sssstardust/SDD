@@ -6,7 +6,10 @@ from __future__ import annotations
 from typing import Any
 
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -35,7 +38,8 @@ from sdd_core.check_design_structure import check_structure
 def _read_json(path: Path) -> object:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        logger.debug("Failed to read json from %s: %s", path, exc)
         return None
 
 
