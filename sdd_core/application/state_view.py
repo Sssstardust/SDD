@@ -216,8 +216,8 @@ def workspace_summary_lines(workspace: dict[str, object] | None) -> list[str]:
     profiles = payload.get("profiles", [])
     profile_count = len(profiles) if isinstance(profiles, list) else 0
     return [
-        f"- Active Profile: `{payload.get('active_profile', 'N/A')}`",
-        f"- Active Project ID: `{payload.get('active_project_id', 'N/A')}`",
-        f"- Profile Count: `{profile_count}`",
+        f"- 当前 Profile: `{payload.get('active_profile', 'N/A')}`",
+        f"- 当前项目 ID: `{payload.get('active_project_id', 'N/A')}`",
+        f"- Profile 数量: `{profile_count}`",
     ]
 
