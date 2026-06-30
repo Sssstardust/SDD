@@ -166,11 +166,11 @@ class DoctorEngine:
                 self.print_check("WARN", "Baseline root is missing. Run refresh-baseline after onboarding.")
                 self.record("baseline", "WARN", "missing")
             elif status == "empty":
-                self.print_check("WARN", "Baseline root exists but contains no buckets.")
+                self.print_check("WARN", "Baseline root exists but contains no key artifacts.")
                 self.record("baseline", "WARN", "empty")
             else:
-                self.print_check("OK", f"Baseline buckets found: {count}")
-                self.record("baseline", "OK", f"{count} buckets")
+                self.print_check("OK", f"Baseline key artifacts found: {count}")
+                self.record("baseline", "OK", f"{count} artifacts")
             self.structured["baseline"] = {"status": status, "count": count}
             
             ok, message = run_baseline_key_partition_governance(self.root)

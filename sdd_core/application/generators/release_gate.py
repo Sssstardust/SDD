@@ -111,6 +111,8 @@ def iter_evidence_files(feature_dir: Path) -> list[Path]:
     for path in feature_dir.rglob("*"):
         if not path.is_file():
             continue
+        if any(part in {"reports", ".generated"} for part in path.relative_to(feature_dir).parts):
+            continue
         if path.suffix.lower() not in TEXT_SUFFIXES:
             continue
         files.append(path)

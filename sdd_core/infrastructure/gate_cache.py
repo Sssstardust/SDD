@@ -68,7 +68,7 @@ def implementation_gate_input_hash(feature_dir: Path, gate_name: str) -> str:
         ]
     )
     reports_dir = reports_dir_for_design(feature_dir, detect_latest_design_path(feature_dir))
-    payload_parts.append(_stable_hash_text(reports_dir / "gate4-skeleton.json"))
+    payload_parts.append(_stable_hash_text(reports_dir / "gate-report.json"))
     if gate_name == "gate5":
         payload_parts.append(_stable_hash_text(reports_dir / "gate-report.json"))
     return hashlib.sha256("::".join(payload_parts).encode("utf-8")).hexdigest()
@@ -137,8 +137,6 @@ def should_skip_design_gate(
 def gate_report_path_for(feature_dir: Path, gate_name: str) -> Path:
     design_path = resolve_locked_design_path(feature_dir, gate_name=gate_name)
     reports_dir = reports_dir_for_design(feature_dir, design_path)
-    if gate_name == "gate1":
-        return reports_dir / "gate1-report.json"
     return reports_dir / "gate-report.json"
 
 
@@ -150,9 +148,6 @@ def load_gate_result_from_report(feature_dir: Path, gate_name: str) -> tuple[str
         payload = json.loads(report_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None, str(report_path)
-    if gate_name == "gate1":
-        result = payload.get("result") if isinstance(payload, dict) else None
-        return str(result) if isinstance(result, str) else None, str(report_path)
     gate_payload = payload.get(gate_name) if isinstance(payload, dict) else None
     if not isinstance(gate_payload, dict):
         return None, str(report_path)

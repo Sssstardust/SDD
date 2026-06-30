@@ -18,11 +18,9 @@ DEFAULT_RUNTIME_DIR_NAME = ".sdd-runtime"
 
 RUNTIME_COPY_SPECS: list[tuple[str, str]] = [
     ("sdd_core", "sdd_core"),
-    ("skills/requirement-analyzer", "skills/requirement-analyzer"),
-    ("skills/sdd-generation", "skills/sdd-generation"),
-    ("document/template", "document/template"),
-    ("mcp-servers/sdd-pipeline/dist", "mcp-servers/sdd-pipeline/dist"),
-    ("mcp-servers/sdd-pipeline/package.json", "mcp-servers/sdd-pipeline/package.json"),
+    ("skills/sdd-assistant", "skills/sdd-assistant"),
+    (".spec/templates", ".spec/templates"),
+    ("mcp-servers/sdd-pipeline", "mcp-servers/sdd-pipeline"),
 ]
 
 
@@ -45,7 +43,7 @@ def copy_path(source: Path, target: Path) -> None:
 
 
 def local_server_path(runtime_root: Path) -> Path:
-    return runtime_root / "mcp-servers" / "sdd-pipeline" / "dist" / "server.js"
+    return runtime_root / "mcp-servers" / "sdd-pipeline" / "server.py"
 
 
 def write_agent_config_example(runtime_root: Path) -> Path:
@@ -61,7 +59,7 @@ def write_agent_config_example(runtime_root: Path) -> Path:
 {{
   "mcpServers": {{
     "sdd-pipeline": {{
-      "command": "node",
+      "command": "python",
       "args": [
         "{server_path}"
       ]
@@ -74,6 +72,7 @@ def write_agent_config_example(runtime_root: Path) -> Path:
 
 - run pipeline: `{runtime_root / "sdd_core" / "run_pipeline.py"}`
 - MCP server: `{server_path}`
+- runtime templates: `{runtime_root / ".spec" / "templates"}`
 """
     target.write_text(content, encoding="utf-8")
     return target
@@ -88,7 +87,8 @@ def write_runtime_readme(runtime_root: Path, source_root: Path) -> Path:
 可直接使用的入口：
 
 - `sdd_core/run_pipeline.py`
-- `mcp-servers/sdd-pipeline/dist/server.js`
+- `mcp-servers/sdd-pipeline/server.py`
+- `.spec/templates`
 
 MCP 配置示例见：
 

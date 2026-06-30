@@ -21,6 +21,7 @@ from pathlib import Path
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
 from sdd_core.infrastructure.gate_report import write_gate_section
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from sdd_core.infrastructure.feature_artifact_paths import task_list_path
 from sdd_core.domain.attached_project import load_attachment_config, is_fixture_attachment
 from sdd_core.infrastructure.baseline_paths import get_active_baseline_dir
 from sdd_core.domain.baseline import ModuleMapDocument
@@ -212,18 +213,40 @@ def parse_feature_brief(feature_brief: Path) -> dict[str, Any]:
     }
 
 
-def parse_task_slice(task_file: Path) -> dict[str, Any]:
-    text = read_text(task_file)
+def parse_task_slice_text(text: str, *, slice_file: str, path: Path) -> dict[str, Any]:
     yaml_text = "\n".join(extract_yaml_blocks(text))
     return {
-        "path": task_file,
-        "slice_file": task_file.name,
-        "slice_id": extract_scalar(yaml_text, "slice_id") or task_file.stem.upper(),
+        "path": path,
+        "slice_file": slice_file,
+        "slice_id": extract_scalar(yaml_text, "slice_id") or Path(slice_file).stem.upper(),
         "depends_on": extract_list_field(yaml_text, "depends_on"),
         "req_ids": extract_list_field(yaml_text, "req_ids"),
         "acceptance_checks": extract_list_field(yaml_text, "acceptance_checks"),
         "cases": extract_test_cases(text),
     }
+
+
+def parse_task_slice(task_file: Path) -> dict[str, Any]:
+    return parse_task_slice_text(read_text(task_file), slice_file=task_file.name, path=task_file)
+
+
+def load_task_slices(feature_dir: Path) -> list[dict[str, Any]]:
+    task_list = task_list_path(feature_dir)
+    if task_list.exists():
+        text = task_list.read_text(encoding="utf-8")
+        slices: list[dict[str, Any]] = []
+        pattern = re.compile(r"(?ms)^##\s+(slice-[^\r\n]+?\.md)\s*\r?\n(.*?)(?=^##\s+slice-|\Z)")
+        for match in pattern.finditer(text):
+            slice_file = match.group(1).strip()
+            body = match.group(2).strip()
+            if "```yaml" not in body:
+                continue
+            slices.append(parse_task_slice_text(body, slice_file=slice_file, path=task_list))
+        if slices:
+            return slices
+
+    task_files = sorted((feature_dir / "tasks").glob("slice-*.md"))
+    return [parse_task_slice(task_file) for task_file in task_files]
 
 
 def validate_task_slices(
@@ -473,16 +496,15 @@ def main() -> int:
     design_text = read_text(design_path)
     design_acceptance_matrix = extract_design_acceptance_matrix(design_text)
 
-    task_files = sorted((feature_dir / "tasks").glob("slice-*.md"))
-    if not task_files:
-        print("[WARN] 未找到 slice-*.md，尝试先生成 task slices")
+    slices = load_task_slices(feature_dir)
+    if not slices:
+        print("[WARN] 未找到任务切片，尝试先生成 task slices")
         if ensure_task_slices(feature_dir) == 0:
-            task_files = sorted((feature_dir / "tasks").glob("slice-*.md"))
-    if not task_files:
-        print("[ERROR] 未找到任何 slice-*.md")
+            slices = load_task_slices(feature_dir)
+    if not slices:
+        print("[ERROR] 未找到任何任务切片")
         return 1
 
-    slices = [parse_task_slice(task_file) for task_file in task_files]
     validation_errors, ordered_slices = validate_task_slices(
         slices,
         requirement_ids=requirement_ids,
@@ -491,8 +513,6 @@ def main() -> int:
 
     reports_dir = reports_dir_for_design(feature_dir, design_path)
     reports_dir.mkdir(parents=True, exist_ok=True)
-    skeleton_report = reports_dir / "gate4-skeleton.json"
-
     if validation_errors:
         gate_report = write_gate_section(
             reports_dir,
@@ -504,7 +524,6 @@ def main() -> int:
                 "test_file": "",
                 "test_file_preserved": False,
                 "mapping_count": 0,
-                "report_file": str(skeleton_report),
                 "warnings": [],
                 "errors": validation_errors,
             },
@@ -582,33 +601,27 @@ def main() -> int:
             atomic_write_text(test_file, build_java_test(feature_name, mappings, package_name=package_name), encoding="utf-8")
 
         report = {
+            "result": "PASS",
             "feature_name": feature_name,
             "design_version": design_path.name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "test_file": str(test_file),
             "test_file_preserved": preserved,
+            "mapping_count": len(mappings),
             "mappings": mappings,
+            "warnings": [],
+            "errors": [],
         }
-        atomic_write_text(skeleton_report, json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     gate_report = write_gate_section(
         reports_dir,
         gate_name="gate4",
         feature_name=feature_name,
         design_version=design_path.name,
-        payload={
-            "result": "PASS",
-            "test_file": str(test_file),
-            "test_file_preserved": preserved,
-            "mapping_count": len(mappings),
-            "report_file": str(skeleton_report),
-            "warnings": [],
-            "errors": [],
-        },
+        payload=report,
     )
 
     print("[OK] Gate 4 测试骨架生成完成")
-    print(f"  - report: {skeleton_report}")
-    print(f"  - gate:   {gate_report}")
+    print(f"  - report: {gate_report}")
     print(f"  - test:   {test_file}")
     print(f"  - preserved: {'yes' if preserved else 'no'}")
     print(f"  - count:  {len(mappings)}")

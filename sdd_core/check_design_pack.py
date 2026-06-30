@@ -39,8 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _schema_dir() -> Path:
-    from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
-    return get_active_spec_dir(root=ROOT) / "schemas" / "design-pack"
+    return ROOT / "sdd_core" / "policies" / "schemas" / "design-pack"
 MARKDOWN_RULE_MAP = {
     "接口文档.md": "接口文档.rules.json",
     "数据模型.md": "数据模型.rules.json",

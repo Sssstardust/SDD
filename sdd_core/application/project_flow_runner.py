@@ -13,6 +13,7 @@ from pathlib import Path
 from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH
 from sdd_core.infrastructure.json_io import read_json
 from sdd_core.infrastructure.project_artifact_paths import get_active_project_artifacts_dir
+from sdd_core.application.project_output_bundle import project_generated_dir
 
 
 def project_next_json_path(
@@ -20,14 +21,12 @@ def project_next_json_path(
     attachment_file: str | None = None,
     profile: str | None = None,
 ) -> Path:
-    return (
-        get_active_project_artifacts_dir(
-            attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
-            profile=profile,
-            create=True,
-        )
-        / "project-next.json"
+    artifacts_dir = get_active_project_artifacts_dir(
+        attachment_path=Path(attachment_file) if attachment_file else DEFAULT_ATTACHMENT_PATH,
+        profile=profile,
+        create=True,
     )
+    return project_generated_dir(artifacts_dir) / "project-next.json"
 
 
 def load_project_next_candidate(

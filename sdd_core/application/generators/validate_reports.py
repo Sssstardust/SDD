@@ -15,13 +15,11 @@ from sdd_core.infrastructure.json_io import read_json
 from sdd_core.infrastructure.sdd_yaml import get_scalar, load_merged_yaml_mapping
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 
-from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
-
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _schema_dir() -> Path:
-    return get_active_spec_dir(root=ROOT) / "schemas" / "reports"
+    return ROOT / "sdd_core" / "policies" / "schemas" / "reports"
 
 
 def load_schema(name: str) -> dict:
@@ -127,10 +125,14 @@ def validate_approval(report_path: Path, errors: list[str]) -> None:
 
 def validate_gate4(report_path: Path, workspace_root: Path, errors: list[str]) -> None:
     if not report_path.exists():
-        errors.append(f"缺少 gate4-skeleton.json: {report_path}")
+        errors.append(f"缺少 gate-report.json: {report_path}")
         return
 
-    data = read_json(report_path)  # type: ignore[assignment]
+    report = read_json(report_path)  # type: ignore[assignment]
+    data = report.get("gate4") if isinstance(report, dict) else None
+    if not isinstance(data, dict):
+        errors.append(f"gate-report.json 缺少 gate4: {report_path}")
+        return
     validate_by_schema(data, load_schema("gate4-skeleton.schema.json"), "gate4-skeleton.json", errors)
 
     test_file = data.get("test_file")
@@ -234,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
             validate_approval(reports_dir / "approval.json", errors)
 
     if args.stage in {"implementation", "all"}:
-        validate_gate4(reports_dir / "gate4-skeleton.json", workspace_root, errors)
+        validate_gate4(reports_dir / "gate-report.json", workspace_root, errors)
         validate_verify(reports_dir / "verify-report.json", workspace_root, errors, risk_high=risk_high)
         validate_release_gate(reports_dir / "release-gate-report.json", errors)
         validate_gate_report(reports_dir / "gate-report.json", errors, "implementation")

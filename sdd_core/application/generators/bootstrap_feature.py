@@ -73,8 +73,9 @@ def main() -> int:
 
         report_path = write_scaffold_report(feature_dir, feature_name, generated_files, preserved_files)
 
-    if BOOTSTRAP_REQUIRED_FILES and report_path.name not in generated_files:
-        generated_files.append(report_path.name)
+    report_display_path = str(report_path.relative_to(feature_dir))
+    if BOOTSTRAP_REQUIRED_FILES and report_display_path not in generated_files:
+        generated_files.append(report_display_path)
 
     print("[OK] greenfield bootstrap completed")
     print(f"  - feature: {feature_name}")

@@ -13,6 +13,11 @@ from sdd_core.domain.feature_brief import FeatureBrief
 from sdd_core.domain.flow_state import FlowStateSnapshot
 from sdd_core.infrastructure.json_io import read_json, write_json
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design
+from sdd_core.infrastructure.feature_artifact_paths import (
+    project_state_path as generated_project_state_path,
+    resolve_project_state_path,
+    task_slices_manifest_path,
+)
 from sdd_core.application.preflight import missing_feature_prerequisites
 from .flow_state_helpers import (
     base_state,
@@ -27,11 +32,8 @@ from .flow_state_helpers import (
 
 
 BOOTSTRAP_FILES = (
-    "架构宪法.md",
-    "架构设计.md",
-    "模块布局.md",
-    "启动计划.md",
-    "scaffold-report.json",
+    "README.md",
+    ".generated/scaffold-report.json",
 )
 
 STATE_KEYS = (
@@ -84,11 +86,11 @@ def normalize_feature_state(feature_dir: Path, raw_state: object) -> dict[str, A
 
 
 def project_state_path(feature_dir: Path) -> Path:
-    return feature_dir / "project-state.json"
+    return generated_project_state_path(feature_dir)
 
 
 def load_project_state(feature_dir: Path) -> dict[str, Any] | None:
-    path = project_state_path(feature_dir)
+    path = resolve_project_state_path(feature_dir)
     if not path.exists():
         return None
     return normalize_feature_state(feature_dir, read_json(path))
@@ -101,7 +103,7 @@ def write_project_state(feature_dir: Path, state: dict[str, Any]) -> Path:
 
 
 def build_feature_state_record(feature_dir: Path, *, prefer_persisted: bool = True) -> dict[str, Any]:
-    path = project_state_path(feature_dir)
+    path = resolve_project_state_path(feature_dir)
     path_exists = path.exists()
 
     if prefer_persisted:
@@ -364,12 +366,14 @@ def compute_feature_state(feature_dir: Path) -> dict[str, Any]:
 
     verify_result = _parse_verify_report(state, reports_dir)
 
-    gate4_path = reports_dir / "gate4-skeleton.json"
-    if not gate4_path.exists():
-        state["missing_artifacts"].append(str(gate4_path))
-        state["blockers"].append(f"missing gate4 skeleton report: {gate4_path}")
+    gate_report_path = reports_dir / "gate-report.json"
+    gate_report = read_json(gate_report_path) if gate_report_path.exists() else None
+    gate4 = gate_report.get("gate4") if isinstance(gate_report, dict) else None
+    if not isinstance(gate4, dict):
+        state["missing_artifacts"].append(f"{gate_report_path}#gate4")
+        state["blockers"].append(f"missing gate4 report section: {gate_report_path}#gate4")
 
-    task_slices_manifest = feature_dir / "tasks" / "task-slices.generated.json"
+    task_slices_manifest = task_slices_manifest_path(feature_dir)
     if not task_slices_manifest.exists():
         state["missing_artifacts"].append(str(task_slices_manifest))
         state["blockers"].append(f"missing task slices manifest: {task_slices_manifest}")

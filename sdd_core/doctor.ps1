@@ -223,19 +223,11 @@ Write-Host "== Workspace =="
 Test-PathRequired -Path (Join-Path $repoRoot "README.md") -Description "README"
 Test-PathRequired -Path (Join-Path $repoRoot "sdd_core\run_pipeline.py") -Description "Pipeline entry"
 Test-PathRequired -Path (Join-Path $repoRoot "skills\sdd-assistant\SKILL.md") -Description "sdd-assistant Skill"
-Test-PathRequired -Path (Join-Path $repoRoot "skills\requirement-analyzer\SKILL.md") -Description "requirement-analyzer Skill"
-Test-PathRequired -Path (Join-Path $repoRoot "skills\sdd-generation\SKILL.md") -Description "sdd-generation Skill"
-Test-PathRequired -Path (Join-Path $repoRoot "docs\agent-integration.md") -Description "Agent integration doc"
 
 Write-Host ""
 Write-Host "== MCP =="
-$projectExplorer = Join-Path $repoRoot "mcp-servers\project-explorer\dist\server.js"
-$archStandard = Join-Path $repoRoot "mcp-servers\arch-standard\dist\server.js"
-Test-PathRequired -Path $projectExplorer -Description "project-explorer MCP dist"
-Test-PathRequired -Path $archStandard -Description "arch-standard MCP dist"
-
-Test-McpCli -Name "arch-standard" -ServerPath $archStandard -Tool "list_rules" -ArgumentsJson "{}"
-Test-McpCli -Name "project-explorer" -ServerPath $projectExplorer -Tool "scan_modules" -ArgumentsJson '{\"keywords\":[\"payment\"],\"limit\":1,\"force_refresh\":false}'
+$sddPipeline = Join-Path $repoRoot "mcp-servers\sdd-pipeline\server.py"
+Test-PathRequired -Path $sddPipeline -Description "sdd-pipeline MCP server"
 
 Write-Host ""
 Write-Host "== Attached Project =="

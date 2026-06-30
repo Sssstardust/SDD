@@ -29,7 +29,7 @@ from sdd_core.domain.attached_project import (
 )
 from sdd_core.domain.language_profiles import get_language_profile
 from sdd_core.infrastructure.baseline_paths import get_active_baseline_dir
-from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
+from sdd_core.infrastructure.concurrency import atomic_write_text
 from sdd_core.infrastructure.gate_report import write_gate_section
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
 from sdd_core.check_design_structure import check_structure
@@ -101,12 +101,8 @@ def run_gate1(feature_dir: str | Path) -> int:
             "design_pack": str(design_pack_dir),
         },
     )
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    report_path = reports_dir / "gate1-report.json"
-    with feature_lock(feature_path, phase="gate1"):
-        atomic_write_text(report_path, json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     from sdd_core.infrastructure.gate_report import write_gate_section
-    write_gate_section(
+    report_path = write_gate_section(
         reports_dir,
         gate_name="gate1",
         feature_name=feature_path.name,

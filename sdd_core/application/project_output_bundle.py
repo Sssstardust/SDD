@@ -16,17 +16,26 @@ from sdd_core.infrastructure.project_artifact_paths import get_active_project_ar
 from sdd_core.application.project_state_bundle import collect_project_state_bundle
 
 
+def project_generated_dir(artifacts_dir: Path) -> Path:
+    return artifacts_dir / ".generated" / "project"
+
+
 def resolve_output_dir(
     *,
     output_dir: str | None,
     attachment_path: Path = DEFAULT_ATTACHMENT_PATH,
     profile: str | None = None,
+    generated: bool = False,
 ) -> Path:
-    target = (
-        Path(output_dir)
-        if output_dir
-        else get_active_project_artifacts_dir(attachment_path=attachment_path, profile=profile, create=True)
-    )
+    if output_dir:
+        target = Path(output_dir)
+    else:
+        artifacts_dir = get_active_project_artifacts_dir(
+            attachment_path=attachment_path,
+            profile=profile,
+            create=True,
+        )
+        target = project_generated_dir(artifacts_dir) if generated else artifacts_dir
     target.mkdir(parents=True, exist_ok=True)
     return target
 

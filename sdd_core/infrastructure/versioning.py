@@ -11,6 +11,7 @@ from pathlib import Path
 
 from ._root import ROOT
 from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH, load_attachment_config
+from sdd_core.infrastructure.feature_artifact_paths import resolve_task_slices_manifest_path
 
 
 DESIGN_PATTERN = re.compile(r"^(?:design|技术方案)-v(\d+)\.md$")
@@ -49,7 +50,7 @@ def detect_latest_design_path(feature_dir: Path) -> Path:
 
 def resolve_locked_design_path(feature_dir: Path, gate_name: str | None = None) -> Path:
     if gate_name == "gate1":
-        manifest_path = feature_dir / "tasks" / "task-slices.generated.json"
+        manifest_path = resolve_task_slices_manifest_path(feature_dir)
         if manifest_path.exists():
             try:
                 payload = json.loads(manifest_path.read_text(encoding="utf-8"))

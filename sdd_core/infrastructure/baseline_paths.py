@@ -24,6 +24,19 @@ def build_baseline_bucket_name(name: str, project_root: str) -> str:
     return f"{sanitize_bucket_name(name)}-{suffix}"
 
 
+def migrate_legacy_baseline_dir(legacy_dir: Path, baseline_dir: Path) -> None:
+    if not legacy_dir.exists():
+        return
+    for source in legacy_dir.rglob("*"):
+        relative = source.relative_to(legacy_dir)
+        target = baseline_dir / relative
+        if source.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+        elif not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+
+
 def get_active_spec_dir(
     *,
     root: Path = ROOT,
@@ -51,10 +64,20 @@ def get_active_baseline_dir(
     spec_dir = get_active_spec_dir(root=root, attachment_path=attachment_path, profile=profile)
     effective_attachment_path = attachment_path if attachment_path.is_absolute() else (root / attachment_path).resolve()
     attachment = load_attachment_config(effective_attachment_path, profile=profile)
+    from sdd_core.infrastructure.project_artifact_paths import get_active_project_artifacts_dir
+
+    artifacts_dir = get_active_project_artifacts_dir(
+        root=root,
+        attachment_path=effective_attachment_path,
+        profile=profile,
+        create=create,
+    )
     if not isinstance(attachment, dict):
-        baseline_dir = (spec_dir / "baseline").resolve()
+        baseline_dir = (artifacts_dir / ".generated" / "baseline").resolve()
         if create:
             baseline_dir.mkdir(parents=True, exist_ok=True)
+        if migrate_legacy:
+            migrate_legacy_baseline_dir((spec_dir / "baseline").resolve(), baseline_dir)
         return baseline_dir
 
     explicit_project_id = attachment.get("project_id")
@@ -64,14 +87,17 @@ def get_active_baseline_dir(
         name = str(attachment.get("name") or "attached-project")
         project_root = str(attachment.get("project_root") or "")
         bucket_name = build_baseline_bucket_name(name, project_root)
-    baseline_dir = (spec_dir / "baselines" / bucket_name).resolve()
+    baseline_dir = (artifacts_dir / ".generated" / "baseline" / bucket_name).resolve()
 
     if create:
         baseline_dir.mkdir(parents=True, exist_ok=True)
 
     if migrate_legacy:
-        legacy_dir = (spec_dir / "baseline").resolve()
-        if legacy_dir.exists() and not any(baseline_dir.iterdir()):
-            shutil.copytree(legacy_dir, baseline_dir, dirs_exist_ok=True)
+        legacy_dirs = [
+            (spec_dir / "baselines" / bucket_name).resolve(),
+            (spec_dir / "baseline").resolve(),
+        ]
+        for legacy_dir in legacy_dirs:
+            migrate_legacy_baseline_dir(legacy_dir, baseline_dir)
 
     return baseline_dir

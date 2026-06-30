@@ -17,7 +17,7 @@ from sdd_core.application.generators.build_project_next import choose_candidate
 from sdd_core.infrastructure.concurrency import atomic_write_text, path_lock
 from sdd_core.infrastructure.json_io import read_json
 from sdd_core.infrastructure.ops_log import read_latest_op, read_recent_ops
-from sdd_core.application.project_output_bundle import build_project_level_payload, resolve_output_dir, write_project_json
+from sdd_core.application.project_output_bundle import build_project_level_payload, project_generated_dir, resolve_output_dir, write_project_json
 from sdd_core.application.state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate3_ai_review_badge, gate5_admission_summary_badge, real_test_admission_badge, release_exception_badges, resolution_preview, resource_claim_badges, strict_flag, workspace_summary_lines
 
 
@@ -31,21 +31,21 @@ def render_markdown(
     stage_counter = Counter(str(state.get("current_stage", "unknown")) for state in states)
     source_counter = Counter(str(state.get("state_source", "unknown")) for state in states)
     lines = [
-        "# Project Console",
+        "# 项目总览",
         "",
-        f"- Feature count: `{len(states)}`",
+        f"- 功能数量: `{len(states)}`",
         "",
-        "## Project Context",
+        "## 项目上下文",
         "",
-        f"- Project ID: `{project_context.get('project_id')}`",
-        f"- Project Name: `{project_context.get('project_name')}`",
-        f"- Artifacts Dir: `{project_context.get('artifacts_dir')}`",
+        f"- 项目 ID: `{project_context.get('project_id')}`",
+        f"- 项目名称: `{project_context.get('project_name')}`",
+        f"- 产物目录: `{project_context.get('artifacts_dir')}`",
         "",
-        "## Workspace",
+        "## 工作区",
         "",
         *workspace_summary_lines(workspace_payload),
         "",
-        "## Stage Distribution",
+        "## 阶段分布",
         "",
     ]
     for stage, count in sorted(stage_counter.items()):
@@ -54,14 +54,14 @@ def render_markdown(
     lines.extend(
         [
             "",
-            "## State Sources",
+            "## 状态来源",
             "",
         ]
     )
     for source, count in sorted(source_counter.items()):
         lines.append(f"- `{source}`: {count}")
 
-    lines.extend(["", "## Gate Summary", ""])
+    lines.extend(["", "## 门禁概览", ""])
     gate2_pass = sum(1 for state in states if state.get("gate2_result") == "PASS")
     gate3_warn = sum(1 for state in states if state.get("gate3_result") == "WARN")
     gate3_ai_warn = sum(1 for state in states if isinstance(state.get("gate3_ai_review"), dict) and state.get("gate3_ai_review", {}).get("result") == "WARN")
@@ -71,55 +71,55 @@ def render_markdown(
     lines.append(f"- `gate3_ai.WARN`: {gate3_ai_warn}")
     lines.append(f"- `gate5.FAIL`: {gate5_fail}")
 
-    lines.extend(["", "## Current Recommendation", ""])
+    lines.extend(["", "## 当前建议", ""])
     if candidate is None:
-        lines.append("- No feature currently needs automatic advancement.")
+        lines.append("- 当前没有需要自动推进的功能。")
     else:
         lines.extend(
             [
-                f"- Feature: `{candidate.get('feature_name')}`",
-                f"- Stage: `{candidate.get('current_stage')}`",
-                f"- Source: `{candidate.get('state_source')}`",
-                f"- Risk: `{candidate.get('risk_tier')}`",
-                f"- Strict: `{('strict' if candidate.get('strict_next_step') else ('recommended' if candidate.get('strict_recommended') else 'no'))}`",
-                f"- Reason: {candidate.get('reason')}",
-                f"- Command: `{candidate.get('next_command')}`",
+                f"- 功能: `{candidate.get('feature_name')}`",
+                f"- 阶段: `{candidate.get('current_stage')}`",
+                f"- 来源: `{candidate.get('state_source')}`",
+                f"- 风险: `{candidate.get('risk_tier')}`",
+                f"- 严格模式: `{('strict' if candidate.get('strict_next_step') else ('recommended' if candidate.get('strict_recommended') else 'no'))}`",
+                f"- 原因: {candidate.get('reason')}",
+                f"- 下一步命令: `{candidate.get('next_command')}`",
             ]
         )
 
     recent_ops = []
     latest_execution = None
 
-    lines.extend(["", "## Recent Execution", ""])
+    lines.extend(["", "## 最近执行", ""])
     if latest_execution:
         lines.append(
             f"- `{latest_execution.get('at')}` `{latest_execution.get('op_type')}` {latest_execution.get('payload', {})}"
         )
     else:
-        lines.append("- None")
+        lines.append("- 无")
 
-    lines.extend(["", "## Recent Operations", ""])
+    lines.extend(["", "## 最近操作", ""])
     if recent_ops:
         for entry in reversed(recent_ops):
             lines.append(f"- `{entry.get('at')}` `{entry.get('op_type')}` {entry.get('payload', {})}")
     else:
-        lines.append("- None")
+        lines.append("- 无")
 
-    lines.extend(["", "## Tooling Hygiene", ""])
+    lines.extend(["", "## 工具链健康度", ""])
     if hygiene_payload is None:
-        lines.append("- tooling-hygiene artifact is not available yet.")
+        lines.append("- 工具链健康度产物尚未生成。")
     else:
         issue_count = int(hygiene_payload.get("issue_count", 0))
-        lines.append(f"- Issue count: `{issue_count}`")
+        lines.append(f"- 问题数量: `{issue_count}`")
         issues = hygiene_payload.get("issues")
         if isinstance(issues, list) and issues:
             for issue in issues[:5]:
                 if isinstance(issue, dict):
                     lines.append(f"- [{issue.get('severity', 'info')}] {issue.get('path')} - {issue.get('message')}")
         elif issue_count == 0:
-            lines.append("- No obvious generated-artifact or workspace hygiene issues were found.")
+            lines.append("- 未发现明显的生成产物或工作区健康度问题。")
 
-    lines.extend(["", "## Resolution Preview", ""])
+    lines.extend(["", "## 问题定位预览", ""])
     for state in states[:10]:
         preview = resolution_preview(state)
         if preview == "N/A":
@@ -129,9 +129,9 @@ def render_markdown(
     lines.extend(
         [
             "",
-            "## Features",
+            "## 功能列表",
             "",
-            "| Feature | Stage | Source | Risk | Strict | Approval | gate2 | gate3 | gate4 | gate5 | impl | Gate3 AI | Gate5 Admission | Real Test Admission | Attached Execution | Component Execution | Framework Evidence | Resource Claims | Release Exception | Missing | Blockers | Next |",
+            "| 功能 | 阶段 | 来源 | 风险 | 严格模式 | 审批 | gate2 | gate3 | gate4 | gate5 | 实现 | Gate3 AI | Gate5 准入 | 真实测试准入 | 绑定项目执行 | 组件执行 | 框架证据 | 资源声明 | 发布例外 | 缺失项 | 阻塞项 | 下一步 |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
@@ -450,9 +450,9 @@ def main() -> int:
     workspace_payload = payload["workspace"]
     latest_execution = payload.get("latest_execution")
     recent_ops = payload.get("recent_ops") if isinstance(payload.get("recent_ops"), list) else []
-    hygiene_path = output_dir / "tooling-hygiene.json"
+    hygiene_path = project_generated_dir(output_dir) / "tooling-hygiene.json"
     if not hygiene_path.exists():
-        hygiene_path = output_dir / "workspace-hygiene.json"
+        hygiene_path = project_generated_dir(output_dir) / "workspace-hygiene.json"
     hygiene_payload = read_json(hygiene_path) if hygiene_path.exists() else None
 
     payload["stage_counts"] = dict(Counter(str(state.get("current_stage", "unknown")) for state in states))
@@ -469,7 +469,6 @@ def main() -> int:
 
     json_path = output_dir / "项目总览.json"
     md_path = output_dir / "项目总览.md"
-    html_path = output_dir / "项目总览.html"
     with path_lock(output_dir, phase="build-project-console"):
         write_project_json(output_dir, "项目总览.json", payload)
         atomic_write_text(
@@ -483,21 +482,10 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
-        atomic_write_text(
-            html_path,
-            render_html(
-                states,
-                candidate,
-                hygiene_payload if isinstance(hygiene_payload, dict) else None,
-                project_context,
-            ),
-            encoding="utf-8",
-        )
 
     print("[OK] project-console generated")
     print(f"  - json: {json_path}")
     print(f"  - md:   {md_path}")
-    print(f"  - html: {html_path}")
     if candidate is not None:
         print(f"  - next: {candidate.get('next_command')}")
     else:

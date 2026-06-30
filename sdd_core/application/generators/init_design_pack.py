@@ -10,10 +10,14 @@ import re
 from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
+from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
 
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
-TEMPLATE_DIR = ROOT / "skills" / "sdd-assistant" / "templates" / "design-pack"
+
+
+def design_pack_template_dir() -> Path:
+    return get_active_spec_dir(root=ROOT) / "templates" / "design-pack"
 
 
 TAG_TO_FILES = {
@@ -170,6 +174,7 @@ def main() -> int:
     design_pack_dir.mkdir(parents=True, exist_ok=True)
 
     created: list[str] = []
+    template_dir = design_pack_template_dir()
     with feature_lock(feature_dir, phase="init-design-pack"):
         for tag in tags:
             for filename in TAG_TO_FILES.get(tag, []):
@@ -180,7 +185,7 @@ def main() -> int:
                     continue
                 template_name = TEMPLATE_MAP.get(filename)
                 if template_name:
-                    template = TEMPLATE_DIR / template_name
+                    template = template_dir / template_name
                     if template.exists():
                         content = template.read_text(encoding="utf-8")
                     else:

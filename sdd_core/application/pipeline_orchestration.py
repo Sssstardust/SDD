@@ -11,6 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from sdd_core.infrastructure.gate_cache import design_gate_input_hash, gate_report_path_for, implementation_gate_input_hash, should_skip_design_gate
+from sdd_core.infrastructure.feature_artifact_paths import resolve_project_state_path
 from sdd_core.infrastructure.json_io import read_json
 
 
@@ -22,7 +23,7 @@ def _build_skippable_design_gate_step(
 ) -> tuple[str, Callable[[], int]]:
     def _run() -> int:
         feature_path = Path(feature_dir).resolve()
-        project_state_path = feature_path / "project-state.json"
+        project_state_path = resolve_project_state_path(feature_path)
         gate_cache: dict[str, dict[str, Any]] = {}
         if project_state_path.exists():
             raw_state = read_json(project_state_path)
@@ -50,7 +51,7 @@ def _build_skippable_implementation_gate_step(
 ) -> tuple[str, Callable[[], int]]:
     def _run() -> int:
         feature_path = Path(feature_dir).resolve()
-        project_state_path = feature_path / "project-state.json"
+        project_state_path = resolve_project_state_path(feature_path)
         gate_cache: dict[str, dict[str, Any]] = {}
         if project_state_path.exists():
             raw_state = read_json(project_state_path)

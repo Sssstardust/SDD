@@ -5,6 +5,7 @@ from typing import Any
 from pathlib import Path
 
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design
+from sdd_core.infrastructure.feature_artifact_paths import resolve_task_slices_manifest_path, task_list_path
 
 
 def assert_feature_within_attachment(feature_dir: Path, attachment_cfg: dict[str, Any] | None) -> None:
@@ -50,14 +51,14 @@ def missing_feature_prerequisites(
             missing.append(f"missing approval.json: {approval_path}")
 
     if require_task_slices_manifest:
-        manifest_path = feature_dir / "tasks" / "task-slices.generated.json"
+        manifest_path = resolve_task_slices_manifest_path(feature_dir)
         if not manifest_path.exists():
             missing.append(f"missing task-slices.generated.json: {manifest_path}")
 
     if require_task_slice_files:
-        task_files = sorted((feature_dir / "tasks").glob("slice-*.md"))
-        if not task_files:
-            missing.append(f"missing task slice files: {feature_dir / 'tasks'}")
+        task_file = task_list_path(feature_dir)
+        if not task_file.exists():
+            missing.append(f"missing 任务清单.md: {task_file}")
 
     return missing
 

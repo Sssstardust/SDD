@@ -11,8 +11,10 @@ import argparse
 from pathlib import Path
 
 from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH
+from sdd_core.application.project_output_bundle import project_generated_dir
 from sdd_core.infrastructure.project_artifact_paths import get_active_project_artifacts_dir
 from sdd_core.infrastructure.versioning import detect_latest_design_path, reports_dir_for_design, resolve_feature_dir
+from sdd_core.infrastructure.feature_artifact_paths import resolve_project_state_path, resolve_task_slices_manifest_path
 
 
 def latest_report_artifact(feature_dir: str, filename: str) -> str | None:
@@ -35,14 +37,11 @@ def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, Any]:
     if profile:
         resolve_kwargs["profile"] = profile
     if cmd == "flow-status":
-        flow_status_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "flow-status.json"  # type: ignore
-        project_state_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "project-state.json"  # type: ignore
+        project_state_path = resolve_project_state_path(resolve_feature_dir(args.feature_dir, **resolve_kwargs))  # type: ignore
         if project_state_path.exists():
             artifacts["project_state_path"] = str(project_state_path)
-        if flow_status_path.exists():
-            artifacts["flow_status_path"] = str(flow_status_path)
     elif cmd == "generate-task-slices":
-        task_slices_path = resolve_feature_dir(args.feature_dir, **resolve_kwargs) / "tasks" / "task-slices.generated.json"  # type: ignore
+        task_slices_path = resolve_task_slices_manifest_path(resolve_feature_dir(args.feature_dir, **resolve_kwargs))  # type: ignore
         if task_slices_path.exists():
             artifacts["task_slices_path"] = str(task_slices_path)
     elif cmd == "gate5":
@@ -59,7 +58,7 @@ def collect_artifacts_for_command(args: argparse.Namespace) -> dict[str, Any]:
             profile=profile,
             create=True,
         )
-        project_next_path = artifacts_dir / "project-next.json"
+        project_next_path = project_generated_dir(artifacts_dir) / "project-next.json"
         project_console_path = artifacts_dir / "项目总览.json"
         if project_next_path.exists():
             artifacts["project_next_path"] = str(project_next_path)

@@ -16,9 +16,10 @@ from pathlib import Path
 
 from sdd_core.infrastructure.concurrency import atomic_write_text, path_lock
 from sdd_core.infrastructure.project_artifact_paths import get_active_project_artifacts_dir
+from sdd_core.application.project_output_bundle import project_generated_dir
 
 ROOT = Path(__file__).resolve().parent.parent
-SPECS_DIR = get_active_project_artifacts_dir(create=True)
+SPECS_DIR = project_generated_dir(get_active_project_artifacts_dir(create=True))
 OUTPUT_BASENAME = "tooling-hygiene"
 SECURITY_FILE_EXTENSIONS = {".json", ".yaml", ".yml", ".env", ".txt", ".md"}
 SECURITY_RULES = (

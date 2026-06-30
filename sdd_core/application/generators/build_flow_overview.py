@@ -128,7 +128,12 @@ def main() -> int:
     args = parser.parse_args()
 
     attachment_path = Path(args.attachment_file)
-    output_dir = resolve_output_dir(output_dir=args.output_dir, attachment_path=attachment_path, profile=args.profile)
+    output_dir = resolve_output_dir(
+        output_dir=args.output_dir,
+        attachment_path=attachment_path,
+        profile=args.profile,
+        generated=True,
+    )
     payload = build_project_level_payload(attachment_path=attachment_path, profile=args.profile)
     states = payload["features"]
     project_context = payload["project"]

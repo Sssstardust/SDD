@@ -55,11 +55,6 @@
           "type": "path_exists",
           "path": "skills/sdd-assistant/SKILL.md",
           "description": "sdd-assistant Skill"
-        },
-        {
-          "type": "path_exists",
-          "path": "docs/agent-integration.md",
-          "description": "Agent integration doc"
         }
       ]
     },
@@ -68,18 +63,9 @@
       "name": "MCP",
       "rules": [
         {
-          "type": "mcp_smoke_test",
-          "path": "mcp-servers/project-explorer/dist/server.js",
-          "tool": "scan_modules",
-          "arguments": "{\"keywords\":[\"payment\"],\"limit\":1,\"force_refresh\":false}",
-          "description": "project-explorer MCP dist"
-        },
-        {
-          "type": "mcp_smoke_test",
-          "path": "mcp-servers/arch-standard/dist/server.js",
-          "tool": "list_rules",
-          "arguments": "{}",
-          "description": "arch-standard MCP dist"
+          "type": "path_exists",
+          "path": "mcp-servers/sdd-pipeline/server.py",
+          "description": "sdd-pipeline MCP server"
         }
       ]
     },

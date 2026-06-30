@@ -14,9 +14,67 @@ from sdd_core.domain.attached_project import DEFAULT_ATTACHMENT_PATH
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
 from sdd_core.infrastructure.gate_cache import DESIGN_GATE_NAMES, IMPLEMENTATION_GATE_NAMES, design_gate_input_hash, implementation_gate_input_hash, load_gate_result_from_report, read_design_gate_cache_from_state, update_design_gate_cache
 from sdd_core.application.flow_state import compute_feature_state, write_project_state
-from sdd_core.infrastructure.json_io import write_json
 from sdd_core.application.state_view import affected_component_execution_badge, attached_execution_admission_badge, framework_badges, gate3_ai_review_badge, gate5_admission_summary_badge, gate_cache_badge, real_test_admission_badge, resolution_preview, resource_claim_badges
 from sdd_core.infrastructure.versioning import resolve_feature_dir
+
+
+README_STATUS_BEGIN = "<!-- SDD:STATUS:BEGIN -->"
+README_STATUS_END = "<!-- SDD:STATUS:END -->"
+
+
+def _fmt(value: object, default: str = "N/A") -> str:
+    if value is None or value == "":
+        return default
+    return str(value)
+
+
+def render_readme_status_block(state: dict[str, object]) -> str:
+    next_command = state.get("next_command")
+    next_action = "暂无，当前无待执行命令。" if not next_command else str(next_command)
+    return "\n".join(
+        [
+            README_STATUS_BEGIN,
+            "## 当前状态",
+            "",
+            f"- 当前阶段: `{_fmt(state.get('current_stage'))}`",
+            f"- 下一步动作: `{next_action}`",
+            f"- 风险等级: `{_fmt(state.get('risk_tier'))}`",
+            f"- 设计版本: `{_fmt(state.get('design_version'))}`",
+            "",
+            "## 门禁状态",
+            "",
+            "| Gate | 状态 |",
+            "| --- | --- |",
+            f"| Gate 2 | `{_fmt(state.get('gate2_result'))}` |",
+            f"| Gate 3 | `{_fmt(state.get('gate3_result'))}` |",
+            f"| Gate 4 | `{_fmt(state.get('gate4_result'))}` |",
+            f"| Gate 5 | `{_fmt(state.get('gate5_result'))}` |",
+            f"| Implementation | `{_fmt(state.get('implementation_result'))}` |",
+            f"| Release Gate | `{_fmt(state.get('release_gate_result'))}` |",
+            README_STATUS_END,
+        ]
+    )
+
+
+def refresh_readme_status(feature_dir: Path, state: dict[str, object]) -> Path | None:
+    readme_path = feature_dir / "README.md"
+    if not readme_path.exists():
+        return None
+
+    content = readme_path.read_text(encoding="utf-8")
+    status_block = render_readme_status_block(state)
+    if README_STATUS_BEGIN in content and README_STATUS_END in content:
+        start = content.index(README_STATUS_BEGIN)
+        end = content.index(README_STATUS_END, start) + len(README_STATUS_END)
+        updated = content[:start].rstrip() + "\n\n" + status_block + "\n\n" + content[end:].lstrip()
+    else:
+        lines = content.splitlines()
+        insert_at = 2 if len(lines) >= 2 else len(lines)
+        updated_lines = lines[:insert_at] + ["", status_block, ""] + lines[insert_at:]
+        updated = "\n".join(updated_lines).rstrip() + "\n"
+
+    atomic_write_text(readme_path, updated, encoding="utf-8")
+    return readme_path
 
 
 def render_markdown(state: dict[str, object]) -> str:
@@ -126,16 +184,16 @@ def main() -> int:
             )
         state["gate_cache"] = gate_cache
         project_state_json_path = write_project_state(feature_dir, state)
-        flow_status_json_path = feature_dir / "flow-status.json"
         flow_status_md_path = feature_dir / "流程看板.md"
 
-        write_json(flow_status_json_path, state)
         atomic_write_text(flow_status_md_path, render_markdown(state), encoding="utf-8")
+        readme_path = refresh_readme_status(feature_dir, state)
 
     print("[OK] flow status refreshed")
     print(f"  - project-state: {project_state_json_path}")
-    print(f"  - flow-status json: {flow_status_json_path}")
     print(f"  - flow-status md:   {flow_status_md_path}")
+    if readme_path:
+        print(f"  - README status:    {readme_path}")
     print(f"  - next: {state.get('next_command')}")
 
     if state.get("implementation_result") != "PASS":

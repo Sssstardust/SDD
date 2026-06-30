@@ -21,6 +21,7 @@ from pathlib import Path
 from sdd_core.infrastructure.concurrency import atomic_write_text, feature_lock
 from sdd_core.infrastructure.versioning import detect_latest_design_path, resolve_feature_dir, reports_dir_for_design
 from sdd_core.infrastructure.design_evidence import hash_file, resolve_design_pack_dir
+from sdd_core.infrastructure.feature_artifact_paths import task_list_path, task_slices_manifest_path
 from sdd_core.domain.feature_brief import FeatureBrief
 
 
@@ -244,6 +245,53 @@ def build_slice(
     return content.strip() + "\n"
 
 
+def extract_slice_heading_from_text(text: str, fallback: str) -> str:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+    return fallback
+
+
+def write_task_list(
+    feature_dir: Path,
+    feature_name: str,
+    design_path: Path,
+    slice_documents: list[tuple[str, str]],
+) -> Path:
+    rows = []
+    sections = []
+    for source_name, content in slice_documents:
+        heading = extract_slice_heading_from_text(content, source_name)
+        rows.append(f"| `{source_name}` | {heading} |")
+        sections.append(f"## {source_name}\n\n{content.strip()}\n")
+
+    if not rows:
+        rows.append("| 暂无 | 尚未生成任务切片 |")
+
+    content = f"""# 任务清单 - {feature_name}
+
+本文件是任务切片的人工维护入口，也是 Gate 4/测试骨架的结构化输入。
+
+## 设计版本
+
+- locked_design_version: `{design_path.name}`
+
+## 切片索引
+
+| 切片 | 标题 |
+| --- | --- |
+{chr(10).join(rows)}
+
+---
+
+{chr(10).join(sections)}
+"""
+    target = task_list_path(feature_dir)
+    atomic_write_text(target, content, encoding="utf-8")
+    return target
+
+
 def extract_domain_entities(design_text: str) -> list[str]:
     """Extract entity names from '## 2. 领域模型映射' section."""
     entities: list[str] = []
@@ -338,6 +386,7 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
         created: list[str] = []
         skipped: list[str] = []
         errors: list[str] = []
+        slice_documents: list[tuple[str, str]] = []
         counter = 1
         
         # 1. Entity Slices
@@ -353,9 +402,10 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             )
             if target.exists() and not force:
                 skipped.append(str(target))
+                content = target.read_text(encoding="utf-8", errors="ignore")
             else:
-                atomic_write_text(target, content, encoding="utf-8")
-                created.append(str(target))
+                created.append(target.name)
+            slice_documents.append((target.name, content))
             entity_ids.append(slice_id)
             counter += 1
 
@@ -373,9 +423,10 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             )
             if target.exists() and not force:
                 skipped.append(str(target))
+                content = target.read_text(encoding="utf-8", errors="ignore")
             else:
-                atomic_write_text(target, content, encoding="utf-8")
-                created.append(str(target))
+                created.append(target.name)
+            slice_documents.append((target.name, content))
             api_ids.append(slice_id)
             counter += 1
 
@@ -409,9 +460,10 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             )
             if target.exists() and not force:
                 skipped.append(str(target))
+                content = target.read_text(encoding="utf-8", errors="ignore")
             else:
-                atomic_write_text(target, content, encoding="utf-8")
-                created.append(str(target))
+                created.append(target.name)
+            slice_documents.append((target.name, content))
             counter += 1
 
         for tag in tags:
@@ -446,10 +498,13 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             )
             if target.exists() and not force:
                 skipped.append(str(target))
+                content = target.read_text(encoding="utf-8", errors="ignore")
             else:
-                atomic_write_text(target, content, encoding="utf-8")
-                created.append(str(target))
+                created.append(target.name)
+            slice_documents.append((target.name, content))
             counter += 1
+
+        task_index_path = write_task_list(feature_dir, feature_name, design_path, slice_documents)
 
         manifest = {
             "feature_name": feature_name,
@@ -462,8 +517,9 @@ def generate_task_slices(feature_dir: Path, *, force: bool = False) -> dict[str,
             "skipped": skipped,
             "errors": errors,
         }
-        manifest_path = tasks_dir / "task-slices.generated.json"
+        manifest_path = task_slices_manifest_path(feature_dir, create_parent=True)
         manifest["manifest"] = str(manifest_path)
+        manifest["task_index"] = str(task_index_path)
         atomic_write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         return manifest
 

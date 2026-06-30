@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from sdd_core.application.pipeline_state import console_print
+from sdd_core.infrastructure.feature_artifact_paths import resolve_task_slices_manifest_path
 
 
 def feature_repair_report(
@@ -56,7 +57,7 @@ def feature_repair_report(
         else feature_path / "reports" / "v1"
     )
     approval_path = reports_dir / "approval.json"
-    task_slices_manifest = feature_path / "tasks" / "task-slices.generated.json"
+    task_slices_manifest = resolve_task_slices_manifest_path(feature_path)
     context_check = None
     baseline_dir = get_active_baseline_dir(
         attachment_path=attachment_path,

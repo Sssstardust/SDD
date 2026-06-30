@@ -6,10 +6,36 @@ Infrastructure checks extracted from doctor.py.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
 from pathlib import Path
+
+
+def _capture_env(cwd: Path | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+    temp_dir = _first_writable_temp_dir(cwd)
+    for key in ("TMP", "TEMP", "TMPDIR"):
+        env[key] = str(temp_dir)
+    return env
+
+
+def _first_writable_temp_dir(cwd: Path | None = None) -> Path:
+    candidates: list[Path] = []
+    if cwd is not None:
+        candidates.extend([cwd / ".runtime" / "tmp", cwd / ".tmp"])
+    candidates.append(Path("C:/tmp"))
+    for candidate in candidates:
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            probe = candidate / ".doctor_tmp_probe"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            return candidate
+        except OSError:
+            continue
+    return cwd or Path(".")
 
 
 def run_capture(command: list[str], *, cwd: Path | None = None) -> tuple[int, str]:
@@ -17,6 +43,7 @@ def run_capture(command: list[str], *, cwd: Path | None = None) -> tuple[int, st
         result = subprocess.run(
             command,
             cwd=str(cwd) if cwd else None,
+            env=_capture_env(cwd),
             check=False,
             capture_output=True,
             text=True,
@@ -90,12 +117,20 @@ def validate_attachment_shape(root: Path) -> tuple[bool, str]:
 
 
 def count_baseline_buckets(root: Path) -> tuple[str, int]:
-    from sdd_core.infrastructure.baseline_paths import get_active_spec_dir
-    baseline_root = get_active_spec_dir(root=root) / "baselines"
+    from sdd_core.infrastructure.baseline_paths import get_active_baseline_dir
+    baseline_root = get_active_baseline_dir(root=root)
     if not baseline_root.exists():
         return "missing", 0
-    buckets = [path for path in baseline_root.iterdir() if path.is_dir()]
-    return ("ok" if buckets else "empty"), len(buckets)
+    key_files = [
+        path
+        for path in (
+            baseline_root / "module-map.json",
+            baseline_root / "schema-context.json",
+            baseline_root / "baseline-governance.json",
+        )
+        if path.exists()
+    ]
+    return ("ok" if key_files else "empty"), len(key_files)
 
 
 def find_security_warnings(root: Path) -> list[str]:

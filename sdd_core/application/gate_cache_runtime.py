@@ -20,6 +20,7 @@ from sdd_core.infrastructure.gate_cache import (
     update_design_gate_cache,
 )
 from sdd_core.infrastructure.json_io import read_json
+from sdd_core.infrastructure.feature_artifact_paths import project_state_path, resolve_project_state_path
 from sdd_core.infrastructure.versioning import resolve_feature_dir
 
 
@@ -27,8 +28,9 @@ def write_gate_cache_entry(feature_dir: str | Path, gate_name: str) -> None:
     if gate_name not in (*DESIGN_GATE_NAMES, *IMPLEMENTATION_GATE_NAMES):
         return
     feature_path = resolve_feature_dir(str(feature_dir))
-    project_state_file = feature_path / "project-state.json"
-    existing_state = read_json(project_state_file) if project_state_file.exists() else {}
+    existing_project_state_file = resolve_project_state_path(feature_path)
+    project_state_file = project_state_path(feature_path, create_parent=True)
+    existing_state = read_json(existing_project_state_file) if existing_project_state_file.exists() else {}
     existing_cache = read_design_gate_cache_from_state(existing_state)
     result, report_path = load_gate_result_from_report(feature_path, gate_name)
     if not result or not report_path:

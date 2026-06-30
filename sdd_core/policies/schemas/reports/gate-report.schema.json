@@ -31,7 +31,7 @@
     },
     "gate4": {
       "type": "object",
-      "required": ["result", "test_file", "test_file_preserved", "mapping_count", "report_file"],
+      "required": ["result", "test_file", "test_file_preserved", "mapping_count"],
       "properties": {
         "result": { "type": "string", "enum": ["PASS", "FAIL"] },
         "test_file": { "type": "string" },

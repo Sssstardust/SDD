@@ -20,7 +20,7 @@
 python skills/sdd-assistant/run.py <PRD路径> ./specs/<feature_name> <feature_name>
 ```
 
-接入细节见 [Agent 接入说明](docs/agent-integration.md)；数据流与产物契约见 [Skill 数据流协议](docs/skill-data-flow.md)。
+接入细节见 [SDD Pipeline MCP Server](mcp-servers/sdd-pipeline/README.md) 与 [sdd-assistant Skill](skills/sdd-assistant/SKILL.md)。
 
 ---
 
@@ -52,7 +52,7 @@ SDD 采用“内核 + 门面”的双层解耦架构，对外只暴露 Skill 一
 | **`sdd-validate`** | 架构红线与门控校验（设计门控） | `门控报告.json` |
 | **`sdd-assistant`** | **唯一编排出口** | 完整验证后的设计包 |
 
-> 产物命名以中文显示名为准，物理文件名遵循统一映射（单一真相源：`sdd_core/infrastructure/artifact_names.py`）。完整命名词表见 [架构与功能改进建议](docs/SDD架构与功能改进建议.md)。
+> 产物命名以中文显示名为准，物理文件名遵循统一映射（单一真相源：`sdd_core/infrastructure/artifact_names.py`）。
 
 ---
 
@@ -108,11 +108,8 @@ pytest skills/
 ---
 
 ## 📂 文档索引
-- [架构与功能改进建议](docs/SDD架构与功能改进建议.md)
-- [Agent 接入说明](docs/agent-integration.md)
-- [Skill 数据流协议](docs/skill-data-flow.md)
-- [团队接入规范](docs/team-onboarding.md)
-- [阶段三重构总结](docs/refactoring/phase3-summary.md)
+- [SDD Pipeline MCP Server](mcp-servers/sdd-pipeline/README.md)
+- [sdd-assistant Skill](skills/sdd-assistant/SKILL.md)
 
 ---
 *Powered by SDD Kernel - 使机器理解架构，使人类解放设计。*
